@@ -124,8 +124,8 @@
   .beta-badge{background:var(--tint); border:1px dashed #cfd8e6; border-radius:14px; padding:26px; text-align:center; color:#4d5f78;}
   .beta-badge b{display:block; color:var(--ink-d); font-size:16px; margin-bottom:6px;}
 
-  details{background:var(--tint); border:1px solid #e4e9f2; border-radius:12px; padding:14px 18px; margin-bottom:10px;}
-  summary{cursor:pointer; font-weight:600; font-size:14.5px;}
+  details{background:var(--tint); border:1px solid #e4e9f2; border-radius:12px; padding:14px 18px; margin-bottom:10px; color:var(--ink-d);}
+  summary{cursor:pointer; font-weight:600; font-size:14.5px; color:var(--ink-d);}
   details p{margin-top:8px; font-size:13.5px; color:#4d5f78;}
 
   form.contact{display:grid; gap:12px; max-width:480px;}
@@ -250,15 +250,15 @@
   <div class="wrap">
     <div class="sec-head">
       <span class="eyebrow" data-i="pricing_kicker">Precios</span>
-      <h2 data-i="pricing_h2">Empezá gratis. Pagá solo cuando el equipo crece.</h2>
+      <h2 data-i="pricing_h2">Evaluá gratis. Pagá cuando lo uses en serio.</h2>
     </div>
     <div class="grid-3">
       <div class="price-card">
-        <h3 data-i="p1_t">Starter</h3>
-        <div class="amount">US$0<span data-i="p1_period">/siempre</span></div>
-        <p data-i="p1_d">Hasta 3 proyectos, catálogo, salud básica y export CSV/Excel.</p>
-        <ul><li data-i="p1_l1">1 espacio de trabajo</li><li data-i="p1_l2">Copiloto IA: 20 consultas/mes</li><li data-i="p1_l3">Sin tarjeta de crédito</li></ul>
-        <a class="btn btn-ghost" href="#descargas" data-i="p1_cta">Empezar</a>
+        <h3 data-i="p1_t">Demo de evaluación</h3>
+        <div class="amount">US$0<span data-i="p1_period">/no apto para producción</span></div>
+        <p data-i="p1_d">Corré el motor con tus propios datos de prueba antes de decidir. No pensado para gestionar proyectos reales del día a día.</p>
+        <ul><li data-i="p1_l1">1 espacio de trabajo, datos locales</li><li data-i="p1_l2">Copiloto IA: 20 consultas/mes</li><li data-i="p1_l3">Sin tarjeta de crédito</li></ul>
+        <a class="btn btn-ghost" href="#descargas" data-i="p1_cta">Probar la demo</a>
       </div>
       <div class="price-card feat">
         <h3 data-i="p2_t">Professional</h3>
@@ -393,9 +393,9 @@ const I18N = {
     c_clickup_s:"All-in-one, feature-rich", c_clickup_w:"Steep learning curve, English-only support",
     c_asana_s:"Enterprise-grade reporting", c_asana_w:"Expensive for small teams, no local onboarding",
     c_jira_s:"Standard for engineering teams", c_jira_w:"Built for dev work, heavy setup",
-    pricing_kicker:"Pricing", pricing_h2:"Start free. Pay only once the team grows.",
-    p1_t:"Starter", p1_period:"/forever", p1_d:"Up to 3 projects, catalog, basic health and CSV/Excel export.",
-    p1_l1:"1 workspace", p1_l2:"AI copilot: 20 queries/month", p1_l3:"No credit card", p1_cta:"Get started",
+    pricing_kicker:"Pricing", pricing_h2:"Evaluate for free. Pay once you use it for real.",
+    p1_t:"Evaluation demo", p1_period:"/not for production", p1_d:"Run the engine with your own test data before deciding. Not meant for managing real day-to-day projects.",
+    p1_l1:"1 workspace, local data", p1_l2:"AI copilot: 20 queries/month", p1_l3:"No credit card", p1_cta:"Try the demo",
     p2_t:"Professional", p2_period:"/user/month", p2_d:"Unlimited portfolios, AI prioritizer, dependencies, automatic report.",
     p2_l1:"Unlimited AI copilot", p2_l2:"Integrations (Slack, Calendar, Git)", p2_l3:"Priority support", p2_cta:"Request access",
     p3_t:"Enterprise", p3_amount:"From US$1,500", p3_period:"/month", p3_d:"On-premise, SSO/OIDC, auditing and unlimited users.",
@@ -441,9 +441,9 @@ const I18N = {
     c_clickup_s:"Tudo-em-um, muita função", c_clickup_w:"Curva de aprendizado alta, suporte em inglês",
     c_asana_s:"Relatórios de nível enterprise", c_asana_w:"Caro para equipes pequenas, sem onboarding local",
     c_jira_s:"Padrão em equipes de engenharia", c_jira_w:"Pensado para dev, configuração pesada",
-    pricing_kicker:"Preços", pricing_h2:"Comece grátis. Pague só quando a equipe crescer.",
-    p1_t:"Starter", p1_period:"/sempre", p1_d:"Até 3 projetos, catálogo, saúde básica e exportação CSV/Excel.",
-    p1_l1:"1 espaço de trabalho", p1_l2:"Copiloto IA: 20 consultas/mês", p1_l3:"Sem cartão de crédito", p1_cta:"Começar",
+    pricing_kicker:"Preços", pricing_h2:"Avalie de graça. Pague quando usar de verdade.",
+    p1_t:"Demo de avaliação", p1_period:"/não indicado para produção", p1_d:"Rode o motor com seus próprios dados de teste antes de decidir. Não pensado para gerenciar projetos reais do dia a dia.",
+    p1_l1:"1 espaço de trabalho, dados locais", p1_l2:"Copiloto IA: 20 consultas/mês", p1_l3:"Sem cartão de crédito", p1_cta:"Testar a demo",
     p2_t:"Professional", p2_period:"/usuário/mês", p2_d:"Portfólios ilimitados, priorizador IA, dependências, relatório automático.",
     p2_l1:"Copiloto IA ilimitado", p2_l2:"Integrações (Slack, Calendar, Git)", p2_l3:"Suporte prioritário", p2_cta:"Solicitar acesso",
     p3_t:"Enterprise", p3_amount:"A partir de US$1.500", p3_period:"/mês", p3_d:"On-premise, SSO/OIDC, auditoria e usuários ilimitados.",
