@@ -120,6 +120,7 @@
   .price-card p{color:#4d5f78; font-size:14px;}
   .price-card .amount{font-family:ui-monospace,monospace; font-size:28px; font-weight:700; color:var(--ink-d);}
   .price-card .amount span{font-size:12.5px; color:#4d5f78; font-weight:400;}
+  .price-card .amount-uyu{font-family:ui-monospace,monospace; font-size:13px; color:#7d8ba0; margin-top:-6px;}
   .price-card ul{margin:0; padding-left:18px; font-size:13.5px; color:#4d5f78; display:flex; flex-direction:column; gap:6px;}
   .price-card .btn{margin-top:6px; text-align:center; justify-content:center;}
   .price-card .btn-ghost{background:rgba(18,34,56,.05); border-color:rgba(18,34,56,.16); color:var(--ink-d);}
@@ -142,9 +143,29 @@
   footer{padding:34px 0 60px;}
   footer .wrap{display:flex; justify-content:space-between; flex-wrap:wrap; gap:10px; font-size:12.5px; color:var(--faint);}
   [data-i]{}
+
+  /* post-compra */
+  #postCheckout{display:none; background:var(--green); color:#04241c;}
+  #postCheckout.pending{background:var(--amber);}
+  #postCheckout.failure{background:var(--red); color:#2a0808;}
+  #postCheckout .wrap{padding:16px 24px; display:flex; flex-direction:column; gap:10px;}
+  #postCheckout h3{font-size:15px;}
+  #postCheckout .token-box{background:rgba(0,0,0,.12); border-radius:8px; padding:10px 12px; font-family:ui-monospace,monospace; font-size:12px; word-break:break-all; display:flex; align-items:center; gap:10px; justify-content:space-between;}
+  #postCheckout .token-box button{flex-shrink:0; background:rgba(0,0,0,.15); border:none; border-radius:6px; padding:6px 10px; font-size:12px; cursor:pointer; color:inherit; font-weight:600;}
 </style>
 </head>
 <body>
+
+<div id="postCheckout">
+  <div class="wrap">
+    <h3 id="postCheckoutTitle">Verificando tu pago…</h3>
+    <p id="postCheckoutMsg"></p>
+    <div id="postCheckoutTokenBox" class="token-box" style="display:none;">
+      <span id="postCheckoutToken"></span>
+      <button id="postCheckoutCopy" type="button">Copiar</button>
+    </div>
+  </div>
+</div>
 
 <nav>
   <div class="wrap">
@@ -285,6 +306,7 @@
       <div class="price-card feat">
         <h3 data-i="p2_t">Professional</h3>
         <div class="amount">US$9<span data-i="p2_period">/usuario/mes</span></div>
+        <div class="amount-uyu" data-i="p2_uyu">≈ $UYU 375/mes (cotización aprox.)</div>
         <p data-i="p2_d">Portfolios ilimitados, priorizador IA, dependencias, reporte automático.</p>
         <ul><li data-i="p2_l1">Copiloto IA: 1.000 consultas/mes</li><li data-i="p2_l2">Integraciones (Slack, Calendar, Git)</li><li data-i="p2_l3">Soporte prioritario en español</li></ul>
         <a class="btn btn-primary" href="/api/checkout?plan=professional" data-i="p2_cta">Pagar con MercadoPago</a>
@@ -292,6 +314,7 @@
       <div class="price-card">
         <h3 data-i="p3_t">Enterprise</h3>
         <div class="amount" data-i="p3_amount">Desde US$1.500<span data-i="p3_period">/mes</span></div>
+        <div class="amount-uyu" data-i="p3_uyu">≈ $UYU 62.250/mes (cotización aprox.)</div>
         <p data-i="p3_d">On-premise, SSO/OIDC, auditoría, cumplimiento y usuarios ilimitados.</p>
         <ul><li data-i="p3_l1">Integraciones a medida</li><li data-i="p3_l2">Steward de adopción dedicado</li><li data-i="p3_l3">White-label para consultoras</li></ul>
         <a class="btn btn-ghost" href="#contacto" data-i="p3_cta">Hablar con ventas</a>
@@ -426,9 +449,9 @@ const I18N = {
     pricing_kicker:"Pricing", pricing_h2:"Evaluate for free. Pay once you use it for real.",
     p1_t:"Evaluation demo", p1_period:"/not for production", p1_d:"Run the engine with your own test data before deciding. Not meant for managing real day-to-day projects.",
     p1_l1:"1 workspace, local data", p1_l2:"AI copilot: 20 queries/month", p1_l3:"No credit card", p1_cta:"Try the demo",
-    p2_t:"Professional", p2_period:"/user/month", p2_d:"Unlimited portfolios, AI prioritizer, dependencies, automatic report.",
+    p2_t:"Professional", p2_period:"/user/month", p2_uyu:"≈ UYU 375/month (approx. rate)", p2_d:"Unlimited portfolios, AI prioritizer, dependencies, automatic report.",
     p2_l1:"AI copilot: 1,000 queries/month", p2_l2:"Integrations (Slack, Calendar, Git)", p2_l3:"Priority support", p2_cta:"Pay with MercadoPago",
-    p3_t:"Enterprise", p3_amount:"From US$1,500", p3_period:"/month", p3_d:"On-premise, SSO/OIDC, auditing and unlimited users.",
+    p3_t:"Enterprise", p3_amount:"From US$1,500", p3_period:"/month", p3_uyu:"≈ UYU 62,250/month (approx. rate)", p3_d:"On-premise, SSO/OIDC, auditing and unlimited users.",
     p3_l1:"Custom integrations", p3_l2:"Dedicated adoption steward", p3_l3:"White-label for consultancies", p3_cta:"Talk to sales",
     reviews_kicker:"Reviews", reviews_h2:"Real user ratings",
     reviews_empty_title:"⭐ Program in beta", reviews_empty_body:"We don't have real customer reviews yet — we won't fabricate testimonials to look bigger than we are. Be one of the first to leave yours after trying the product; we'll publish it once verified.",
@@ -478,9 +501,9 @@ const I18N = {
     pricing_kicker:"Preços", pricing_h2:"Avalie de graça. Pague quando usar de verdade.",
     p1_t:"Demo de avaliação", p1_period:"/não indicado para produção", p1_d:"Rode o motor com seus próprios dados de teste antes de decidir. Não pensado para gerenciar projetos reais do dia a dia.",
     p1_l1:"1 espaço de trabalho, dados locais", p1_l2:"Copiloto IA: 20 consultas/mês", p1_l3:"Sem cartão de crédito", p1_cta:"Testar a demo",
-    p2_t:"Professional", p2_period:"/usuário/mês", p2_d:"Portfólios ilimitados, priorizador IA, dependências, relatório automático.",
+    p2_t:"Professional", p2_period:"/usuário/mês", p2_uyu:"≈ UYU 375/mês (cotação aprox.)", p2_d:"Portfólios ilimitados, priorizador IA, dependências, relatório automático.",
     p2_l1:"Copiloto IA: 1.000 consultas/mês", p2_l2:"Integrações (Slack, Calendar, Git)", p2_l3:"Suporte prioritário", p2_cta:"Pagar com MercadoPago",
-    p3_t:"Enterprise", p3_amount:"A partir de US$1.500", p3_period:"/mês", p3_d:"On-premise, SSO/OIDC, auditoria e usuários ilimitados.",
+    p3_t:"Enterprise", p3_amount:"A partir de US$1.500", p3_period:"/mês", p3_uyu:"≈ UYU 62.250/mês (cotação aprox.)", p3_d:"On-premise, SSO/OIDC, auditoria e usuários ilimitados.",
     p3_l1:"Integrações sob medida", p3_l2:"Steward de adoção dedicado", p3_l3:"White-label para consultorias", p3_cta:"Falar com vendas",
     reviews_kicker:"Avaliações", reviews_h2:"Calificación de usuários reais",
     reviews_empty_title:"⭐ Programa em fase beta", reviews_empty_body:"Ainda não temos avaliações de clientes reais — não vamos inventar depoimentos para parecer maiores do que somos. Seja um dos primeiros a deixar a sua depois de testar o produto; publicamos assim que for verificada.",
@@ -520,6 +543,68 @@ function setLang(lang){
 (function(){
   const saved = localStorage.getItem('mvpm_lang');
   if(saved && saved !== 'es'){ setLang(saved); }
+})();
+
+// Post-compra: MercadoPago vuelve a "/" con ?checkout=success|pending|failure
+// y sus propios parámetros (payment_id/collection_id). Nunca confiamos en
+// ese estado tal cual — volvemos a verificar el pago contra /api/verify-payment
+// (que a su vez re-consulta la API real de MercadoPago) antes de mostrar el
+// token de licencia.
+(function(){
+  const params = new URLSearchParams(window.location.search);
+  const checkout = params.get('checkout');
+  if(!checkout) return;
+
+  const banner = document.getElementById('postCheckout');
+  const title = document.getElementById('postCheckoutTitle');
+  const msg = document.getElementById('postCheckoutMsg');
+  const tokenBox = document.getElementById('postCheckoutTokenBox');
+  const tokenSpan = document.getElementById('postCheckoutToken');
+  banner.style.display = 'block';
+
+  if(checkout === 'failure'){
+    banner.classList.add('failure');
+    title.textContent = 'El pago no se completó';
+    msg.textContent = 'No se cobró nada. Podés reintentar cuando quieras desde la sección de precios.';
+    return;
+  }
+  if(checkout === 'pending'){
+    banner.classList.add('pending');
+    title.textContent = 'Pago pendiente';
+    msg.textContent = 'MercadoPago todavía está procesando tu pago. Cuando se apruebe, volvé a esta página con el mismo link para activar tu licencia.';
+    return;
+  }
+
+  // success
+  const paymentId = params.get('payment_id') || params.get('collection_id');
+  const plan = params.get('plan') || 'professional';
+  if(!paymentId){
+    title.textContent = 'Falta el identificador de pago';
+    msg.textContent = 'MercadoPago no devolvió un payment_id. Si te cobró, escribinos con el comprobante y te activamos la licencia a mano.';
+    return;
+  }
+
+  fetch(`/api/verify-payment?payment_id=${encodeURIComponent(paymentId)}&plan=${encodeURIComponent(plan)}`)
+    .then(r => r.json().then(body => ({ ok: r.ok, body })))
+    .then(({ ok, body }) => {
+      if(!ok || !body.license_token){
+        title.textContent = 'No pudimos confirmar el pago todavía';
+        msg.textContent = (body && body.error) || 'Probá recargar esta página en un minuto — a veces MercadoPago tarda en confirmar.';
+        return;
+      }
+      title.textContent = '¡Pago aprobado! Ya tenés tu licencia Professional';
+      msg.innerHTML = 'Pegá este token en el campo "Token de licencia" de la barra lateral del programa (sección <a href="#descargas" style="text-decoration:underline;">Empezar ahora</a> más abajo si todavía no lo descargaste):';
+      tokenSpan.textContent = body.license_token;
+      tokenBox.style.display = 'flex';
+      document.getElementById('postCheckoutCopy').addEventListener('click', () => {
+        navigator.clipboard.writeText(body.license_token);
+        document.getElementById('postCheckoutCopy').textContent = '¡Copiado!';
+      });
+    })
+    .catch(() => {
+      title.textContent = 'No pudimos confirmar el pago todavía';
+      msg.textContent = 'Probá recargar esta página en un minuto.';
+    });
 })();
 </script>
 </body>
