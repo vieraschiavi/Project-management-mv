@@ -149,7 +149,7 @@
     <div class="brand"><span class="mark">M</span> MV Project Management</div>
     <div class="nav-links">
       <a href="#plataforma" data-i="nav_platform">Plataforma</a>
-      <a href="#comparativa" data-i="nav_compare">Comparativa</a>
+      <a href="#diferenciales" data-i="nav_compare">Diferenciales</a>
       <a href="#precios" data-i="nav_pricing">Precios</a>
       <a href="#resenas" data-i="nav_reviews">Reseñas</a>
       <a href="#faq" data-i="nav_faq">FAQ</a>
@@ -206,9 +206,9 @@
       <!-- Fuente local primero; si no está bundleada junto a la página (ej. preview
            standalone), el navegador cae sola a la misma copia servida por CDN desde
            el repo — mismo patrón que usan MV Kobra AI y MV Data Governance MV. -->
-      <video id="demoVideo" controls muted playsinline preload="metadata" poster="">
-        <source src="video/demo.webm" type="video/webm">
-        <source src="https://cdn.jsdelivr.net/gh/vieraschiavi/Project-management-mv@73f8036f556cfa0265cb19033953a020b25b1ed9/landing/video/demo.webm" type="video/webm">
+      <video id="demoVideo" controls playsinline preload="metadata" poster="">
+        <source src="video/demo.mp4" type="video/mp4">
+        <source src="https://cdn.jsdelivr.net/gh/vieraschiavi/Project-management-mv@__VIDEO_SHA__/landing/video/demo.mp4" type="video/mp4">
       </video>
     </div>
     <p class="video-caption" data-i="video_caption">Portafolio → Salud → Dependencias → Backlog priorizado → Copiloto → Reportes → Reseñas → Políticas, sobre los mismos datos demo sintéticos de todo este sitio.</p>
@@ -249,23 +249,19 @@
   </div>
 </section>
 
-<section id="comparativa" class="light">
+<section id="diferenciales" class="light">
   <div class="wrap">
     <div class="sec-head">
-      <span class="eyebrow" data-i="compare_kicker">Comparativa</span>
-      <h2 data-i="compare_h2">Contra los caros: precio y soporte en español. Contra los simples: salud medible y copiloto de IA.</h2>
+      <span class="eyebrow" data-i="diff_kicker">Diferenciales</span>
+      <h2 data-i="diff_h2">Por qué elegir MV Project Management</h2>
     </div>
-    <div class="table-scroll">
-      <table>
-        <thead><tr><th data-i="th_tool">Herramienta</th><th data-i="th_price">Precio aprox./usuario/mes</th><th data-i="th_strength">Fortaleza</th><th data-i="th_weakness">Lo que no tiene</th></tr></thead>
-        <tbody>
-          <tr class="highlight"><td>MV Project Management</td><td>US$0–9</td><td data-i="c_mv_s">Salud medible + copiloto IA + soporte en español, día 1</td><td data-i="c_mv_w">Ecosistema de integraciones aún chico (en construcción)</td></tr>
-          <tr><td>Trello</td><td>US$5</td><td data-i="c_trello_s">Simplicidad Kanban</td><td data-i="c_trello_w">Sin IA, sin salud de proyecto, no escala a portfolio</td></tr>
-          <tr><td>ClickUp</td><td>US$7–12</td><td data-i="c_clickup_s">Todo-en-uno, mucha función</td><td data-i="c_clickup_w">Curva de aprendizaje alta, soporte en inglés</td></tr>
-          <tr><td>Asana</td><td>US$11–13.5</td><td data-i="c_asana_s">Reporting de nivel enterprise</td><td data-i="c_asana_w">Caro para equipos chicos, sin onboarding local</td></tr>
-          <tr><td>Jira</td><td>US$8–16</td><td data-i="c_jira_s">Estándar en equipos de ingeniería</td><td data-i="c_jira_w">Pensado para dev, configuración pesada</td></tr>
-        </tbody>
-      </table>
+    <div class="grid-3">
+      <div class="card"><div class="ico">🩺</div><h3 data-i="diff1_t">Salud medible, no solo colores</h3><p data-i="diff1_d">Un índice 0-100 en 6 dimensiones, no una columna de Kanban que dice "en progreso" para todo.</p></div>
+      <div class="card"><div class="ico">🤖</div><h3 data-i="diff2_t">Copiloto de IA incluido</h3><p data-i="diff2_d">No es un add-on aparte que hay que activar y pagar extra — viene con el motor.</p></div>
+      <div class="card"><div class="ico">🌎</div><h3 data-i="diff3_t">Producto y soporte en español</h3><p data-i="diff3_d">Trilingüe ES/EN/PT desde el día 1, no traducido a medias.</p></div>
+      <div class="card"><div class="ico">💵</div><h3 data-i="diff4_t">Precio pensado para equipos chicos</h3><p data-i="diff4_d">Sin mínimos de asientos ni escalones agresivos por sumar una persona más.</p></div>
+      <div class="card"><div class="ico">🔒</div><h3 data-i="diff5_t">Tus datos en tu servidor</h3><p data-i="diff5_d">No es obligatorio mandar todo a la nube de un tercero para usarlo.</p></div>
+      <div class="card"><div class="ico">⚡</div><h3 data-i="diff6_t">Sin semanas de configuración</h3><p data-i="diff6_d">Resultados el día 1, con datos propios o con la demo.</p></div>
     </div>
   </div>
 </section>
@@ -323,7 +319,7 @@
     </div>
     <details><summary data-i="faq1_q">¿Mis datos salen de mi empresa?</summary><p data-i="faq1_a">No. La versión gratuita corre 100% local (web o PC). El plan Enterprise soporta on-premise o nube privada.</p></details>
     <details><summary data-i="faq2_q">¿Necesito saber programar para usarlo?</summary><p data-i="faq2_a">No. Se instala con un doble clic (portable) o se usa 100% desde el navegador.</p></details>
-    <details><summary data-i="faq3_q">¿Puedo migrar desde Trello, Excel o Jira?</summary><p data-i="faq3_a">Sí, el importador inteligente perfila tu archivo actual y sugiere la estructura.</p></details>
+    <details><summary data-i="faq3_q">¿Puedo migrar desde la herramienta que uso hoy?</summary><p data-i="faq3_a">Sí, el importador inteligente perfila tu Excel o export actual y sugiere la estructura.</p></details>
     <details><summary data-i="faq4_q">¿El copiloto de IA es obligatorio?</summary><p data-i="faq4_a">No. El motor de salud, dependencias y priorización funciona 100% sin IA. Claude es una capa opcional que solo redacta mejor lo que el motor ya calculó.</p></details>
     <details><summary data-i="faq5_q">¿Hay soporte en español?</summary><p data-i="faq5_a">Sí, la plataforma y el soporte son trilingües: español, inglés y portugués.</p></details>
   </div>
@@ -392,7 +388,7 @@ function enviarContacto(e){
 
 const I18N = {
   en: {
-    nav_platform:"Platform", nav_compare:"Comparison", nav_pricing:"Pricing", nav_reviews:"Reviews", nav_faq:"FAQ", nav_cta:"Try it free",
+    nav_platform:"Platform", nav_compare:"Why us", nav_pricing:"Pricing", nav_reviews:"Reviews", nav_faq:"FAQ", nav_cta:"Try it free",
     hero_kicker:"100% Web + PC · ES/EN/PT · additive AI", hero_h1:"Your project portfolio, with <em>measurable health</em> instead of status meetings.",
     hero_lead:"MV Project Management prioritizes your backlog by expected value, catches blockers before they explode, and writes the executive report on its own — with an AI copilot that never invents a number the engine didn't calculate first.",
     cta_primary:"Try it free", cta_secondary:"See the platform",
@@ -412,13 +408,13 @@ const I18N = {
     demo_kicker:"Live demo", demo_h2:"These numbers come from running the engine right now",
     d1:"health index of the demo portfolio", d2:"blocked tasks detected", d3:"policies the demo meets today", d4:"average budget spent",
     demo_note:"100% synthetic data, generated with defects injected on purpose (ownerless projects, inconsistent dependencies) so the engine has something real to detect. Run it yourself: <code>./run.sh test</code>.",
-    compare_kicker:"Comparison", compare_h2:"Against the expensive ones: price and Spanish-language support. Against the simple ones: measurable health and an AI copilot.",
-    th_tool:"Tool", th_price:"Approx. price/user/month", th_strength:"Strength", th_weakness:"What it lacks",
-    c_mv_s:"Measurable health + AI copilot + Spanish support, day one", c_mv_w:"Integration ecosystem still small (in progress)",
-    c_trello_s:"Kanban simplicity", c_trello_w:"No AI, no project health, doesn't scale to a portfolio",
-    c_clickup_s:"All-in-one, feature-rich", c_clickup_w:"Steep learning curve, English-only support",
-    c_asana_s:"Enterprise-grade reporting", c_asana_w:"Expensive for small teams, no local onboarding",
-    c_jira_s:"Standard for engineering teams", c_jira_w:"Built for dev work, heavy setup",
+    diff_kicker:"Differentiators", diff_h2:"Why choose MV Project Management",
+    diff1_t:"Measurable health, not just colors", diff1_d:"A 0-100 index across 6 dimensions, not a Kanban column that says \"in progress\" for everything.",
+    diff2_t:"AI copilot included", diff2_d:"Not a separate add-on you have to activate and pay extra for — it ships with the engine.",
+    diff3_t:"Product and support in Spanish", diff3_d:"Trilingual ES/EN/PT from day one, not half-translated.",
+    diff4_t:"Priced for small teams", diff4_d:"No seat minimums or aggressive tiers for adding one more person.",
+    diff5_t:"Your data on your server", diff5_d:"Sending everything to a third party's cloud is never mandatory.",
+    diff6_t:"No weeks of setup", diff6_d:"Results on day one, with your own data or the demo.",
     pricing_kicker:"Pricing", pricing_h2:"Evaluate for free. Pay once you use it for real.",
     p1_t:"Evaluation demo", p1_period:"/not for production", p1_d:"Run the engine with your own test data before deciding. Not meant for managing real day-to-day projects.",
     p1_l1:"1 workspace, local data", p1_l2:"AI copilot: 20 queries/month", p1_l3:"No credit card", p1_cta:"Try the demo",
@@ -431,7 +427,7 @@ const I18N = {
     faq_kicker:"FAQ", faq_h2:"What people ask before trying it",
     faq1_q:"Does my data leave my company?", faq1_a:"No. The free version runs 100% locally (web or PC). The Enterprise plan supports on-premise or private cloud.",
     faq2_q:"Do I need to code to use it?", faq2_a:"No. It installs with a double-click (portable) or runs 100% from the browser.",
-    faq3_q:"Can I migrate from Trello, Excel or Jira?", faq3_a:"Yes, the smart importer profiles your current file and suggests a structure.",
+    faq3_q:"Can I migrate from the tool I use today?", faq3_a:"Yes, the smart importer profiles your current Excel or export and suggests a structure.",
     faq4_q:"Is the AI copilot mandatory?", faq4_a:"No. The health, dependency and prioritization engine works 100% without AI. Claude is an optional layer that only rewrites what the engine already computed.",
     faq5_q:"Is there support in Spanish?", faq5_a:"Yes, the platform and support are trilingual: Spanish, English and Portuguese.",
     downloads_kicker:"Get started", downloads_h2:"Try it free, today",
@@ -442,7 +438,7 @@ const I18N = {
     footer_tag:"Built with the same DNA as MV Kobra AI and MV Data Governance",
   },
   pt: {
-    nav_platform:"Plataforma", nav_compare:"Comparativo", nav_pricing:"Preços", nav_reviews:"Avaliações", nav_faq:"Perguntas", nav_cta:"Testar grátis",
+    nav_platform:"Plataforma", nav_compare:"Diferenciais", nav_pricing:"Preços", nav_reviews:"Avaliações", nav_faq:"Perguntas", nav_cta:"Testar grátis",
     hero_kicker:"100% Web + PC · ES/EN/PT · IA aditiva", hero_h1:"Seu portfólio de projetos, com <em>saúde mensurável</em> em vez de reuniões de status.",
     hero_lead:"MV Project Management prioriza seu backlog por valor esperado, detecta bloqueios antes que explodam e gera o relatório executivo sozinho — com um copiloto de IA que nunca inventa um número que o motor não calculou antes.",
     cta_primary:"Testar grátis", cta_secondary:"Ver a plataforma",
@@ -462,13 +458,13 @@ const I18N = {
     demo_kicker:"Demo ao vivo", demo_h2:"Estes números vêm de rodar o motor agora mesmo",
     d1:"índice de saúde do portfólio demo", d2:"tarefas bloqueadas detectadas", d3:"políticas que a demo cumpre hoje", d4:"orçamento executado médio",
     demo_note:"Dados 100% sintéticos, gerados com defeitos injetados de propósito (projetos sem dono, dependências inconsistentes) para o motor ter algo real a detectar. Rode você mesmo: <code>./run.sh test</code>.",
-    compare_kicker:"Comparativo", compare_h2:"Contra os caros: preço e suporte em português/espanhol. Contra os simples: saúde mensurável e copiloto de IA.",
-    th_tool:"Ferramenta", th_price:"Preço aprox./usuário/mês", th_strength:"Força", th_weakness:"O que falta",
-    c_mv_s:"Saúde mensurável + copiloto IA + suporte local, dia um", c_mv_w:"Ecossistema de integrações ainda pequeno (em construção)",
-    c_trello_s:"Simplicidade Kanban", c_trello_w:"Sem IA, sem saúde de projeto, não escala para portfólio",
-    c_clickup_s:"Tudo-em-um, muita função", c_clickup_w:"Curva de aprendizado alta, suporte em inglês",
-    c_asana_s:"Relatórios de nível enterprise", c_asana_w:"Caro para equipes pequenas, sem onboarding local",
-    c_jira_s:"Padrão em equipes de engenharia", c_jira_w:"Pensado para dev, configuração pesada",
+    diff_kicker:"Diferenciais", diff_h2:"Por que escolher MV Project Management",
+    diff1_t:"Saúde mensurável, não só cores", diff1_d:"Um índice 0-100 em 6 dimensões, não uma coluna Kanban que diz \"em andamento\" para tudo.",
+    diff2_t:"Copiloto de IA incluído", diff2_d:"Não é um add-on separado que você precisa ativar e pagar à parte — vem com o motor.",
+    diff3_t:"Produto e suporte em português", diff3_d:"Trilíngue ES/EN/PT desde o dia um, não traduzido pela metade.",
+    diff4_t:"Preço pensado para equipes pequenas", diff4_d:"Sem mínimos de assentos nem degraus agressivos por somar mais uma pessoa.",
+    diff5_t:"Seus dados no seu servidor", diff5_d:"Enviar tudo para a nuvem de terceiros nunca é obrigatório.",
+    diff6_t:"Sem semanas de configuração", diff6_d:"Resultados no dia um, com dados próprios ou com a demo.",
     pricing_kicker:"Preços", pricing_h2:"Avalie de graça. Pague quando usar de verdade.",
     p1_t:"Demo de avaliação", p1_period:"/não indicado para produção", p1_d:"Rode o motor com seus próprios dados de teste antes de decidir. Não pensado para gerenciar projetos reais do dia a dia.",
     p1_l1:"1 espaço de trabalho, dados locais", p1_l2:"Copiloto IA: 20 consultas/mês", p1_l3:"Sem cartão de crédito", p1_cta:"Testar a demo",
@@ -481,7 +477,7 @@ const I18N = {
     faq_kicker:"Perguntas frequentes", faq_h2:"O que perguntam antes de testar",
     faq1_q:"Meus dados saem da minha empresa?", faq1_a:"Não. A versão gratuita roda 100% local (web ou PC). O plano Enterprise suporta on-premise ou nuvem privada.",
     faq2_q:"Preciso saber programar para usar?", faq2_a:"Não. Instala com um duplo clique (portátil) ou roda 100% no navegador.",
-    faq3_q:"Posso migrar do Trello, Excel ou Jira?", faq3_a:"Sim, o importador inteligente perfila seu arquivo atual e sugere a estrutura.",
+    faq3_q:"Posso migrar da ferramenta que uso hoje?", faq3_a:"Sim, o importador inteligente perfila seu Excel ou export atual e sugere a estrutura.",
     faq4_q:"O copiloto de IA é obrigatório?", faq4_a:"Não. O motor de saúde, dependências e priorização funciona 100% sem IA. Claude é uma camada opcional que só redige melhor o que o motor já calculou.",
     faq5_q:"Tem suporte em português?", faq5_a:"Sim, a plataforma e o suporte são trilíngues: espanhol, inglês e português.",
     downloads_kicker:"Comece agora", downloads_h2:"Teste grátis, hoje",
