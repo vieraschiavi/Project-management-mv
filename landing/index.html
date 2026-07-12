@@ -203,8 +203,12 @@
       <h2 data-i="video_h2">Así se ve el dashboard andando — grabado del programa real, no una animación</h2>
     </div>
     <div class="video-frame">
-      <video controls muted playsinline poster="">
+      <!-- Fuente local primero; si no está bundleada junto a la página (ej. preview
+           standalone), el navegador cae sola a la misma copia servida por CDN desde
+           el repo — mismo patrón que usan MV Kobra AI y MV Data Governance MV. -->
+      <video id="demoVideo" controls muted playsinline preload="metadata" poster="">
         <source src="video/demo.webm" type="video/webm">
+        <source src="https://cdn.jsdelivr.net/gh/vieraschiavi/Project-management-mv@73f8036f556cfa0265cb19033953a020b25b1ed9/landing/video/demo.webm" type="video/webm">
       </video>
     </div>
     <p class="video-caption" data-i="video_caption">Portafolio → Salud → Dependencias → Backlog priorizado → Copiloto → Reportes → Reseñas → Políticas, sobre los mismos datos demo sintéticos de todo este sitio.</p>
