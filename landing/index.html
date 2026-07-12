@@ -1,0 +1,526 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MV Project Management — Gestión de proyectos con IA</title>
+<meta name="description" content="Portafolio de proyectos con salud medible, copiloto de IA y reportes automáticos. Trilingüe ES/EN/PT, 100% web y PC.">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><rect width=%22100%22 height=%22100%22 rx=%2220%22 fill=%22%23081527%22/><text x=%2250%22 y=%2266%22 font-size=%2258%22 text-anchor=%22middle%22 fill=%22%23f2b441%22 font-family=%22sans-serif%22>M</text></svg>">
+<style>
+  :root{
+    --navy:#081527; --navy2:#0c2137;
+    --amber:#f2b441; --amber2:#e39a2e;
+    --ink:#eaf1fb; --muted:#9db0c8; --faint:#6c7f99;
+    --paper:#ffffff; --ink-d:#122238; --tint:#f4f7fb;
+    --green:#00c896; --red:#e05c5c; --blue:#2f74c0;
+    font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+  *{box-sizing:border-box;}
+  html{scroll-behavior:smooth;}
+  body{margin:0; background:var(--navy); color:var(--ink); line-height:1.55;}
+  .wrap{max-width:1120px; margin:0 auto; padding:0 24px;}
+  a{color:inherit; text-decoration:none;}
+  h1,h2,h3,h4{margin:0; line-height:1.15;}
+  p{margin:0;}
+  code{font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace; background:rgba(242,180,65,.14); padding:.1em .4em; border-radius:5px;}
+  .eyebrow{font-family:ui-monospace,monospace; font-size:12.5px; letter-spacing:.14em; text-transform:uppercase; color:var(--amber); font-weight:700;}
+  .btn{display:inline-flex; align-items:center; gap:8px; padding:12px 22px; border-radius:11px; font-weight:600; font-size:14.5px; cursor:pointer; border:1px solid transparent;}
+  .btn-primary{background:var(--amber); color:#1a1305;}
+  .btn-primary:hover{background:var(--amber2);}
+  .btn-ghost{background:rgba(255,255,255,.06); color:var(--ink); border-color:rgba(255,255,255,.14);}
+  .btn-ghost:hover{background:rgba(255,255,255,.11);}
+
+  /* nav */
+  nav{position:sticky; top:0; z-index:20; background:rgba(8,21,39,.82); backdrop-filter:blur(10px); border-bottom:1px solid rgba(255,255,255,.07);}
+  nav .wrap{display:flex; align-items:center; justify-content:space-between; padding:14px 24px;}
+  .brand{display:flex; align-items:center; gap:10px; font-weight:700; font-size:15.5px;}
+  .brand .mark{width:28px; height:28px; border-radius:8px; background:var(--amber); color:#1a1305; display:flex; align-items:center; justify-content:center; font-weight:800;}
+  .nav-links{display:flex; gap:22px; align-items:center;}
+  .nav-links a{font-size:13.5px; color:var(--muted);}
+  .nav-links a:hover{color:var(--ink);}
+  #langSel{background:rgba(255,255,255,.06); color:var(--ink); border:1px solid rgba(255,255,255,.14); border-radius:8px; padding:6px 8px; font-size:12.5px;}
+  @media (max-width:760px){ .nav-links a:not(.btn){display:none;} }
+
+  /* hero */
+  header.hero{background:radial-gradient(120% 160% at 15% -10%, #14314f 0%, var(--navy) 55%); padding:70px 0 60px;}
+  .hero-grid{display:grid; grid-template-columns:1.1fr .9fr; gap:44px; align-items:center;}
+  @media (max-width:860px){ .hero-grid{grid-template-columns:1fr;} }
+  .kicker-line{display:flex; align-items:center; gap:8px; margin-bottom:16px;}
+  .liveDot{width:7px; height:7px; border-radius:50%; background:var(--green); box-shadow:0 0 0 3px rgba(0,200,150,.18);}
+  h1.h1{font-size:clamp(32px,4.4vw,48px); font-weight:700;}
+  h1.h1 em{font-style:normal; color:var(--amber);}
+  .lead{margin-top:16px; font-size:17px; color:var(--muted); max-width:52ch;}
+  .hero-ctas{display:flex; gap:12px; margin-top:26px; flex-wrap:wrap;}
+  .hero-stats{display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-top:32px;}
+  .hero-stats .s{background:rgba(255,255,255,.04); border:1px solid rgba(255,255,255,.08); border-radius:12px; padding:12px 14px;}
+  .hero-stats .s b{display:block; font-family:ui-monospace,monospace; font-size:19px; color:var(--amber);}
+  .hero-stats .s span{font-size:11.5px; color:var(--muted);}
+
+  #video{background:var(--navy);}
+  .video-frame{border-radius:18px; overflow:hidden; border:1px solid rgba(255,255,255,.1); box-shadow:0 30px 70px -20px rgba(0,0,0,.55); background:#000; max-width:920px; margin:0 auto;}
+  .video-frame video{display:block; width:100%; height:auto;}
+  .video-caption{margin-top:14px; font-size:13px; color:var(--faint); text-align:center;}
+
+  .mock{background:var(--navy2); border:1px solid rgba(255,255,255,.09); border-radius:18px; padding:20px; box-shadow:0 30px 70px -20px rgba(0,0,0,.5);}
+  .mock-head{display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;}
+  .mock-head .title{font-size:13px; font-weight:700;}
+  .mock-badge{font-family:ui-monospace,monospace; font-size:10.5px; background:rgba(0,200,150,.16); color:#3be0b8; padding:3px 9px; border-radius:20px;}
+  .mock-kpis{display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin-bottom:14px;}
+  .mock-kpis .k{background:rgba(255,255,255,.04); border-radius:10px; padding:10px;}
+  .mock-kpis .k b{display:block; font-family:ui-monospace,monospace; font-size:18px;}
+  .mock-kpis .k span{font-size:10.5px; color:var(--muted);}
+  .mock-row{display:flex; align-items:center; gap:10px; padding:8px 0; border-top:1px solid rgba(255,255,255,.06); font-size:12.5px;}
+  .mock-row .bar{flex:1; height:6px; border-radius:4px; background:rgba(255,255,255,.08); overflow:hidden;}
+  .mock-row .bar i{display:block; height:100%; background:var(--amber);}
+  .mock-row.risk .bar i{background:var(--red);}
+  .mock-row.warn .bar i{background:var(--amber);}
+
+  section{padding:64px 0; border-bottom:1px solid rgba(255,255,255,.06);}
+  section.light{background:var(--paper); color:var(--ink-d); border-bottom:1px solid #e4e9f2;}
+  section.light .eyebrow{color:var(--amber2);}
+  .sec-head{max-width:66ch; margin-bottom:34px;}
+  .sec-head h2{font-size:clamp(24px,3vw,32px); margin-top:8px;}
+  .sec-head p{color:var(--muted); margin-top:10px; font-size:15.5px;}
+  section.light .sec-head p{color:#4d5f78;}
+
+  .grid-3{display:grid; grid-template-columns:repeat(3,1fr); gap:18px;}
+  .grid-4{display:grid; grid-template-columns:repeat(4,1fr); gap:18px;}
+  .grid-2{display:grid; grid-template-columns:1fr 1fr; gap:18px;}
+  @media (max-width:820px){ .grid-3,.grid-2,.grid-4{grid-template-columns:1fr;} }
+  @media (min-width:821px) and (max-width:1040px){ .grid-4{grid-template-columns:repeat(2,1fr);} }
+
+  .card{background:rgba(255,255,255,.03); border:1px solid rgba(255,255,255,.09); border-radius:16px; padding:22px;}
+  section.light .card{background:var(--tint); border-color:#e4e9f2;}
+  .card .ico{width:38px; height:38px; border-radius:10px; background:rgba(242,180,65,.16); display:flex; align-items:center; justify-content:center; font-size:18px; margin-bottom:12px;}
+  .card h3{font-size:16px; margin-bottom:6px;}
+  .card p{font-size:14px; color:var(--muted);}
+  section.light .card p{color:#4d5f78;}
+
+  .stat-band{background:var(--navy2);}
+  .stat-band .grid-3{grid-template-columns:repeat(4,1fr);}
+  @media (max-width:820px){ .stat-band .grid-3{grid-template-columns:repeat(2,1fr);} }
+  .stat-card{text-align:left;}
+  .stat-card b{display:block; font-family:ui-monospace,monospace; font-size:30px; color:var(--amber);}
+  .stat-card span{font-size:13px; color:var(--muted);}
+  .demo-note{margin-top:22px; font-size:13px; color:var(--faint);}
+
+  table{border-collapse:collapse; width:100%; font-size:14px;}
+  th,td{text-align:left; padding:11px 14px; border-bottom:1px solid rgba(255,255,255,.08);}
+  section.light th,section.light td{border-color:#e4e9f2;}
+  th{font-family:ui-monospace,monospace; font-size:11px; letter-spacing:.06em; text-transform:uppercase; color:var(--faint); font-weight:600;}
+  .table-scroll{overflow-x:auto; border-radius:14px; border:1px solid rgba(255,255,255,.09);}
+  section.light .table-scroll{border-color:#e4e9f2;}
+  .table-scroll table{min-width:640px;}
+  tr.highlight td{background:rgba(242,180,65,.08); font-weight:600;}
+
+  .price-card{background:var(--tint); border:1px solid #e4e9f2; border-radius:18px; padding:26px; display:flex; flex-direction:column; gap:14px; position:relative; color:var(--ink-d);}
+  .price-card.feat{border-color:var(--amber); box-shadow:0 0 0 1px var(--amber) inset;}
+  .price-card.feat::before{content:"Recomendado"; position:absolute; top:-11px; right:20px; background:var(--amber); color:#1a1305; font-family:ui-monospace,monospace; font-size:10.5px; font-weight:700; padding:3px 10px; border-radius:20px;}
+  .price-card h3{color:var(--ink-d);}
+  .price-card p{color:#4d5f78; font-size:14px;}
+  .price-card .amount{font-family:ui-monospace,monospace; font-size:28px; font-weight:700; color:var(--ink-d);}
+  .price-card .amount span{font-size:12.5px; color:#4d5f78; font-weight:400;}
+  .price-card ul{margin:0; padding-left:18px; font-size:13.5px; color:#4d5f78; display:flex; flex-direction:column; gap:6px;}
+  .price-card .btn{margin-top:6px; text-align:center; justify-content:center;}
+  .price-card .btn-ghost{background:rgba(18,34,56,.05); border-color:rgba(18,34,56,.16); color:var(--ink-d);}
+  .price-card .btn-ghost:hover{background:rgba(18,34,56,.09);}
+
+  /* reviews */
+  .rating-row{display:flex; align-items:center; gap:10px; margin-bottom:6px;}
+  .stars{color:var(--amber); font-size:15px; letter-spacing:1px;}
+  .beta-badge{background:var(--tint); border:1px dashed #cfd8e6; border-radius:14px; padding:26px; text-align:center; color:#4d5f78;}
+  .beta-badge b{display:block; color:var(--ink-d); font-size:16px; margin-bottom:6px;}
+
+  details{background:var(--tint); border:1px solid #e4e9f2; border-radius:12px; padding:14px 18px; margin-bottom:10px; color:var(--ink-d);}
+  summary{cursor:pointer; font-weight:600; font-size:14.5px; color:var(--ink-d);}
+  details p{margin-top:8px; font-size:13.5px; color:#4d5f78;}
+
+  form.contact{display:grid; gap:12px; max-width:480px;}
+  form.contact input, form.contact textarea{background:rgba(255,255,255,.04); border:1px solid rgba(255,255,255,.14); border-radius:10px; padding:11px 13px; color:var(--ink); font-size:14px; font-family:inherit;}
+  form.contact textarea{min-height:100px; resize:vertical;}
+
+  footer{padding:34px 0 60px;}
+  footer .wrap{display:flex; justify-content:space-between; flex-wrap:wrap; gap:10px; font-size:12.5px; color:var(--faint);}
+  [data-i]{}
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="wrap">
+    <div class="brand"><span class="mark">M</span> MV Project Management</div>
+    <div class="nav-links">
+      <a href="#plataforma" data-i="nav_platform">Plataforma</a>
+      <a href="#diferenciales" data-i="nav_compare">Diferenciales</a>
+      <a href="#precios" data-i="nav_pricing">Precios</a>
+      <a href="#resenas" data-i="nav_reviews">Reseñas</a>
+      <a href="#faq" data-i="nav_faq">FAQ</a>
+      <select id="langSel" onchange="setLang(this.value)">
+        <option value="es">ES</option><option value="en">EN</option><option value="pt">PT</option>
+      </select>
+      <a class="btn btn-primary" href="#descargas" data-i="nav_cta">Probar gratis</a>
+    </div>
+  </div>
+</nav>
+
+<header class="hero">
+  <div class="wrap hero-grid">
+    <div>
+      <div class="kicker-line"><span class="liveDot"></span><span class="eyebrow" data-i="hero_kicker">100% Web + PC · ES/EN/PT · IA aditiva</span></div>
+      <h1 class="h1" data-i="hero_h1">Tu portafolio de proyectos, con <em>salud medible</em> en vez de reuniones de estado.</h1>
+      <p class="lead" data-i="hero_lead">MV Project Management prioriza tu backlog por valor esperado, detecta bloqueos antes de que exploten y arma el reporte ejecutivo solo — con un copiloto de IA que nunca inventa un número que el motor no calculó primero.</p>
+      <div class="hero-ctas">
+        <a class="btn btn-primary" href="#descargas" data-i="cta_primary">Probar gratis</a>
+        <a class="btn btn-ghost" href="#plataforma" data-i="cta_secondary">Ver la plataforma</a>
+      </div>
+      <div class="hero-stats">
+        <div class="s"><b>6</b><span data-i="stat_dims">dimensiones de salud</span></div>
+        <div class="s"><b>3</b><span data-i="stat_langs">idiomas</span></div>
+        <div class="s"><b>100%</b><span data-i="stat_local">datos en tu servidor</span></div>
+        <div class="s"><b>0</b><span data-i="stat_free">costo para empezar</span></div>
+      </div>
+    </div>
+    <div class="mock">
+      <div class="mock-head">
+        <span class="title" data-i="mock_title">Portafolio — demo en vivo</span>
+        <span class="mock-badge">● live</span>
+      </div>
+      <div class="mock-kpis">
+        <div class="k"><b style="color:var(--amber)">20</b><span data-i="mock_k1">proyectos</span></div>
+        <div class="k"><b style="color:#3be0b8">76.8</b><span data-i="mock_k2">índice salud</span></div>
+        <div class="k"><b style="color:#ff8b8b">1</b><span data-i="mock_k3">en riesgo</span></div>
+      </div>
+      <div class="mock-row"><span data-i="mock_r1">Migración de facturación</span><div class="bar"><i style="width:88%"></i></div></div>
+      <div class="mock-row warn"><span data-i="mock_r2">Expansión Paraguay</span><div class="bar"><i style="width:64%"></i></div></div>
+      <div class="mock-row risk"><span data-i="mock_r3">Migración de CRM</span><div class="bar"><i style="width:41%"></i></div></div>
+      <div class="mock-row"><span data-i="mock_r4">22 de 211 tareas bloqueadas</span><div class="bar"><i style="width:10%"></i></div></div>
+    </div>
+  </div>
+</header>
+
+<section id="video">
+  <div class="wrap">
+    <div class="sec-head" style="text-align:center; margin-left:auto; margin-right:auto;">
+      <span class="eyebrow" data-i="video_kicker">Demo real, sin cortes</span>
+      <h2 data-i="video_h2">Así se ve el dashboard andando — grabado del programa real, no una animación</h2>
+    </div>
+    <div class="video-frame">
+      <!-- Fuente local primero; si no está bundleada junto a la página (ej. preview
+           standalone), el navegador cae sola a la misma copia servida por CDN desde
+           el repo — mismo patrón que usan MV Kobra AI y MV Data Governance MV. -->
+      <video id="demoVideo" controls playsinline preload="metadata" poster="">
+        <source src="video/demo.mp4" type="video/mp4">
+        <source src="https://cdn.jsdelivr.net/gh/vieraschiavi/Project-management-mv@f2c713f181fd29edf99339a5c629b88607926e75/landing/video/demo.mp4" type="video/mp4">
+      </video>
+    </div>
+    <p class="video-caption" data-i="video_caption">Portafolio → Salud → Dependencias → Backlog priorizado → Copiloto → Reportes → Reseñas → Políticas, sobre los mismos datos demo sintéticos de todo este sitio.</p>
+  </div>
+</section>
+
+<section id="plataforma" class="light">
+  <div class="wrap">
+    <div class="sec-head">
+      <span class="eyebrow" data-i="platform_kicker">Plataforma</span>
+      <h2 data-i="platform_h2">Todo lo que necesitás para gobernar un portafolio, no solo tableros Kanban</h2>
+      <p data-i="platform_lead">Un motor de reglas que funciona sin depender de ningún LLM, con un copiloto de IA que se suma como capa opcional.</p>
+    </div>
+    <div class="grid-3">
+      <div class="card"><div class="ico">📂</div><h3 data-i="f1_t">Catálogo de portafolio</h3><p data-i="f1_d">Dueño, sponsor, criticidad y presupuesto de cada proyecto en un solo lugar.</p></div>
+      <div class="card"><div class="ico">🩺</div><h3 data-i="f2_t">Salud en 6 dimensiones</h3><p data-i="f2_d">Alcance, cronograma, presupuesto, riesgo, dependencias y equipo — índice 0-100.</p></div>
+      <div class="card"><div class="ico">🕸️</div><h3 data-i="f3_t">Dependencias y bloqueos</h3><p data-i="f3_d">Qué tarea frena a cuántas otras si se atrasa, calculado, no estimado a ojo.</p></div>
+      <div class="card"><div class="ico">🎯</div><h3 data-i="f4_t">Backlog priorizado</h3><p data-i="f4_d">Ordenado por valor esperado: criticidad × urgencia × impacto en dependencias.</p></div>
+      <div class="card"><div class="ico">🤖</div><h3 data-i="f5_t">Copiloto de portafolio</h3><p data-i="f5_d">"¿Qué está bloqueando este proyecto?" — respuesta sobre el dato real, en segundos.</p></div>
+      <div class="card"><div class="ico">📄</div><h3 data-i="f6_t">Reporte ejecutivo automático</h3><p data-i="f6_d">Una página para directorio, generada del dato real cada semana.</p></div>
+    </div>
+  </div>
+</section>
+
+<section class="stat-band">
+  <div class="wrap">
+    <div class="sec-head">
+      <span class="eyebrow" data-i="demo_kicker">Demo en vivo</span>
+      <h2 data-i="demo_h2">Estos números salen de correr el motor ahora mismo</h2>
+    </div>
+    <div class="grid-3">
+      <div class="stat-card"><b>76.8/100</b><span data-i="d1">índice de salud del portafolio demo</span></div>
+      <div class="stat-card"><b>22/211</b><span data-i="d2">tareas bloqueadas detectadas</span></div>
+      <div class="stat-card"><b>2/6</b><span data-i="d3">políticas de gestión que cumple hoy la demo</span></div>
+      <div class="stat-card"><b>72.4%</b><span data-i="d4">presupuesto ejecutado promedio</span></div>
+    </div>
+    <p class="demo-note" data-i="demo_note">Datos 100% sintéticos, generados con defectos inyectados a propósito (proyectos sin dueño, dependencias inconsistentes) para que el motor tenga algo real que detectar. Correlos vos mismo: <code>./run.sh test</code>.</p>
+  </div>
+</section>
+
+<section id="diferenciales" class="light">
+  <div class="wrap">
+    <div class="sec-head">
+      <span class="eyebrow" data-i="diff_kicker">Diferenciales</span>
+      <h2 data-i="diff_h2">Por qué elegir MV Project Management</h2>
+    </div>
+    <div class="grid-3">
+      <div class="card"><div class="ico">🩺</div><h3 data-i="diff1_t">Salud medible, no solo colores</h3><p data-i="diff1_d">Un índice 0-100 en 6 dimensiones, no una columna de Kanban que dice "en progreso" para todo.</p></div>
+      <div class="card"><div class="ico">🤖</div><h3 data-i="diff2_t">Copiloto de IA incluido</h3><p data-i="diff2_d">No es un add-on aparte que hay que activar y pagar extra — viene con el motor.</p></div>
+      <div class="card"><div class="ico">🌎</div><h3 data-i="diff3_t">Producto y soporte en español</h3><p data-i="diff3_d">Trilingüe ES/EN/PT desde el día 1, no traducido a medias.</p></div>
+      <div class="card"><div class="ico">💵</div><h3 data-i="diff4_t">Precio pensado para equipos chicos</h3><p data-i="diff4_d">Sin mínimos de asientos ni escalones agresivos por sumar una persona más.</p></div>
+      <div class="card"><div class="ico">🔒</div><h3 data-i="diff5_t">Tus datos en tu servidor</h3><p data-i="diff5_d">No es obligatorio mandar todo a la nube de un tercero para usarlo.</p></div>
+      <div class="card"><div class="ico">⚡</div><h3 data-i="diff6_t">Sin semanas de configuración</h3><p data-i="diff6_d">Resultados el día 1, con datos propios o con la demo.</p></div>
+    </div>
+  </div>
+</section>
+
+<section id="precios">
+  <div class="wrap">
+    <div class="sec-head">
+      <span class="eyebrow" data-i="pricing_kicker">Precios</span>
+      <h2 data-i="pricing_h2">Evaluá gratis. Pagá cuando lo uses en serio.</h2>
+    </div>
+    <div class="grid-3">
+      <div class="price-card">
+        <h3 data-i="p1_t">Demo de evaluación</h3>
+        <div class="amount">US$0<span data-i="p1_period">/no apto para producción</span></div>
+        <p data-i="p1_d">Corré el motor con tus propios datos de prueba antes de decidir. No pensado para gestionar proyectos reales del día a día.</p>
+        <ul><li data-i="p1_l1">1 espacio de trabajo, datos locales</li><li data-i="p1_l2">Copiloto IA: 20 consultas/mes</li><li data-i="p1_l3">Sin tarjeta de crédito</li></ul>
+        <a class="btn btn-ghost" href="#descargas" data-i="p1_cta">Probar la demo</a>
+      </div>
+      <div class="price-card feat">
+        <h3 data-i="p2_t">Professional</h3>
+        <div class="amount">US$9<span data-i="p2_period">/usuario/mes</span></div>
+        <p data-i="p2_d">Portfolios ilimitados, priorizador IA, dependencias, reporte automático.</p>
+        <ul><li data-i="p2_l1">Copiloto IA: 1.000 consultas/mes</li><li data-i="p2_l2">Integraciones (Slack, Calendar, Git)</li><li data-i="p2_l3">Soporte prioritario en español</li></ul>
+        <a class="btn btn-primary" href="/api/checkout?plan=professional" data-i="p2_cta">Pagar con MercadoPago</a>
+      </div>
+      <div class="price-card">
+        <h3 data-i="p3_t">Enterprise</h3>
+        <div class="amount" data-i="p3_amount">Desde US$1.500<span data-i="p3_period">/mes</span></div>
+        <p data-i="p3_d">On-premise, SSO/OIDC, auditoría, cumplimiento y usuarios ilimitados.</p>
+        <ul><li data-i="p3_l1">Integraciones a medida</li><li data-i="p3_l2">Steward de adopción dedicado</li><li data-i="p3_l3">White-label para consultoras</li></ul>
+        <a class="btn btn-ghost" href="#contacto" data-i="p3_cta">Hablar con ventas</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="resenas" class="light">
+  <div class="wrap">
+    <div class="sec-head">
+      <span class="eyebrow" data-i="reviews_kicker">Reseñas</span>
+      <h2 data-i="reviews_h2">Calificación de usuarios reales</h2>
+    </div>
+    <div class="beta-badge">
+      <b data-i="reviews_empty_title">⭐ Programa en fase beta</b>
+      <p data-i="reviews_empty_body">Todavía no tenemos reseñas de clientes reales — no vamos a inventar testimonios para parecer más grandes de lo que somos. Sé de los primeros en dejar la tuya después de probar el producto y la publicamos apenas la verifiquemos.</p>
+    </div>
+  </div>
+</section>
+
+<section id="faq">
+  <div class="wrap">
+    <div class="sec-head">
+      <span class="eyebrow" data-i="faq_kicker">Preguntas frecuentes</span>
+      <h2 data-i="faq_h2">Lo que preguntan antes de probarlo</h2>
+    </div>
+    <details><summary data-i="faq1_q">¿Mis datos salen de mi empresa?</summary><p data-i="faq1_a">No. La versión gratuita corre 100% local (web o PC). El plan Enterprise soporta on-premise o nube privada.</p></details>
+    <details><summary data-i="faq2_q">¿Necesito saber programar para usarlo?</summary><p data-i="faq2_a">No. Se instala con un doble clic (portable) o se usa 100% desde el navegador.</p></details>
+    <details><summary data-i="faq3_q">¿Puedo migrar desde la herramienta que uso hoy?</summary><p data-i="faq3_a">Sí, el importador inteligente perfila tu Excel o export actual y sugiere la estructura.</p></details>
+    <details><summary data-i="faq4_q">¿El copiloto de IA es obligatorio?</summary><p data-i="faq4_a">No. El motor de salud, dependencias y priorización funciona 100% sin IA. Claude es una capa opcional que solo redacta mejor lo que el motor ya calculó.</p></details>
+    <details><summary data-i="faq5_q">¿Hay soporte en español?</summary><p data-i="faq5_a">Sí, la plataforma y el soporte son trilingües: español, inglés y portugués.</p></details>
+  </div>
+</section>
+
+<section id="descargas" class="light">
+  <div class="wrap">
+    <div class="sec-head">
+      <span class="eyebrow" data-i="downloads_kicker">Empezar ahora</span>
+      <h2 data-i="downloads_h2">Probalo gratis, hoy</h2>
+      <p data-i="downloads_lead">El producto está en fase beta: por ahora se corre localmente en un minuto con Python. El SaaS 100% en la nube es el próximo paso del roadmap.</p>
+    </div>
+    <div class="grid-4">
+      <div class="card">
+        <div class="ico">💻</div><h3 data-i="dl1_t">Local en 1 minuto</h3>
+        <p data-i="dl1_d">Clonar el repositorio y correr:</p>
+        <p style="margin-top:10px;"><code>git clone https://github.com/vieraschiavi/Project-management-mv<br>./run.sh install &amp;&amp; ./run.sh app</code></p>
+      </div>
+      <div class="card">
+        <div class="ico">📦</div><h3 data-i="dl4_t">Portable para PC, sin instalar</h3>
+        <p data-i="dl4_d">Generá el ZIP portable — doble clic en <code>MV_ProjectManagement.bat</code> y listo:</p>
+        <p style="margin-top:10px;"><code>./run.sh portable</code></p>
+        <p style="margin-top:8px; font-size:12.5px;" class="video-caption" data-i="dl4_note">El instalador Windows (.exe) se compila automáticamente en cada release — <a href="https://github.com/vieraschiavi/Project-management-mv/releases" style="text-decoration:underline; color:var(--amber2);">ver releases</a>.</p>
+      </div>
+      <div class="card">
+        <div class="ico">🧪</div><h3 data-i="dl2_t">Correr los tests</h3>
+        <p data-i="dl2_d">Verificá vos mismo que el motor hace lo que decimos:</p>
+        <p style="margin-top:10px;"><code>./run.sh test</code></p>
+      </div>
+      <div class="card">
+        <div class="ico">🔌</div><h3 data-i="dl3_t">API para tu BI</h3>
+        <p data-i="dl3_d">Conectá Power BI, Tableau o Excel a la misma data:</p>
+        <p style="margin-top:10px;"><code>./run.sh api</code></p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="contacto">
+  <div class="wrap">
+    <div class="sec-head">
+      <span class="eyebrow" data-i="contact_kicker">Contacto</span>
+      <h2 data-i="contact_h2">¿Querés un piloto para tu equipo?</h2>
+    </div>
+    <form class="contact" onsubmit="return enviarContacto(event)">
+      <input type="text" id="c_nombre" placeholder="Nombre" data-i-ph="contact_name" required>
+      <input type="email" id="c_email" placeholder="Email" data-i-ph="contact_email" required>
+      <textarea id="c_msg" placeholder="Contame sobre tu equipo y qué herramienta usás hoy" data-i-ph="contact_msg" required></textarea>
+      <button class="btn btn-primary" type="submit" data-i="contact_cta">Enviar</button>
+    </form>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <span>© 2026 MV Project Management</span>
+    <span data-i="footer_tag">Hecho con el mismo ADN que MV Kobra AI y MV Data Governance</span>
+  </div>
+</footer>
+
+<script>
+function enviarContacto(e){
+  e.preventDefault();
+  const nombre = document.getElementById('c_nombre').value;
+  const email = document.getElementById('c_email').value;
+  const msg = document.getElementById('c_msg').value;
+  const asunto = encodeURIComponent('Piloto MV Project Management — ' + nombre);
+  const cuerpo = encodeURIComponent(msg + '\n\nEmail de contacto: ' + email);
+  window.location.href = 'mailto:vieraschiavi@gmail.com?subject=' + asunto + '&body=' + cuerpo;
+  return false;
+}
+
+const I18N = {
+  en: {
+    nav_platform:"Platform", nav_compare:"Why us", nav_pricing:"Pricing", nav_reviews:"Reviews", nav_faq:"FAQ", nav_cta:"Try it free",
+    hero_kicker:"100% Web + PC · ES/EN/PT · additive AI", hero_h1:"Your project portfolio, with <em>measurable health</em> instead of status meetings.",
+    hero_lead:"MV Project Management prioritizes your backlog by expected value, catches blockers before they explode, and writes the executive report on its own — with an AI copilot that never invents a number the engine didn't calculate first.",
+    cta_primary:"Try it free", cta_secondary:"See the platform",
+    stat_dims:"health dimensions", stat_langs:"languages", stat_local:"data on your server", stat_free:"cost to start",
+    video_kicker:"Real demo, no cuts", video_h2:"This is the dashboard actually running — recorded from the real program, not an animation",
+    video_caption:"Portfolio → Health → Dependencies → Prioritized backlog → Copilot → Reports → Reviews → Policies, over the same synthetic demo data used across this site.",
+    mock_title:"Portfolio — live demo", mock_k1:"projects", mock_k2:"health index", mock_k3:"at risk",
+    mock_r1:"Billing migration", mock_r2:"Paraguay expansion", mock_r3:"CRM migration", mock_r4:"22 of 211 tasks blocked",
+    platform_kicker:"Platform", platform_h2:"Everything you need to govern a portfolio, not just Kanban boards",
+    platform_lead:"A rules engine that works without depending on any LLM, with an AI copilot added as an optional layer.",
+    f1_t:"Portfolio catalog", f1_d:"Owner, sponsor, criticality and budget for every project in one place.",
+    f2_t:"6-dimension health", f2_d:"Scope, schedule, budget, risk, dependencies and team — a 0-100 index.",
+    f3_t:"Dependencies & blockers", f3_d:"What blocks what if it slips, calculated, not eyeballed.",
+    f4_t:"Prioritized backlog", f4_d:"Sorted by expected value: criticality × urgency × dependency impact.",
+    f5_t:"Portfolio copilot", f5_d:"\"What's blocking this project?\" — answered from real data, in seconds.",
+    f6_t:"Automatic executive report", f6_d:"One page for leadership, generated from real data every week.",
+    demo_kicker:"Live demo", demo_h2:"These numbers come from running the engine right now",
+    d1:"health index of the demo portfolio", d2:"blocked tasks detected", d3:"policies the demo meets today", d4:"average budget spent",
+    demo_note:"100% synthetic data, generated with defects injected on purpose (ownerless projects, inconsistent dependencies) so the engine has something real to detect. Run it yourself: <code>./run.sh test</code>.",
+    diff_kicker:"Differentiators", diff_h2:"Why choose MV Project Management",
+    diff1_t:"Measurable health, not just colors", diff1_d:"A 0-100 index across 6 dimensions, not a Kanban column that says \"in progress\" for everything.",
+    diff2_t:"AI copilot included", diff2_d:"Not a separate add-on you have to activate and pay extra for — it ships with the engine.",
+    diff3_t:"Product and support in Spanish", diff3_d:"Trilingual ES/EN/PT from day one, not half-translated.",
+    diff4_t:"Priced for small teams", diff4_d:"No seat minimums or aggressive tiers for adding one more person.",
+    diff5_t:"Your data on your server", diff5_d:"Sending everything to a third party's cloud is never mandatory.",
+    diff6_t:"No weeks of setup", diff6_d:"Results on day one, with your own data or the demo.",
+    pricing_kicker:"Pricing", pricing_h2:"Evaluate for free. Pay once you use it for real.",
+    p1_t:"Evaluation demo", p1_period:"/not for production", p1_d:"Run the engine with your own test data before deciding. Not meant for managing real day-to-day projects.",
+    p1_l1:"1 workspace, local data", p1_l2:"AI copilot: 20 queries/month", p1_l3:"No credit card", p1_cta:"Try the demo",
+    p2_t:"Professional", p2_period:"/user/month", p2_d:"Unlimited portfolios, AI prioritizer, dependencies, automatic report.",
+    p2_l1:"AI copilot: 1,000 queries/month", p2_l2:"Integrations (Slack, Calendar, Git)", p2_l3:"Priority support", p2_cta:"Pay with MercadoPago",
+    p3_t:"Enterprise", p3_amount:"From US$1,500", p3_period:"/month", p3_d:"On-premise, SSO/OIDC, auditing and unlimited users.",
+    p3_l1:"Custom integrations", p3_l2:"Dedicated adoption steward", p3_l3:"White-label for consultancies", p3_cta:"Talk to sales",
+    reviews_kicker:"Reviews", reviews_h2:"Real user ratings",
+    reviews_empty_title:"⭐ Program in beta", reviews_empty_body:"We don't have real customer reviews yet — we won't fabricate testimonials to look bigger than we are. Be one of the first to leave yours after trying the product; we'll publish it once verified.",
+    faq_kicker:"FAQ", faq_h2:"What people ask before trying it",
+    faq1_q:"Does my data leave my company?", faq1_a:"No. The free version runs 100% locally (web or PC). The Enterprise plan supports on-premise or private cloud.",
+    faq2_q:"Do I need to code to use it?", faq2_a:"No. It installs with a double-click (portable) or runs 100% from the browser.",
+    faq3_q:"Can I migrate from the tool I use today?", faq3_a:"Yes, the smart importer profiles your current Excel or export and suggests a structure.",
+    faq4_q:"Is the AI copilot mandatory?", faq4_a:"No. The health, dependency and prioritization engine works 100% without AI. Claude is an optional layer that only rewrites what the engine already computed.",
+    faq5_q:"Is there support in Spanish?", faq5_a:"Yes, the platform and support are trilingual: Spanish, English and Portuguese.",
+    downloads_kicker:"Get started", downloads_h2:"Try it free, today",
+    downloads_lead:"The product is in beta: for now it runs locally in a minute with Python. A fully hosted SaaS is next on the roadmap.",
+    dl1_t:"Local in 1 minute", dl1_d:"Clone the repo and run:", dl2_t:"Run the tests", dl2_d:"Verify yourself that the engine does what we claim:",
+    dl3_t:"API for your BI tool", dl3_d:"Connect Power BI, Tableau or Excel to the same data:",
+    dl4_t:"Portable for PC, no install", dl4_d:"Generate the portable ZIP — double-click <code>MV_ProjectManagement.bat</code> and you're set:",
+    dl4_note:"The Windows installer (.exe) is built automatically on every release — <a href=\"https://github.com/vieraschiavi/Project-management-mv/releases\" style=\"text-decoration:underline; color:var(--amber2);\">see releases</a>.",
+    contact_kicker:"Contact", contact_h2:"Want a pilot for your team?", contact_name:"Name", contact_email:"Email", contact_msg:"Tell us about your team and what tool you use today", contact_cta:"Send",
+    footer_tag:"Built with the same DNA as MV Kobra AI and MV Data Governance",
+  },
+  pt: {
+    nav_platform:"Plataforma", nav_compare:"Diferenciais", nav_pricing:"Preços", nav_reviews:"Avaliações", nav_faq:"Perguntas", nav_cta:"Testar grátis",
+    hero_kicker:"100% Web + PC · ES/EN/PT · IA aditiva", hero_h1:"Seu portfólio de projetos, com <em>saúde mensurável</em> em vez de reuniões de status.",
+    hero_lead:"MV Project Management prioriza seu backlog por valor esperado, detecta bloqueios antes que explodam e gera o relatório executivo sozinho — com um copiloto de IA que nunca inventa um número que o motor não calculou antes.",
+    cta_primary:"Testar grátis", cta_secondary:"Ver a plataforma",
+    stat_dims:"dimensões de saúde", stat_langs:"idiomas", stat_local:"dados no seu servidor", stat_free:"custo para começar",
+    video_kicker:"Demo real, sem cortes", video_h2:"É assim que o dashboard funciona — gravado do programa real, não uma animação",
+    video_caption:"Portfólio → Saúde → Dependências → Backlog priorizado → Copiloto → Relatórios → Avaliações → Políticas, sobre os mesmos dados demo sintéticos deste site.",
+    mock_title:"Portfólio — demo ao vivo", mock_k1:"projetos", mock_k2:"índice de saúde", mock_k3:"em risco",
+    mock_r1:"Migração de faturamento", mock_r2:"Expansão Paraguai", mock_r3:"Migração de CRM", mock_r4:"22 de 211 tarefas bloqueadas",
+    platform_kicker:"Plataforma", platform_h2:"Tudo que você precisa para governar um portfólio, não só quadros Kanban",
+    platform_lead:"Um motor de regras que funciona sem depender de nenhum LLM, com um copiloto de IA somado como camada opcional.",
+    f1_t:"Catálogo de portfólio", f1_d:"Dono, patrocinador, criticidade e orçamento de cada projeto em um só lugar.",
+    f2_t:"Saúde em 6 dimensões", f2_d:"Escopo, cronograma, orçamento, risco, dependências e equipe — índice 0-100.",
+    f3_t:"Dependências e bloqueios", f3_d:"O que trava o quê se atrasar, calculado, não estimado de olho.",
+    f4_t:"Backlog priorizado", f4_d:"Ordenado por valor esperado: criticidade × urgência × impacto em dependências.",
+    f5_t:"Copiloto de portfólio", f5_d:"\"O que está bloqueando este projeto?\" — resposta sobre o dado real, em segundos.",
+    f6_t:"Relatório executivo automático", f6_d:"Uma página para a diretoria, gerada do dado real toda semana.",
+    demo_kicker:"Demo ao vivo", demo_h2:"Estes números vêm de rodar o motor agora mesmo",
+    d1:"índice de saúde do portfólio demo", d2:"tarefas bloqueadas detectadas", d3:"políticas que a demo cumpre hoje", d4:"orçamento executado médio",
+    demo_note:"Dados 100% sintéticos, gerados com defeitos injetados de propósito (projetos sem dono, dependências inconsistentes) para o motor ter algo real a detectar. Rode você mesmo: <code>./run.sh test</code>.",
+    diff_kicker:"Diferenciais", diff_h2:"Por que escolher MV Project Management",
+    diff1_t:"Saúde mensurável, não só cores", diff1_d:"Um índice 0-100 em 6 dimensões, não uma coluna Kanban que diz \"em andamento\" para tudo.",
+    diff2_t:"Copiloto de IA incluído", diff2_d:"Não é um add-on separado que você precisa ativar e pagar à parte — vem com o motor.",
+    diff3_t:"Produto e suporte em português", diff3_d:"Trilíngue ES/EN/PT desde o dia um, não traduzido pela metade.",
+    diff4_t:"Preço pensado para equipes pequenas", diff4_d:"Sem mínimos de assentos nem degraus agressivos por somar mais uma pessoa.",
+    diff5_t:"Seus dados no seu servidor", diff5_d:"Enviar tudo para a nuvem de terceiros nunca é obrigatório.",
+    diff6_t:"Sem semanas de configuração", diff6_d:"Resultados no dia um, com dados próprios ou com a demo.",
+    pricing_kicker:"Preços", pricing_h2:"Avalie de graça. Pague quando usar de verdade.",
+    p1_t:"Demo de avaliação", p1_period:"/não indicado para produção", p1_d:"Rode o motor com seus próprios dados de teste antes de decidir. Não pensado para gerenciar projetos reais do dia a dia.",
+    p1_l1:"1 espaço de trabalho, dados locais", p1_l2:"Copiloto IA: 20 consultas/mês", p1_l3:"Sem cartão de crédito", p1_cta:"Testar a demo",
+    p2_t:"Professional", p2_period:"/usuário/mês", p2_d:"Portfólios ilimitados, priorizador IA, dependências, relatório automático.",
+    p2_l1:"Copiloto IA: 1.000 consultas/mês", p2_l2:"Integrações (Slack, Calendar, Git)", p2_l3:"Suporte prioritário", p2_cta:"Pagar com MercadoPago",
+    p3_t:"Enterprise", p3_amount:"A partir de US$1.500", p3_period:"/mês", p3_d:"On-premise, SSO/OIDC, auditoria e usuários ilimitados.",
+    p3_l1:"Integrações sob medida", p3_l2:"Steward de adoção dedicado", p3_l3:"White-label para consultorias", p3_cta:"Falar com vendas",
+    reviews_kicker:"Avaliações", reviews_h2:"Calificación de usuários reais",
+    reviews_empty_title:"⭐ Programa em fase beta", reviews_empty_body:"Ainda não temos avaliações de clientes reais — não vamos inventar depoimentos para parecer maiores do que somos. Seja um dos primeiros a deixar a sua depois de testar o produto; publicamos assim que for verificada.",
+    faq_kicker:"Perguntas frequentes", faq_h2:"O que perguntam antes de testar",
+    faq1_q:"Meus dados saem da minha empresa?", faq1_a:"Não. A versão gratuita roda 100% local (web ou PC). O plano Enterprise suporta on-premise ou nuvem privada.",
+    faq2_q:"Preciso saber programar para usar?", faq2_a:"Não. Instala com um duplo clique (portátil) ou roda 100% no navegador.",
+    faq3_q:"Posso migrar da ferramenta que uso hoje?", faq3_a:"Sim, o importador inteligente perfila seu Excel ou export atual e sugere a estrutura.",
+    faq4_q:"O copiloto de IA é obrigatório?", faq4_a:"Não. O motor de saúde, dependências e priorização funciona 100% sem IA. Claude é uma camada opcional que só redige melhor o que o motor já calculou.",
+    faq5_q:"Tem suporte em português?", faq5_a:"Sim, a plataforma e o suporte são trilíngues: espanhol, inglês e português.",
+    downloads_kicker:"Comece agora", downloads_h2:"Teste grátis, hoje",
+    downloads_lead:"O produto está em fase beta: por enquanto roda localmente em um minuto com Python. O SaaS 100% na nuvem é o próximo passo do roadmap.",
+    dl1_t:"Local em 1 minuto", dl1_d:"Clone o repositório e rode:", dl2_t:"Rode os testes", dl2_d:"Verifique você mesmo que o motor faz o que dizemos:",
+    dl3_t:"API para o seu BI", dl3_d:"Conecte Power BI, Tableau ou Excel aos mesmos dados:",
+    dl4_t:"Portátil para PC, sem instalar", dl4_d:"Gere o ZIP portátil — duplo clique em <code>MV_ProjectManagement.bat</code> e pronto:",
+    dl4_note:"O instalador Windows (.exe) é compilado automaticamente a cada release — <a href=\"https://github.com/vieraschiavi/Project-management-mv/releases\" style=\"text-decoration:underline; color:var(--amber2);\">ver releases</a>.",
+    contact_kicker:"Contato", contact_h2:"Quer um piloto para sua equipe?", contact_name:"Nome", contact_email:"Email", contact_msg:"Conte sobre sua equipe e qual ferramenta usa hoje", contact_cta:"Enviar",
+    footer_tag:"Feito com o mesmo DNA de MV Kobra AI e MV Data Governance",
+  },
+};
+
+function setLang(lang){
+  localStorage.setItem('mvpm_lang', lang);
+  document.getElementById('langSel').value = lang;
+  if(lang === 'es'){ location.reload(); return; }
+  const dict = I18N[lang];
+  if(!dict) return;
+  document.querySelectorAll('[data-i]').forEach(el => {
+    const key = el.getAttribute('data-i');
+    if(dict[key]) el.innerHTML = dict[key];
+  });
+  document.querySelectorAll('[data-i-ph]').forEach(el => {
+    const key = el.getAttribute('data-i-ph');
+    if(dict[key]) el.setAttribute('placeholder', dict[key]);
+  });
+}
+
+(function(){
+  const saved = localStorage.getItem('mvpm_lang');
+  if(saved && saved !== 'es'){ setLang(saved); }
+})();
+</script>
+</body>
+</html>
