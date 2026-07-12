@@ -83,10 +83,13 @@ def _respuesta_resumen(projects: pd.DataFrame, tasks: pd.DataFrame, team: pd.Dat
     return f"Índice de salud del portafolio: {indice}/100. {riesgo} proyecto(s) en riesgo."
 
 
-def answer(question: str, projects=None, tasks=None, team=None, use_ai: bool = True) -> dict:
+def answer(question: str, projects=None, tasks=None, team=None, use_ai: bool = True,
+           license_token: str | None = None) -> dict:
     """Responde una pregunta sobre el portafolio. Devuelve dict con la respuesta
-    determinística y, si hay ANTHROPIC_API_KEY configurada y use_ai=True, una
-    versión redactada por IA del mismo contenido (nunca reemplaza los números)."""
+    determinística y, si hay ANTHROPIC_API_KEY configurada, cupo de IA
+    disponible en la licencia y use_ai=True, una versión redactada por IA del
+    mismo contenido (nunca reemplaza los números). El motor de reglas
+    responde siempre, tenga o no cupo — solo el enriquecimiento con IA se mide."""
     proj_df = projects if projects is not None else demo_data.projects()
     task_df = tasks if tasks is not None else demo_data.tasks()
     team_df = team if team is not None else demo_data.team()
@@ -102,12 +105,18 @@ def answer(question: str, projects=None, tasks=None, team=None, use_ai: bool = T
     }
     base_answer = handlers[topic]()
 
-    result = {"topic": topic, "answer": base_answer, "ai_enriched": False}
+    result = {"topic": topic, "answer": base_answer, "ai_enriched": False, "cupo_ia": None}
     if use_ai and os.environ.get("ANTHROPIC_API_KEY"):
-        enriched = _claude_enrich(question, base_answer)
-        if enriched:
-            result["answer"] = enriched
-            result["ai_enriched"] = True
+        from . import licensing
+        puede, detalle = licensing.puede_usar_ia(license_token)
+        result["cupo_ia"] = detalle
+        if puede:
+            enriched = _claude_enrich(question, base_answer)
+            if enriched:
+                result["answer"] = enriched
+                result["ai_enriched"] = True
+                payload = licensing.verify_license(license_token) if license_token else None
+                licensing.registrar_uso_ia(payload["email"] if payload else "demo@local")
     return result
 
 

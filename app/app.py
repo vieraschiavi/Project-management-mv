@@ -22,6 +22,7 @@ from mvpm import (
     health,
     help_center,
     i18n,
+    licensing,
     policies,
     prioritizer,
     reports,
@@ -43,6 +44,10 @@ st.markdown(
 )
 
 LANG = st.sidebar.selectbox("Idioma / Language / Idioma", ["es", "en", "pt"], index=0)
+LICENSE_TOKEN = st.sidebar.text_input(
+    "Token de licencia (opcional)", type="password",
+    help="Se emite automáticamente al pagar el plan Professional. Sin token, corrés en plan demo.",
+) or None
 
 
 def T(key: str) -> str:
@@ -128,10 +133,12 @@ elif section == T("nav_backlog"):
 
 elif section == T("nav_copilot"):
     st.subheader(T("nav_copilot"))
-    st.caption("El motor de reglas responde siempre. Si hay ANTHROPIC_API_KEY configurada, Claude pule el lenguaje sin inventar cifras nuevas.")
+    st.caption("El motor de reglas responde siempre. Si hay ANTHROPIC_API_KEY configurada y todavía hay cupo de IA en tu plan, Claude pule el lenguaje sin inventar cifras nuevas.")
+    puede_ia, detalle_cupo = licensing.puede_usar_ia(LICENSE_TOKEN)
+    st.caption(f"Cupo de IA: {detalle_cupo}")
     q = st.text_input("Preguntá sobre el portafolio", "¿Qué está bloqueando los proyectos?")
     if st.button("Preguntar"):
-        result = copilot_mod.answer(q, proj_df, task_df, team_df)
+        result = copilot_mod.answer(q, proj_df, task_df, team_df, license_token=LICENSE_TOKEN)
         st.info(result["answer"])
         st.caption("Respuesta enriquecida con IA" if result["ai_enriched"] else "Respuesta del motor de reglas (sin IA)")
 

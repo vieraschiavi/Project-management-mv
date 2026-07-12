@@ -14,6 +14,7 @@ from mvpm import (
     health,
     help_center,
     i18n,
+    licensing,
     policies,
     prioritizer,
     reports,
@@ -153,6 +154,67 @@ def test_copilot_answers_without_ai_key(monkeypatch):
     assert isinstance(result["answer"], str) and result["answer"]
 
 
+# ---- licensing (plan de créditos de IA) ----
+
+def test_issue_and_verify_license_roundtrip(tmp_path, monkeypatch):
+    monkeypatch.setattr(licensing, "_STORE_DIR", tmp_path)
+    monkeypatch.setattr(licensing, "_SECRET_FILE", tmp_path / "secret.txt")
+    token = licensing.issue_license("professional", "cliente@empresa.com", payment_id="PAY-123")
+    payload = licensing.verify_license(token)
+    assert payload["plan"] == "professional"
+    assert payload["email"] == "cliente@empresa.com"
+    assert payload["payment_id"] == "PAY-123"
+
+
+def test_verify_license_rejects_tampered_token(tmp_path, monkeypatch):
+    monkeypatch.setattr(licensing, "_STORE_DIR", tmp_path)
+    monkeypatch.setattr(licensing, "_SECRET_FILE", tmp_path / "secret.txt")
+    token = licensing.issue_license("professional", "cliente@empresa.com")
+    prefix, payload_b64, sig = token.split(".")
+    tampered = f"{prefix}.{payload_b64}X.{sig}"
+    assert licensing.verify_license(tampered) is None
+
+
+def test_verify_license_rejects_unknown_plan():
+    with pytest.raises(ValueError):
+        licensing.issue_license("plan_inexistente", "cliente@empresa.com")
+
+
+def test_demo_quota_enforced(tmp_path, monkeypatch):
+    monkeypatch.setattr(licensing, "_STORE_DIR", tmp_path)
+    monkeypatch.setattr(licensing, "_SECRET_FILE", tmp_path / "secret.txt")
+    monkeypatch.setattr(licensing, "_USAGE_FILE", tmp_path / "uso.json")
+    cupo = licensing.PLANES["demo"]["cupo_mensual_ia"]
+    for _ in range(cupo):
+        licensing.registrar_uso_ia("demo@local")
+    puede, _ = licensing.puede_usar_ia(None)
+    assert puede is False
+
+
+def test_enterprise_quota_unlimited(tmp_path, monkeypatch):
+    monkeypatch.setattr(licensing, "_STORE_DIR", tmp_path)
+    monkeypatch.setattr(licensing, "_SECRET_FILE", tmp_path / "secret.txt")
+    monkeypatch.setattr(licensing, "_USAGE_FILE", tmp_path / "uso.json")
+    token = licensing.issue_license("enterprise", "grande@empresa.com")
+    for _ in range(500):
+        licensing.registrar_uso_ia("grande@empresa.com")
+    puede, detalle = licensing.puede_usar_ia(token)
+    assert puede is True
+    assert detalle == "ilimitado"
+
+
+def test_rules_engine_never_blocked_by_quota(tmp_path, monkeypatch):
+    """El motor de reglas responde siempre, tenga o no cupo de IA."""
+    monkeypatch.setattr(licensing, "_STORE_DIR", tmp_path)
+    monkeypatch.setattr(licensing, "_SECRET_FILE", tmp_path / "secret.txt")
+    monkeypatch.setattr(licensing, "_USAGE_FILE", tmp_path / "uso.json")
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    for _ in range(licensing.PLANES["demo"]["cupo_mensual_ia"] + 5):
+        licensing.registrar_uso_ia("demo@local")
+    result = copilot_mod.answer("¿Qué está bloqueando los proyectos?", use_ai=False)
+    assert isinstance(result["answer"], str) and result["answer"]
+
+
 # ---- reports ----
 
 def test_executive_summary_has_expected_keys():
@@ -176,3 +238,26 @@ def test_exporters_produce_valid_json_bundle():
     bundle = json.loads(exporters.to_json_bundle())
     assert "proyectos" in bundle
     assert "resenas" in bundle
+
+
+# ---- empaquetado portable ----
+
+def test_build_release_portable_zip(monkeypatch):
+    import zipfile
+    import sys as _sys
+    from pathlib import Path as _Path
+
+    _sys.path.insert(0, str(_Path(__file__).resolve().parent.parent / "packaging"))
+    import build_release
+
+    zip_path = build_release.build_portable_zip(version="test")
+    try:
+        assert zip_path.exists()
+        with zipfile.ZipFile(zip_path) as zf:
+            names = zf.namelist()
+            assert any(n.endswith("MV_ProjectManagement.bat") for n in names)
+            assert any(n.startswith("mvpm/") for n in names)
+            assert any(n.startswith("app/") for n in names)
+            assert not any(".venv" in n or "__pycache__" in n for n in names)
+    finally:
+        zip_path.unlink(missing_ok=True)

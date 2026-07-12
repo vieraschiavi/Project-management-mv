@@ -19,8 +19,11 @@ case "$cmd" in
   test)
     pytest tests/ -v
     ;;
+  portable)
+    python3 packaging/build_release.py
+    ;;
   *)
-    echo "Uso: ./run.sh [install|app|api|test]"
+    echo "Uso: ./run.sh [install|app|api|test|portable]"
     exit 1
     ;;
 esac

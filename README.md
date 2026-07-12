@@ -35,12 +35,51 @@ mvpm/            motor de dominio (un solo lugar, consumido por dashboard + API)
   reports.py          reporte ejecutivo generado del dato real
   exporters.py         export uniforme CSV/Excel/JSON
   demo_data.py         datos sintéticos deterministas
+  licensing.py          plan de créditos de IA — licencias firmadas + cupo mensual
   i18n.py               traducciones ES/EN/PT de la app
 app/app.py         dashboard operativo (Streamlit)
-api/main.py         API REST para BI (Power BI, Tableau, Excel)
+api/main.py         API REST local para BI (Power BI, Tableau, Excel) + estado de licencia
+api/checkout.js      checkout de MercadoPago (función serverless en Vercel)
+api/verify-payment.js  verifica el pago y emite la licencia (nunca confía en el cliente)
+api/_license.js       mismo esquema de licencias que licensing.py, en JS
 landing/index.html  landing pública (HTML/CSS/JS, sin build, deploy directo en Vercel)
+packaging/           empaquetado para PC (launcher, PyInstaller, Inno Setup)
+MV_ProjectManagement.bat  versión portable — doble clic, sin instalar nada
 tests/test_core.py   suite de tests del motor
 ```
+
+## Plan de créditos de IA
+
+El motor de reglas (catálogo, salud, dependencias, backlog, políticas) **no
+tiene cupo en ningún plan** — es gratis y sin límite siempre, porque no tiene
+costo variable. Lo único medido es el **copiloto con IA** (Claude), porque
+es lo único con costo real por uso:
+
+| Plan | Cupo mensual de IA | Precio |
+|---|---|---|
+| Demo | 20 consultas | US$0 |
+| Professional | 1.000 consultas | US$9/usuario/mes |
+| Enterprise | Ilimitado | Desde US$1.500/mes |
+
+Se paga con MercadoPago (`api/checkout.js`); al aprobarse el pago,
+`api/verify-payment.js` re-verifica contra la API real de MercadoPago
+(nunca confía en el query string de retorno) y emite un token de licencia
+firmado (HMAC-SHA256, mismo esquema en Python y en JS, ver
+`mvpm/licensing.py` y `api/_license.js`). Sin `MP_ACCESS_TOKEN` configurada,
+el checkout cae a un link de pago fijo por plan (`MP_LINK_PROFESSIONAL`) en
+vez de romper.
+
+## Descargas
+
+- **Instalador Windows (.exe)**: se compila en CI al taguear `vX.Y.Z` (ver
+  `.github/workflows/build_windows.yml`) y queda como asset del release de
+  GitHub.
+- **Portable (.bat)**: `./run.sh portable` genera
+  `dist/MVProjectManagement_portable_vX.Y.Z.zip` — se descomprime y se
+  ejecuta `MV_ProjectManagement.bat`, sin instalar nada.
+- **100% web**: `./run.sh app` y se comparte la URL en la red interna.
+
+Más detalle en [`distribucion/README.md`](distribucion/README.md).
 
 ## Cómo correrlo
 
@@ -61,8 +100,8 @@ si no está seteada, el producto sigue funcionando igual.
 - [x] Dashboard operativo (Streamlit)
 - [x] Landing pública trilingüe
 - [x] API REST para BI
-- [ ] Checkout / licencias (siguiendo el patrón de `MV Kobra AI`)
-- [ ] Empaquetado triple: instalador Windows, portable, web (SaaS hosteado)
+- [x] Checkout / licencias (MercadoPago + plan de créditos de IA, patrón de `MV Kobra AI`)
+- [x] Empaquetado: portable (.bat) generado y probado; instalador Windows vía CI (pendiente compilar un release real)
 - [ ] Integraciones (Slack, Google Calendar, GitHub/Jira issues)
 - [ ] Reseñas verificadas de clientes piloto reales
 

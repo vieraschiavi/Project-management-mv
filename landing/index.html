@@ -84,8 +84,10 @@
   section.light .sec-head p{color:#4d5f78;}
 
   .grid-3{display:grid; grid-template-columns:repeat(3,1fr); gap:18px;}
+  .grid-4{display:grid; grid-template-columns:repeat(4,1fr); gap:18px;}
   .grid-2{display:grid; grid-template-columns:1fr 1fr; gap:18px;}
-  @media (max-width:820px){ .grid-3,.grid-2{grid-template-columns:1fr;} }
+  @media (max-width:820px){ .grid-3,.grid-2,.grid-4{grid-template-columns:1fr;} }
+  @media (min-width:821px) and (max-width:1040px){ .grid-4{grid-template-columns:repeat(2,1fr);} }
 
   .card{background:rgba(255,255,255,.03); border:1px solid rgba(255,255,255,.09); border-radius:16px; padding:22px;}
   section.light .card{background:var(--tint); border-color:#e4e9f2;}
@@ -284,8 +286,8 @@
         <h3 data-i="p2_t">Professional</h3>
         <div class="amount">US$9<span data-i="p2_period">/usuario/mes</span></div>
         <p data-i="p2_d">Portfolios ilimitados, priorizador IA, dependencias, reporte automático.</p>
-        <ul><li data-i="p2_l1">Copiloto IA ilimitado</li><li data-i="p2_l2">Integraciones (Slack, Calendar, Git)</li><li data-i="p2_l3">Soporte prioritario en español</li></ul>
-        <a class="btn btn-primary" href="#contacto" data-i="p2_cta">Solicitar acceso</a>
+        <ul><li data-i="p2_l1">Copiloto IA: 1.000 consultas/mes</li><li data-i="p2_l2">Integraciones (Slack, Calendar, Git)</li><li data-i="p2_l3">Soporte prioritario en español</li></ul>
+        <a class="btn btn-primary" href="/api/checkout?plan=professional" data-i="p2_cta">Pagar con MercadoPago</a>
       </div>
       <div class="price-card">
         <h3 data-i="p3_t">Enterprise</h3>
@@ -332,11 +334,17 @@
       <h2 data-i="downloads_h2">Probalo gratis, hoy</h2>
       <p data-i="downloads_lead">El producto está en fase beta: por ahora se corre localmente en un minuto con Python. El SaaS 100% en la nube es el próximo paso del roadmap.</p>
     </div>
-    <div class="grid-3">
+    <div class="grid-4">
       <div class="card">
         <div class="ico">💻</div><h3 data-i="dl1_t">Local en 1 minuto</h3>
         <p data-i="dl1_d">Clonar el repositorio y correr:</p>
         <p style="margin-top:10px;"><code>git clone https://github.com/vieraschiavi/Project-management-mv<br>./run.sh install &amp;&amp; ./run.sh app</code></p>
+      </div>
+      <div class="card">
+        <div class="ico">📦</div><h3 data-i="dl4_t">Portable para PC, sin instalar</h3>
+        <p data-i="dl4_d">Generá el ZIP portable — doble clic en <code>MV_ProjectManagement.bat</code> y listo:</p>
+        <p style="margin-top:10px;"><code>./run.sh portable</code></p>
+        <p style="margin-top:8px; font-size:12.5px;" class="video-caption" data-i="dl4_note">El instalador Windows (.exe) se compila automáticamente en cada release — <a href="https://github.com/vieraschiavi/Project-management-mv/releases" style="text-decoration:underline; color:var(--amber2);">ver releases</a>.</p>
       </div>
       <div class="card">
         <div class="ico">🧪</div><h3 data-i="dl2_t">Correr los tests</h3>
@@ -419,7 +427,7 @@ const I18N = {
     p1_t:"Evaluation demo", p1_period:"/not for production", p1_d:"Run the engine with your own test data before deciding. Not meant for managing real day-to-day projects.",
     p1_l1:"1 workspace, local data", p1_l2:"AI copilot: 20 queries/month", p1_l3:"No credit card", p1_cta:"Try the demo",
     p2_t:"Professional", p2_period:"/user/month", p2_d:"Unlimited portfolios, AI prioritizer, dependencies, automatic report.",
-    p2_l1:"Unlimited AI copilot", p2_l2:"Integrations (Slack, Calendar, Git)", p2_l3:"Priority support", p2_cta:"Request access",
+    p2_l1:"AI copilot: 1,000 queries/month", p2_l2:"Integrations (Slack, Calendar, Git)", p2_l3:"Priority support", p2_cta:"Pay with MercadoPago",
     p3_t:"Enterprise", p3_amount:"From US$1,500", p3_period:"/month", p3_d:"On-premise, SSO/OIDC, auditing and unlimited users.",
     p3_l1:"Custom integrations", p3_l2:"Dedicated adoption steward", p3_l3:"White-label for consultancies", p3_cta:"Talk to sales",
     reviews_kicker:"Reviews", reviews_h2:"Real user ratings",
@@ -434,6 +442,8 @@ const I18N = {
     downloads_lead:"The product is in beta: for now it runs locally in a minute with Python. A fully hosted SaaS is next on the roadmap.",
     dl1_t:"Local in 1 minute", dl1_d:"Clone the repo and run:", dl2_t:"Run the tests", dl2_d:"Verify yourself that the engine does what we claim:",
     dl3_t:"API for your BI tool", dl3_d:"Connect Power BI, Tableau or Excel to the same data:",
+    dl4_t:"Portable for PC, no install", dl4_d:"Generate the portable ZIP — double-click <code>MV_ProjectManagement.bat</code> and you're set:",
+    dl4_note:"The Windows installer (.exe) is built automatically on every release — <a href=\"https://github.com/vieraschiavi/Project-management-mv/releases\" style=\"text-decoration:underline; color:var(--amber2);\">see releases</a>.",
     contact_kicker:"Contact", contact_h2:"Want a pilot for your team?", contact_name:"Name", contact_email:"Email", contact_msg:"Tell us about your team and what tool you use today", contact_cta:"Send",
     footer_tag:"Built with the same DNA as MV Kobra AI and MV Data Governance",
   },
@@ -469,7 +479,7 @@ const I18N = {
     p1_t:"Demo de avaliação", p1_period:"/não indicado para produção", p1_d:"Rode o motor com seus próprios dados de teste antes de decidir. Não pensado para gerenciar projetos reais do dia a dia.",
     p1_l1:"1 espaço de trabalho, dados locais", p1_l2:"Copiloto IA: 20 consultas/mês", p1_l3:"Sem cartão de crédito", p1_cta:"Testar a demo",
     p2_t:"Professional", p2_period:"/usuário/mês", p2_d:"Portfólios ilimitados, priorizador IA, dependências, relatório automático.",
-    p2_l1:"Copiloto IA ilimitado", p2_l2:"Integrações (Slack, Calendar, Git)", p2_l3:"Suporte prioritário", p2_cta:"Solicitar acesso",
+    p2_l1:"Copiloto IA: 1.000 consultas/mês", p2_l2:"Integrações (Slack, Calendar, Git)", p2_l3:"Suporte prioritário", p2_cta:"Pagar com MercadoPago",
     p3_t:"Enterprise", p3_amount:"A partir de US$1.500", p3_period:"/mês", p3_d:"On-premise, SSO/OIDC, auditoria e usuários ilimitados.",
     p3_l1:"Integrações sob medida", p3_l2:"Steward de adoção dedicado", p3_l3:"White-label para consultorias", p3_cta:"Falar com vendas",
     reviews_kicker:"Avaliações", reviews_h2:"Calificación de usuários reais",
@@ -484,6 +494,8 @@ const I18N = {
     downloads_lead:"O produto está em fase beta: por enquanto roda localmente em um minuto com Python. O SaaS 100% na nuvem é o próximo passo do roadmap.",
     dl1_t:"Local em 1 minuto", dl1_d:"Clone o repositório e rode:", dl2_t:"Rode os testes", dl2_d:"Verifique você mesmo que o motor faz o que dizemos:",
     dl3_t:"API para o seu BI", dl3_d:"Conecte Power BI, Tableau ou Excel aos mesmos dados:",
+    dl4_t:"Portátil para PC, sem instalar", dl4_d:"Gere o ZIP portátil — duplo clique em <code>MV_ProjectManagement.bat</code> e pronto:",
+    dl4_note:"O instalador Windows (.exe) é compilado automaticamente a cada release — <a href=\"https://github.com/vieraschiavi/Project-management-mv/releases\" style=\"text-decoration:underline; color:var(--amber2);\">ver releases</a>.",
     contact_kicker:"Contato", contact_h2:"Quer um piloto para sua equipe?", contact_name:"Nome", contact_email:"Email", contact_msg:"Conte sobre sua equipe e qual ferramenta usa hoje", contact_cta:"Enviar",
     footer_tag:"Feito com o mesmo DNA de MV Kobra AI e MV Data Governance",
   },

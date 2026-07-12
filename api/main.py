@@ -12,7 +12,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from mvpm import exporters, reviews
+from mvpm import exporters, licensing, reviews
 
 app = FastAPI(title="MV Project Management API", version="0.1.0")
 
@@ -57,3 +57,31 @@ def get_table(table: str, format: str = "json"):
 @app.get("/api/reviews/summary")
 def reviews_summary():
     return reviews.summary()
+
+
+@app.get("/licencias/planes")
+def planes():
+    """Planes públicos con su cupo mensual de consultas de IA — el motor de
+    reglas (catálogo, salud, dependencias, backlog, políticas) no tiene cupo
+    en ningún plan, incluido el demo."""
+    return licensing.PLANES
+
+
+@app.get("/licencias/estado")
+def estado_licencia(token: str | None = None):
+    """Estado de cupo de IA para el token dado (o del plan demo si no se
+    manda token). Emitido por /api/verify-payment en Vercel tras un pago
+    aprobado de MercadoPago."""
+    payload = licensing.verify_license(token) if token else None
+    if token and payload is None:
+        raise HTTPException(status_code=401, detail="Token de licencia inválido.")
+    plan = payload["plan"] if payload else "demo"
+    email = payload["email"] if payload else "demo@local"
+    puede, detalle = licensing.puede_usar_ia(token)
+    return {
+        "plan": plan,
+        "email": email,
+        "puede_usar_ia": puede,
+        "detalle": detalle,
+        "consultas_usadas_mes": licensing.consultas_usadas(email),
+    }
