@@ -34,8 +34,12 @@ mvpm/            motor de dominio (un solo lugar, consumido por dashboard + API)
   help_center.py      matriz de automatización + guiones de adopción por rol
   reports.py          reporte ejecutivo generado del dato real
   exporters.py         export uniforme CSV/Excel/JSON
-  demo_data.py         datos sintéticos deterministas
+  demo_data.py         datos sintéticos deterministas (solo para "cargar datos de ejemplo")
+  db.py                  base de datos real (SQLite) — proyectos, tareas y usuarios persistidos
+  auth.py                login con usuario y contraseña (PBKDF2, sin dependencias nuevas)
   licensing.py          plan de créditos de IA — licencias firmadas + cupo mensual
+  pmbok.py                alineación honesta con las 10 áreas de conocimiento del PMBOK (PMI)
+  tutorial.py              contenido de la pestaña Tutorial — guía paso a paso de cada herramienta
   i18n.py               traducciones ES/EN/PT de la app
 app/app.py         dashboard operativo (Streamlit)
 api/main.py         API REST local para BI (Power BI, Tableau, Excel) + estado de licencia
@@ -94,6 +98,19 @@ El copiloto funciona sin configuración (motor de reglas). Para sumar la capa
 de IA opcional, exportá `ANTHROPIC_API_KEY` antes de correr `./run.sh app` —
 si no está seteada, el producto sigue funcionando igual.
 
+La primera vez que abrís el dashboard, te pide crear la cuenta de
+administrador (usuario y contraseña) — el resto del equipo se registra
+después con su propio usuario. Los datos quedan en una base SQLite real
+(`~/.mv_project_management/datos.db`, en el equipo/servidor donde corre la
+app, nunca en la nube por defecto) y se pueden crear, editar, archivar o
+borrar proyectos y tareas desde el dashboard.
+
+La sección **Tutorial** (primera del menú) explica paso a paso cada
+herramienta del programa, y **Metodología PMBOK** muestra, área por área,
+qué tanto se alinea el producto con la guía del PMI — sin inflar lo que no
+cubre (adquisiciones y comunicaciones, por ejemplo, quedan declaradas como
+huecos reales, no maquilladas).
+
 ## Roadmap
 
 - [x] Motor de dominio + tests
@@ -102,6 +119,8 @@ si no está seteada, el producto sigue funcionando igual.
 - [x] API REST para BI
 - [x] Checkout / licencias (MercadoPago + plan de créditos de IA, patrón de `MV Kobra AI`)
 - [x] Empaquetado: portable (.bat) generado y probado; instalador Windows vía CI (pendiente compilar un release real)
+- [x] Base de datos real (SQLite local), login con usuario y contraseña, y fichas para crear/editar/archivar proyectos y tareas
+- [x] Pestaña de Tutorial (guía de cada herramienta) y alineación honesta con PMBOK
 - [ ] Integraciones (Slack, Google Calendar, GitHub/Jira issues)
 - [ ] Reseñas verificadas de clientes piloto reales
 

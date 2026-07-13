@@ -3,6 +3,8 @@
 _STRINGS = {
     "app_title": {"es": "MV Project Management", "en": "MV Project Management", "pt": "MV Project Management"},
     "nav_portfolio": {"es": "Portafolio", "en": "Portfolio", "pt": "Portfólio"},
+    "nav_tasks": {"es": "Tareas", "en": "Tasks", "pt": "Tarefas"},
+    "nav_users": {"es": "Usuarios", "en": "Users", "pt": "Usuários"},
     "nav_health": {"es": "Salud de proyecto", "en": "Project health", "pt": "Saúde do projeto"},
     "nav_dependencies": {"es": "Dependencias", "en": "Dependencies", "pt": "Dependências"},
     "nav_backlog": {"es": "Backlog priorizado", "en": "Prioritized backlog", "pt": "Backlog priorizado"},
@@ -12,6 +14,8 @@ _STRINGS = {
     "nav_glossary": {"es": "Glosario", "en": "Glossary", "pt": "Glossário"},
     "nav_policies": {"es": "Políticas", "en": "Policies", "pt": "Políticas"},
     "nav_import": {"es": "Importar datos", "en": "Import data", "pt": "Importar dados"},
+    "nav_tutorial": {"es": "Tutorial", "en": "Tutorial", "pt": "Tutorial"},
+    "nav_pmbok": {"es": "Metodología PMBOK", "en": "PMBOK methodology", "pt": "Metodologia PMBOK"},
     "kpi_projects": {"es": "Proyectos activos", "en": "Active projects", "pt": "Projetos ativos"},
     "kpi_health": {"es": "Índice de salud", "en": "Health index", "pt": "Índice de saúde"},
     "kpi_at_risk": {"es": "Proyectos en riesgo", "en": "Projects at risk", "pt": "Projetos em risco"},

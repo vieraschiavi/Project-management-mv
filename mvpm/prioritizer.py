@@ -22,6 +22,10 @@ def prioritized_backlog(
     task_df = tasks if tasks is not None else demo_data.tasks()
 
     pending = task_df[task_df["estado"].isin(["todo", "in_progress", "blocked"])].copy()
+    if pending.empty:
+        return pending.assign(valor_esperado=pd.Series(dtype=float),
+                               tareas_impactadas=pd.Series(dtype=int),
+                               dias_restantes=pd.Series(dtype=int))
     proj_map = proj_df.set_index("proyecto_id")
 
     def score_row(row):

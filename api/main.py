@@ -12,7 +12,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from mvpm import exporters, licensing, reviews
+from mvpm import db, exporters, licensing, reviews
 
 app = FastAPI(title="MV Project Management API", version="0.1.0")
 
@@ -23,14 +23,14 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-_TABLES = None
+db.init_db()
 
 
 def _tables():
-    global _TABLES
-    if _TABLES is None:
-        _TABLES = exporters.portfolio_tables()
-    return _TABLES
+    """Se recalcula en cada request (no se cachea): los datos son la base real
+    del cliente, que cambia con cada proyecto/tarea que crea o edita desde el
+    dashboard — servir una copia vieja rompería la integración de BI."""
+    return exporters.portfolio_tables(db.projects(), db.tasks(), db.team())
 
 
 @app.get("/")
