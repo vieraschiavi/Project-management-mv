@@ -1,10 +1,13 @@
 """MV Project Management — dashboard operativo (Streamlit).
 
 Un único motor (mvpm/) alimenta este dashboard, la API REST (api/main.py) y
-los exportadores — sin lógica de negocio duplicada entre capas.
+los exportadores — sin lógica de negocio duplicada entre capas. Los datos
+viven en una base SQLite real (mvpm/db.py) en el equipo del cliente, detrás
+de un login con usuario y contraseña (mvpm/auth.py).
 """
 
 import sys
+from datetime import date
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
@@ -14,8 +17,9 @@ import streamlit as st
 
 from mvpm import (
     BRAND,
+    auth,
     catalog,
-    demo_data,
+    db,
     dependencies as dep_mod,
     exporters,
     glossary,
@@ -43,38 +47,127 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
+db.init_db()
+
+
+def T(key: str) -> str:
+    return i18n.t(key, LANG_ES_DEFAULT)
+
+
+LANG_ES_DEFAULT = "es"  # se reasigna abajo una vez que hay sesión iniciada, T() ya está definida
+
+
+# ------------------------------------------------------------- autenticación
+
+if "user" not in st.session_state:
+    st.session_state["user"] = None
+
+if st.session_state["user"] is None:
+    st.title("📋 MV Project Management")
+
+    if db.contar_usuarios() == 0:
+        st.subheader("Creá la cuenta de administrador")
+        st.caption("Sos la primera persona en usar este servidor — tu cuenta va a ser admin. El resto del equipo se registra después con su propio usuario y contraseña.")
+        with st.form("bootstrap_admin"):
+            nombre = st.text_input("Nombre")
+            email = st.text_input("Email")
+            password = st.text_input("Contraseña (mín. 8 caracteres)", type="password")
+            enviado = st.form_submit_button("Crear cuenta de administrador")
+            if enviado:
+                try:
+                    user = auth.registrar(email, nombre, password)
+                    st.session_state["user"] = user
+                    st.rerun()
+                except ValueError as e:
+                    st.error(str(e))
+    else:
+        tab_login, tab_registro = st.tabs(["Ingresar", "Crear cuenta"])
+        with tab_login:
+            with st.form("login"):
+                email = st.text_input("Email", key="login_email")
+                password = st.text_input("Contraseña", type="password", key="login_password")
+                enviado = st.form_submit_button("Ingresar")
+                if enviado:
+                    user = auth.iniciar_sesion(email, password)
+                    if user:
+                        st.session_state["user"] = user
+                        st.rerun()
+                    else:
+                        st.error("Email o contraseña incorrectos.")
+        with tab_registro:
+            with st.form("registro"):
+                nombre = st.text_input("Nombre", key="reg_nombre")
+                email = st.text_input("Email", key="reg_email")
+                password = st.text_input("Contraseña (mín. 8 caracteres)", type="password", key="reg_password")
+                enviado = st.form_submit_button("Crear cuenta")
+                if enviado:
+                    try:
+                        user = auth.registrar(email, nombre, password)
+                        st.session_state["user"] = user
+                        st.rerun()
+                    except ValueError as e:
+                        st.error(str(e))
+    st.stop()
+
+user = st.session_state["user"]
+
 LANG = st.sidebar.selectbox("Idioma / Language / Idioma", ["es", "en", "pt"], index=0)
+LANG_ES_DEFAULT = LANG  # T() ya definida arriba usa esta variable global
+
 LICENSE_TOKEN = st.sidebar.text_input(
     "Token de licencia (opcional)", type="password",
     help="Se emite automáticamente al pagar el plan Professional. Sin token, corrés en plan demo.",
 ) or None
 
+st.sidebar.divider()
+st.sidebar.caption(f"👤 {user['nombre']} · {user['rol']}")
+if st.sidebar.button("Cerrar sesión"):
+    st.session_state["user"] = None
+    st.rerun()
 
-def T(key: str) -> str:
-    return i18n.t(key, LANG)
+st.sidebar.title(T("app_title"))
+
+nav_options = [
+    T("nav_portfolio"), T("nav_tasks"), T("nav_health"), T("nav_dependencies"),
+    T("nav_backlog"), T("nav_copilot"), T("nav_reports"),
+    T("nav_reviews"), T("nav_glossary"), T("nav_policies"), T("nav_import"),
+]
+if user["rol"] == "admin":
+    nav_options.append(T("nav_users"))
+
+section = st.sidebar.radio("Sección", nav_options)
+
+st.title(T("app_title"))
 
 
-@st.cache_data
 def load_data():
-    proj = demo_data.projects()
-    tasks = demo_data.tasks()
-    team = demo_data.team()
-    return proj, tasks, team
+    return db.projects(), db.tasks(), db.team()
 
 
 proj_df, task_df, team_df = load_data()
+equipo_df = db.listar_usuarios()
 
-st.sidebar.title(T("app_title"))
-section = st.sidebar.radio(
-    "Sección",
-    [
-        T("nav_portfolio"), T("nav_health"), T("nav_dependencies"),
-        T("nav_backlog"), T("nav_copilot"), T("nav_reports"),
-        T("nav_reviews"), T("nav_glossary"), T("nav_policies"), T("nav_import"),
-    ],
-)
 
-st.title(T("app_title"))
+def _selector_usuario(label: str, key: str, actual_id=None):
+    opciones = ["(sin asignar)"] + equipo_df["nombre"].tolist()
+    idx = 0
+    if actual_id is not None and not equipo_df.empty:
+        match = equipo_df[equipo_df["id"] == actual_id]
+        if not match.empty:
+            idx = opciones.index(match.iloc[0]["nombre"])
+    elegido = st.selectbox(label, opciones, index=idx, key=key)
+    if elegido == "(sin asignar)":
+        return None
+    return int(equipo_df[equipo_df["nombre"] == elegido]["id"].iloc[0])
+
+
+if proj_df.empty and task_df.empty:
+    st.info("Todavía no cargaste proyectos en este servidor.")
+    if st.button("🌱 Cargar datos de ejemplo para explorar"):
+        db.cargar_datos_de_ejemplo()
+        st.rerun()
+
+# ------------------------------------------------------------------ secciones
 
 if section == T("nav_portfolio"):
     kpis = catalog.kpis(proj_df)
@@ -89,11 +182,145 @@ if section == T("nav_portfolio"):
     a_tiempo = int((health.project_health(proj_df, task_df, team_df)["dim_cronograma"] >= 70).sum())
     c6.metric(T("kpi_on_time"), a_tiempo)
 
-    st.subheader(T("nav_portfolio"))
-    st.dataframe(catalog.catalog(proj_df), use_container_width=True)
+    with st.expander("➕ Nuevo proyecto"):
+        with st.form("nuevo_proyecto", clear_on_submit=True):
+            nombre = st.text_input("Nombre del proyecto")
+            col1, col2 = st.columns(2)
+            portafolio = col1.text_input("Portafolio", value="Producto Core")
+            sponsor = col2.text_input("Sponsor")
+            dueno_id = _selector_usuario("Dueño", "nuevo_proy_dueno")
+            segmento = st.selectbox("Segmento", ["Interno", "Cliente externo", "Regulatorio"])
+            col3, col4 = st.columns(2)
+            fecha_inicio = col3.date_input("Fecha de inicio", value=date.today())
+            fecha_fin = col4.date_input("Fecha de fin", value=date.today())
+            col5, col6 = st.columns(2)
+            presupuesto = col5.number_input("Presupuesto", min_value=0.0, step=100.0)
+            ejecutado = col6.number_input("Ejecutado", min_value=0.0, step=100.0)
+            criticidad = st.selectbox("Criticidad", ["Alta", "Media", "Baja"], index=1)
+            enviado = st.form_submit_button("Crear proyecto")
+            if enviado:
+                if not nombre.strip():
+                    st.error("El nombre es obligatorio.")
+                else:
+                    db.crear_proyecto(
+                        nombre=nombre.strip(), portafolio=portafolio.strip() or "Sin portafolio",
+                        sponsor=sponsor.strip() or None, dueno_id=dueno_id, segmento=segmento,
+                        fecha_inicio=str(fecha_inicio), fecha_fin=str(fecha_fin),
+                        presupuesto=presupuesto, ejecutado=ejecutado, criticidad=criticidad,
+                    )
+                    st.success(f"Proyecto '{nombre}' creado.")
+                    st.rerun()
 
-    st.subheader("Por portafolio")
-    st.bar_chart(catalog.por_portafolio(proj_df).set_index("portafolio")[["presupuesto", "ejecutado"]])
+    if not proj_df.empty:
+        st.subheader(T("nav_portfolio"))
+        st.dataframe(catalog.catalog(proj_df).drop(columns=["_id"]), use_container_width=True)
+
+        with st.expander("✏️ Ficha de proyecto (editar / archivar / eliminar)"):
+            opciones = (proj_df["nombre"] + " — " + proj_df["proyecto_id"]).tolist()
+            elegido = st.selectbox("Elegí un proyecto", opciones, key="ficha_proyecto_selector")
+            fila = proj_df.iloc[opciones.index(elegido)]
+            with st.form("editar_proyecto"):
+                nombre_e = st.text_input("Nombre", value=fila["nombre"])
+                col1, col2 = st.columns(2)
+                portafolio_e = col1.text_input("Portafolio", value=fila["portafolio"])
+                sponsor_e = col2.text_input("Sponsor", value=fila["sponsor"] or "")
+                dueno_id_e = _selector_usuario(
+                    "Dueño", "editar_proy_dueno",
+                    actual_id=equipo_df[equipo_df["nombre"] == fila["dueno"]]["id"].iloc[0]
+                    if fila["dueno"] and (equipo_df["nombre"] == fila["dueno"]).any() else None,
+                )
+                segmento_e = st.selectbox("Segmento", ["Interno", "Cliente externo", "Regulatorio"],
+                                           index=["Interno", "Cliente externo", "Regulatorio"].index(fila["segmento"])
+                                           if fila["segmento"] in ["Interno", "Cliente externo", "Regulatorio"] else 0)
+                col3, col4 = st.columns(2)
+                presupuesto_e = col3.number_input("Presupuesto", min_value=0.0, step=100.0, value=float(fila["presupuesto"]))
+                ejecutado_e = col4.number_input("Ejecutado", min_value=0.0, step=100.0, value=float(fila["ejecutado"]))
+                criticidad_e = st.selectbox("Criticidad", ["Alta", "Media", "Baja"],
+                                             index=["Alta", "Media", "Baja"].index(fila["criticidad"]))
+                guardar = st.form_submit_button("💾 Guardar cambios")
+                if guardar:
+                    db.actualizar_proyecto(
+                        int(fila["_id"]), nombre=nombre_e.strip(), portafolio=portafolio_e.strip(),
+                        sponsor=sponsor_e.strip() or None, dueno_id=dueno_id_e, segmento=segmento_e,
+                        presupuesto=presupuesto_e, ejecutado=ejecutado_e, criticidad=criticidad_e,
+                    )
+                    st.success("Cambios guardados.")
+                    st.rerun()
+            col_a, col_b = st.columns(2)
+            if col_a.button("🗄️ Archivar proyecto", key="archivar_proy"):
+                db.archivar_proyecto(int(fila["_id"]))
+                st.success("Proyecto archivado.")
+                st.rerun()
+            if col_b.button("🗑️ Eliminar definitivamente", key="eliminar_proy"):
+                db.eliminar_proyecto(int(fila["_id"]))
+                st.success("Proyecto eliminado.")
+                st.rerun()
+
+        st.subheader("Por portafolio")
+        st.bar_chart(catalog.por_portafolio(proj_df).set_index("portafolio")[["presupuesto", "ejecutado"]])
+
+elif section == T("nav_tasks"):
+    st.subheader(T("nav_tasks"))
+
+    with st.expander("➕ Nueva tarea"):
+        if proj_df.empty:
+            st.warning("Creá un proyecto primero.")
+        else:
+            with st.form("nueva_tarea", clear_on_submit=True):
+                proyecto_opciones = (proj_df["nombre"] + " — " + proj_df["proyecto_id"]).tolist()
+                proyecto_elegido = st.selectbox("Proyecto", proyecto_opciones)
+                proyecto_real_id = int(proj_df.iloc[proyecto_opciones.index(proyecto_elegido)]["_id"])
+                titulo = st.text_input("Título de la tarea")
+                responsable_id = _selector_usuario("Responsable", "nueva_tarea_resp")
+                col1, col2 = st.columns(2)
+                estado = col1.selectbox("Estado", ["todo", "in_progress", "blocked", "done"])
+                prioridad = col2.selectbox("Prioridad", ["Alta", "Media", "Baja"], index=1)
+                vencimiento = st.date_input("Vencimiento", value=date.today())
+                dep_opciones = ["(ninguna)"] + (task_df["titulo"] + " — " + task_df["tarea_id"]).tolist()
+                dependencia = st.selectbox("Depende de", dep_opciones)
+                enviado = st.form_submit_button("Crear tarea")
+                if enviado:
+                    if not titulo.strip():
+                        st.error("El título es obligatorio.")
+                    else:
+                        depende_de_id = None
+                        if dependencia != "(ninguna)":
+                            depende_de_id = int(task_df.iloc[dep_opciones.index(dependencia) - 1]["_id"])
+                        db.crear_tarea(
+                            proyecto_id=proyecto_real_id, titulo=titulo.strip(),
+                            responsable_id=responsable_id, estado=estado,
+                            vencimiento=str(vencimiento), prioridad=prioridad, depende_de=depende_de_id,
+                        )
+                        st.success(f"Tarea '{titulo}' creada.")
+                        st.rerun()
+
+    if not task_df.empty:
+        st.dataframe(task_df.drop(columns=["_id"]), use_container_width=True)
+
+        with st.expander("✏️ Ficha de tarea (editar / eliminar)"):
+            t_opciones = (task_df["titulo"] + " — " + task_df["tarea_id"]).tolist()
+            t_elegida = st.selectbox("Elegí una tarea", t_opciones, key="ficha_tarea_selector")
+            t_fila = task_df.iloc[t_opciones.index(t_elegida)]
+            with st.form("editar_tarea"):
+                titulo_e = st.text_input("Título", value=t_fila["titulo"])
+                responsable_actual = equipo_df[equipo_df["nombre"] == t_fila["responsable"]]["id"].iloc[0] \
+                    if t_fila["responsable"] and (equipo_df["nombre"] == t_fila["responsable"]).any() else None
+                responsable_id_e = _selector_usuario("Responsable", "editar_tarea_resp", actual_id=responsable_actual)
+                col1, col2 = st.columns(2)
+                estado_e = col1.selectbox("Estado", ["todo", "in_progress", "blocked", "done"],
+                                           index=["todo", "in_progress", "blocked", "done"].index(t_fila["estado"]))
+                prioridad_e = col2.selectbox("Prioridad", ["Alta", "Media", "Baja"],
+                                              index=["Alta", "Media", "Baja"].index(t_fila["prioridad"]))
+                guardar_t = st.form_submit_button("💾 Guardar cambios")
+                if guardar_t:
+                    db.actualizar_tarea(int(t_fila["_id"]), titulo=titulo_e.strip(),
+                                         responsable_id=responsable_id_e, estado=estado_e, prioridad=prioridad_e)
+                    st.success("Cambios guardados.")
+                    st.rerun()
+            if st.button("🗑️ Eliminar tarea", key="eliminar_tarea"):
+                db.eliminar_tarea(int(t_fila["_id"]))
+                st.success("Tarea eliminada.")
+                st.rerun()
 
 elif section == T("nav_health"):
     h = health.project_health(proj_df, task_df, team_df)
@@ -145,8 +372,8 @@ elif section == T("nav_copilot"):
 elif section == T("nav_reports"):
     st.subheader(T("nav_reports"))
     st.code(reports.as_text(proj_df, task_df, team_df), language=None)
-    st.download_button("Descargar JSON del portafolio", exporters.to_json_bundle(), file_name="portafolio_mvpm.json")
-    st.download_button("Descargar Excel del portafolio", exporters.to_excel_bytes(), file_name="portafolio_mvpm.xlsx")
+    st.download_button("Descargar JSON del portafolio", exporters.to_json_bundle(proj_df, task_df, team_df), file_name="portafolio_mvpm.json")
+    st.download_button("Descargar Excel del portafolio", exporters.to_excel_bytes(proj_df, task_df, team_df), file_name="portafolio_mvpm.xlsx")
 
 elif section == T("nav_reviews"):
     st.subheader(T("nav_reviews"))
@@ -190,11 +417,79 @@ elif section == T("nav_policies"):
 
 elif section == T("nav_import"):
     st.subheader(T("nav_import"))
-    uploaded = st.file_uploader("Subí un CSV/Excel de tareas existente", type=["csv", "xlsx"])
+    st.caption("Subí un archivo y elegí si son proyectos o tareas — se cargan de verdad a tu base, no es solo una vista previa.")
+    tipo = st.radio("¿Qué estás importando?", ["Proyectos", "Tareas"], horizontal=True)
+    uploaded = st.file_uploader("Subí un CSV/Excel", type=["csv", "xlsx"])
     if uploaded is not None:
-        df = pd.read_csv(uploaded) if uploaded.name.endswith("csv") else pd.read_excel(uploaded)
-        st.write(f"{len(df)} filas, {len(df.columns)} columnas detectadas.")
-        st.dataframe(df.head(20), use_container_width=True)
-        nulos = df.isna().sum()
-        st.write("Columnas con datos faltantes:")
-        st.dataframe(nulos[nulos > 0].rename("valores_nulos"))
+        df_import = pd.read_csv(uploaded) if uploaded.name.endswith("csv") else pd.read_excel(uploaded)
+        st.write(f"{len(df_import)} filas, {len(df_import.columns)} columnas detectadas.")
+        st.dataframe(df_import.head(20), use_container_width=True)
+        nulos = df_import.isna().sum()
+        con_nulos = nulos[nulos > 0]
+        if not con_nulos.empty:
+            st.write("Columnas con datos faltantes:")
+            st.dataframe(con_nulos.rename("valores_nulos"))
+
+        def _col(df, *nombres):
+            cols_lower = {c.lower().strip(): c for c in df.columns}
+            for n in nombres:
+                if n in cols_lower:
+                    return cols_lower[n]
+            return None
+
+        if st.button(f"✅ Confirmar importación como {tipo.lower()}"):
+            creadas = 0
+            if tipo == "Proyectos":
+                c_nombre = _col(df_import, "nombre", "proyecto", "titulo")
+                if not c_nombre:
+                    st.error("No encontré una columna 'nombre' (o 'proyecto'/'titulo') en el archivo.")
+                else:
+                    c_portafolio = _col(df_import, "portafolio")
+                    c_sponsor = _col(df_import, "sponsor")
+                    c_criticidad = _col(df_import, "criticidad", "prioridad")
+                    c_presupuesto = _col(df_import, "presupuesto", "budget")
+                    c_ejecutado = _col(df_import, "ejecutado", "spent")
+                    for _, row in df_import.iterrows():
+                        if pd.isna(row.get(c_nombre)):
+                            continue
+                        db.crear_proyecto(
+                            nombre=str(row[c_nombre]),
+                            portafolio=str(row[c_portafolio]) if c_portafolio and pd.notna(row.get(c_portafolio)) else "Importado",
+                            sponsor=str(row[c_sponsor]) if c_sponsor and pd.notna(row.get(c_sponsor)) else None,
+                            dueno_id=None, segmento="Interno",
+                            fecha_inicio=None, fecha_fin=None,
+                            presupuesto=float(row[c_presupuesto]) if c_presupuesto and pd.notna(row.get(c_presupuesto)) else 0,
+                            ejecutado=float(row[c_ejecutado]) if c_ejecutado and pd.notna(row.get(c_ejecutado)) else 0,
+                            criticidad=str(row[c_criticidad]) if c_criticidad and str(row.get(c_criticidad)) in ["Alta", "Media", "Baja"] else "Media",
+                        )
+                        creadas += 1
+            else:
+                c_titulo = _col(df_import, "titulo", "tarea", "nombre")
+                if not c_titulo or proj_df.empty:
+                    st.error("No encontré una columna 'titulo' (o 'tarea'/'nombre'), o todavía no hay proyectos para asociar las tareas.")
+                else:
+                    c_estado = _col(df_import, "estado", "status")
+                    c_prioridad = _col(df_import, "prioridad", "priority")
+                    proyecto_default_id = int(proj_df.iloc[0]["_id"])
+                    for _, row in df_import.iterrows():
+                        if pd.isna(row.get(c_titulo)):
+                            continue
+                        db.crear_tarea(
+                            proyecto_id=proyecto_default_id, titulo=str(row[c_titulo]),
+                            responsable_id=None,
+                            estado=str(row[c_estado]) if c_estado and str(row.get(c_estado)) in ["todo", "in_progress", "blocked", "done"] else "todo",
+                            vencimiento=None,
+                            prioridad=str(row[c_prioridad]) if c_prioridad and str(row.get(c_prioridad)) in ["Alta", "Media", "Baja"] else "Media",
+                            depende_de=None,
+                        )
+                        creadas += 1
+                    if creadas:
+                        st.caption(f"Todas las tareas importadas quedaron asociadas a '{proj_df.iloc[0]['nombre']}' — reasignalas desde la ficha de tarea si corresponde.")
+            if creadas:
+                st.success(f"Se importaron {creadas} fila(s).")
+                st.rerun()
+
+elif section == T("nav_users"):
+    st.subheader(T("nav_users"))
+    st.dataframe(equipo_df, use_container_width=True)
+    st.caption("Para sumar gente al equipo, pedile que se registre desde la pantalla de login de este mismo servidor con 'Crear cuenta'.")

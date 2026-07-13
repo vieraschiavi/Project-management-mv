@@ -103,6 +103,18 @@ def test_backlog_excludes_done_tasks():
     assert "done" not in backlog["estado"].unique()
 
 
+def test_backlog_vacio_no_rompe_con_cero_tareas_pendientes():
+    """Un proyecto recién creado en el dashboard real no tiene tareas todavía
+    — el backlog debe devolver un DataFrame vacío con las columnas
+    esperadas, no reventar (regresión: pending.apply()[0] con 0 filas)."""
+    proj = demo_data.projects().head(1)
+    tasks_vacias = demo_data.tasks().iloc[0:0]
+    backlog = prioritizer.prioritized_backlog(proj, tasks_vacias)
+    assert backlog.empty
+    for col in ("valor_esperado", "tareas_impactadas", "dias_restantes"):
+        assert col in backlog.columns
+
+
 # ---- policies ----
 
 def test_policies_have_valid_states():

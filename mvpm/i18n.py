@@ -3,6 +3,8 @@
 _STRINGS = {
     "app_title": {"es": "MV Project Management", "en": "MV Project Management", "pt": "MV Project Management"},
     "nav_portfolio": {"es": "Portafolio", "en": "Portfolio", "pt": "Portfólio"},
+    "nav_tasks": {"es": "Tareas", "en": "Tasks", "pt": "Tarefas"},
+    "nav_users": {"es": "Usuarios", "en": "Users", "pt": "Usuários"},
     "nav_health": {"es": "Salud de proyecto", "en": "Project health", "pt": "Saúde do projeto"},
     "nav_dependencies": {"es": "Dependencias", "en": "Dependencies", "pt": "Dependências"},
     "nav_backlog": {"es": "Backlog priorizado", "en": "Prioritized backlog", "pt": "Backlog priorizado"},
