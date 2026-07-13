@@ -15,6 +15,7 @@ _STRINGS = {
     "nav_policies": {"es": "Políticas", "en": "Policies", "pt": "Políticas"},
     "nav_import": {"es": "Importar datos", "en": "Import data", "pt": "Importar dados"},
     "nav_tutorial": {"es": "Tutorial", "en": "Tutorial", "pt": "Tutorial"},
+    "nav_case_study": {"es": "Caso de uso completo", "en": "Full use case", "pt": "Caso de uso completo"},
     "nav_pmbok": {"es": "Metodología PMBOK", "en": "PMBOK methodology", "pt": "Metodologia PMBOK"},
     "kpi_projects": {"es": "Proyectos activos", "en": "Active projects", "pt": "Projetos ativos"},
     "kpi_health": {"es": "Índice de salud", "en": "Health index", "pt": "Índice de saúde"},
