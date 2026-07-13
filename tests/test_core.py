@@ -15,10 +15,12 @@ from mvpm import (
     help_center,
     i18n,
     licensing,
+    pmbok,
     policies,
     prioritizer,
     reports,
     reviews,
+    tutorial,
 )
 from mvpm import copilot as copilot_mod
 
@@ -241,6 +243,54 @@ def test_automation_matrix_links_to_existing_speeches():
     for row in help_center.automation_rows():
         if "speech_id" in row:
             assert row["speech_id"] in speeches
+
+
+# ---- pmbok ----
+
+_PMBOK_AREAS_ESTANDAR = 10  # las 10 áreas de conocimiento de la guía PMBOK del PMI
+
+
+def test_pmbok_cubre_las_diez_areas_de_conocimiento():
+    assert len(pmbok.areas()) == _PMBOK_AREAS_ESTANDAR
+
+
+def test_pmbok_cobertura_es_honesta_no_todo_completo():
+    """Si todas las áreas dijeran 'completa' sería marketing, no una referencia
+    honesta — el producto tiene huecos reales (adquisiciones, comunicaciones)
+    y este test los obliga a seguir declarados."""
+    coberturas = {a["cobertura"] for a in pmbok.areas()}
+    assert coberturas == {"completa", "parcial", "no_cubierta"}
+
+
+def test_pmbok_areas_sin_cobertura_completa_explican_que_falta():
+    for a in pmbok.areas():
+        if a["cobertura"] != "completa":
+            assert a["lo_que_falta"], f"'{a['area']}' no explica qué falta"
+
+
+def test_pmbok_resumen_suma_el_total():
+    r = pmbok.resumen()
+    assert r["completa"] + r["parcial"] + r["no_cubierta"] == r["total_areas"] == _PMBOK_AREAS_ESTANDAR
+
+
+# ---- tutorial ----
+
+def test_tutorial_cubre_todas_las_secciones_del_nav():
+    """Si se agrega una sección nueva al dashboard (una nav_* en i18n) y nadie
+    le suma su entrada acá, el tutorial queda incompleto sin que ningún test
+    lo note — este chequeo lo detecta."""
+    ids_tutorial = {s["id"] for s in tutorial.sections()}
+    nav_keys = [k for k in i18n.all_keys() if k.startswith("nav_") and k != "nav_tutorial"]
+    faltantes = [k for k in nav_keys if k not in ids_tutorial]
+    assert not faltantes, f"Faltan en el tutorial: {faltantes}"
+
+
+def test_tutorial_secciones_tienen_contenido_real():
+    for s in tutorial.sections():
+        assert s["titulo"].strip()
+        assert s["resumen"].strip()
+        assert len(s["pasos"]) >= 1
+        assert all(p.strip() for p in s["pasos"])
 
 
 # ---- exporters ----

@@ -27,10 +27,12 @@ from mvpm import (
     help_center,
     i18n,
     licensing,
+    pmbok,
     policies,
     prioritizer,
     reports,
     reviews,
+    tutorial,
 )
 from mvpm import copilot as copilot_mod
 
@@ -128,9 +130,9 @@ if st.sidebar.button("Cerrar sesión"):
 st.sidebar.title(T("app_title"))
 
 nav_options = [
-    T("nav_portfolio"), T("nav_tasks"), T("nav_health"), T("nav_dependencies"),
+    T("nav_tutorial"), T("nav_portfolio"), T("nav_tasks"), T("nav_health"), T("nav_dependencies"),
     T("nav_backlog"), T("nav_copilot"), T("nav_reports"),
-    T("nav_reviews"), T("nav_glossary"), T("nav_policies"), T("nav_import"),
+    T("nav_reviews"), T("nav_glossary"), T("nav_policies"), T("nav_pmbok"), T("nav_import"),
 ]
 if user["rol"] == "admin":
     nav_options.append(T("nav_users"))
@@ -169,7 +171,21 @@ if proj_df.empty and task_df.empty:
 
 # ------------------------------------------------------------------ secciones
 
-if section == T("nav_portfolio"):
+if section == T("nav_tutorial"):
+    st.subheader(T("nav_tutorial"))
+    st.caption("Guía operativa de cada herramienta del programa — cómo usarla, no solo qué es.")
+    for i, s in enumerate(tutorial.sections()):
+        with st.expander(f"{s['titulo']}", expanded=(i == 0)):
+            st.write(s["resumen"])
+            st.markdown("**Cómo usarlo:**")
+            for paso in s["pasos"]:
+                st.markdown(f"- {paso}")
+            if s["tips"]:
+                st.markdown("**Tips:**")
+                for tip in s["tips"]:
+                    st.markdown(f"💡 {tip}")
+
+elif section == T("nav_portfolio"):
     kpis = catalog.kpis(proj_df)
     c1, c2, c3, c4, c5, c6 = st.columns(6)
     c1.metric(T("kpi_projects"), kpis["proyectos_activos"])
@@ -414,6 +430,25 @@ elif section == T("nav_policies"):
         nivel_icon = {"auto": "🟢 automático", "parcial": "🟡 parcial", "humano": "🔴 humano"}[row["nivel"]]
         st.markdown(f"**{row['area']}** — {nivel_icon}")
         st.caption(row["detalle"])
+
+elif section == T("nav_pmbok"):
+    st.subheader(T("nav_pmbok"))
+    st.caption("Alineación con las 10 áreas de conocimiento del PMBOK (guía del PMI) — no es una "
+               "certificación oficial, es una referencia honesta de qué cubre el producto y qué no.")
+    r = pmbok.resumen()
+    c1, c2, c3 = st.columns(3)
+    c1.metric("Cobertura completa", r["completa"])
+    c2.metric("Cobertura parcial", r["parcial"])
+    c3.metric("No cubierta", r["no_cubierta"])
+    st.divider()
+    icon = {"completa": "✅", "parcial": "🟡", "no_cubierta": "⚪"}
+    for a in pmbok.areas():
+        st.markdown(f"{icon[a['cobertura']]} **{a['area']}** ({a['area_en']})")
+        if a["como_lo_cubre"]:
+            st.write(a["como_lo_cubre"])
+        if a["lo_que_falta"]:
+            st.caption(f"Lo que falta: {a['lo_que_falta']}")
+        st.divider()
 
 elif section == T("nav_import"):
     st.subheader(T("nav_import"))

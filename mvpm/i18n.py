@@ -14,6 +14,8 @@ _STRINGS = {
     "nav_glossary": {"es": "Glosario", "en": "Glossary", "pt": "Glossário"},
     "nav_policies": {"es": "Políticas", "en": "Policies", "pt": "Políticas"},
     "nav_import": {"es": "Importar datos", "en": "Import data", "pt": "Importar dados"},
+    "nav_tutorial": {"es": "Tutorial", "en": "Tutorial", "pt": "Tutorial"},
+    "nav_pmbok": {"es": "Metodología PMBOK", "en": "PMBOK methodology", "pt": "Metodologia PMBOK"},
     "kpi_projects": {"es": "Proyectos activos", "en": "Active projects", "pt": "Projetos ativos"},
     "kpi_health": {"es": "Índice de salud", "en": "Health index", "pt": "Índice de saúde"},
     "kpi_at_risk": {"es": "Proyectos en riesgo", "en": "Projects at risk", "pt": "Projetos em risco"},
