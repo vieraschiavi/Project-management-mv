@@ -6,9 +6,11 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 import pytest
 
 from mvpm import (
+    advisor,
     case_study,
     catalog,
     demo_data,
+    demo_real,
     dependencies as dep_mod,
     exporters,
     glossary,
@@ -327,6 +329,87 @@ def test_narrar_caso_funciona_con_portafolio_de_un_solo_proyecto_sin_tareas():
     caso = case_study.narrar_caso(proj, tasks_vacias, team)
     assert caso["proyecto_id"] == proj.iloc[0]["proyecto_id"]
     assert len(caso["pasos"]) == 6
+
+
+# ---- advisor ----
+
+def test_detectar_problemas_encuentra_los_del_dato_demo():
+    proj, tasks, team = demo_data.projects(), demo_data.tasks(), demo_data.team()
+    problemas = advisor.detectar_problemas(proj, tasks, team)
+    assert len(problemas) > 0
+    tipos = {p["tipo"] for p in problemas}
+    assert tipos <= set(advisor._SUGERENCIAS.keys())
+    ids = [p["id"] for p in problemas]
+    assert len(ids) == len(set(ids))  # sin duplicados
+
+
+def test_detectar_problemas_vacio_sin_datos_no_rompe():
+    vacio = demo_data.projects().iloc[0:0]
+    problemas = advisor.detectar_problemas(vacio, demo_data.tasks().iloc[0:0], demo_data.team().iloc[0:0])
+    # sin proyectos no hay bloqueos, sobrepresupuesto, riesgo ni sobrecarga que detectar
+    tipos = {p["tipo"] for p in problemas}
+    assert tipos <= {"politica_incumplida"}
+
+
+def test_sugerir_sin_proveedor_usa_motor_de_reglas():
+    proj, tasks, team = demo_data.projects(), demo_data.tasks(), demo_data.team()
+    problema = advisor.detectar_problemas(proj, tasks, team)[0]
+    resultado = advisor.sugerir(problema)
+    assert resultado["ai_enriched"] is False
+    assert resultado["proveedor"] is None
+    assert resultado["sugerencia"].strip()
+
+
+def test_sugerir_con_proveedor_sin_clave_configurada_no_falla(monkeypatch):
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    proj, tasks, team = demo_data.projects(), demo_data.tasks(), demo_data.team()
+    problema = advisor.detectar_problemas(proj, tasks, team)[0]
+    resultado = advisor.sugerir(problema, proveedor="claude")
+    assert resultado["ai_enriched"] is False  # se degrada al motor de reglas, no rompe
+
+
+def test_proveedores_disponibles_solo_lista_los_configurados(monkeypatch):
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    monkeypatch.delenv("GEMINI_API_KEY", raising=False)
+    assert advisor.proveedores_disponibles() == []
+    monkeypatch.setenv("OPENAI_API_KEY", "sk-test")
+    assert advisor.proveedores_disponibles() == ["chatgpt"]
+
+
+# ---- demo_real ----
+
+def test_cargar_portafolio_real_tiene_el_esquema_de_demo_data():
+    proj = demo_real.cargar_portafolio_real()
+    assert list(proj.columns) == list(demo_data.projects().columns)
+    assert len(proj) > 0
+    assert proj["nombre"].notna().all()
+    assert proj["presupuesto"].notna().all()
+    assert proj["ejecutado"].notna().all()
+
+
+def test_resumen_portafolio_real_es_consistente():
+    r = demo_real.resumen_portafolio()
+    assert r["total_proyectos"] > 0
+    assert 0 <= r["sobre_presupuesto"] <= r["total_proyectos"]
+    assert r["horas_ahorradas_estimadas"] > 0
+    assert not r["proyectos_sobre_presupuesto_detalle"].empty
+
+
+def test_caso_real_trae_los_dos_casos_narrados():
+    for nombre in ["Social Housing Decarbonisation Fund", "Borders & Trade Programme"]:
+        c = demo_real.caso(nombre)
+        assert c["nombre"] == nombre
+        assert c["narrativa_real"].strip()
+        assert c["revision_real"].strip()
+        assert c["rag"] in {"Red", "Amber", "Green"}
+
+
+def test_caso_real_sobre_presupuesto_coincide_con_los_numeros_reales():
+    c = demo_real.caso("Social Housing Decarbonisation Fund")
+    assert c["sobre_presupuesto"] is True  # £65.33M base vs £184.77M ejecutado, dato real
+    c2 = demo_real.caso("Borders & Trade Programme")
+    assert c2["sobre_presupuesto"] is False  # £410.2M base vs £379.12M ejecutado, dato real
 
 
 # ---- exporters ----
