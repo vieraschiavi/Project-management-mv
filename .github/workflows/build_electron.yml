@@ -1,0 +1,53 @@
+name: Build Electron desktop installer
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch: {}
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Instalar dependencias Python
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pyinstaller
+
+      - name: Compilar el motor (PyInstaller) — sin Node ni Python en la PC del usuario
+        run: pyinstaller packaging/mvpm.spec --distpath dist --workpath build --noconfirm
+
+      - name: Copiar el ejecutable del motor a los recursos de Electron
+        run: Copy-Item dist/MVProjectManagement.exe desktop/resources/MVProjectManagement.exe
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Instalar dependencias de Electron
+        working-directory: desktop
+        run: npm ci
+
+      - name: Compilar el instalador de escritorio (Electron + NSIS)
+        working-directory: desktop
+        run: npm run dist
+
+      - name: Subir instalador como artefacto
+        uses: actions/upload-artifact@v4
+        with:
+          name: MVProjectManagement-Desktop-Windows
+          path: desktop/release/*.exe
+
+      - name: Publicar en el release (solo en tags)
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: desktop/release/*.exe
