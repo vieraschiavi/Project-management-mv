@@ -153,6 +153,31 @@ proj_df, task_df, team_df = load_data()
 equipo_df = db.listar_usuarios()
 
 
+_GRADIENTE_ROJO = (215, 48, 39)
+_GRADIENTE_AMARILLO = (255, 255, 191)
+_GRADIENTE_VERDE = (26, 152, 80)
+
+
+def _interpolar_color(c1, c2, t):
+    return tuple(round(c1[i] + (c2[i] - c1[i]) * t) for i in range(3))
+
+
+def _color_por_indice(valor):
+    """Rojo→amarillo→verde sobre 0-100, sin matplotlib (Styler.background_gradient
+    lo requiere y no está en requirements.txt — esto evita sumar esa dependencia
+    sólo para un gradiente de color)."""
+    if pd.isna(valor):
+        return ""
+    v = max(0.0, min(100.0, float(valor)))
+    if v <= 50:
+        r, g, b = _interpolar_color(_GRADIENTE_ROJO, _GRADIENTE_AMARILLO, v / 50)
+    else:
+        r, g, b = _interpolar_color(_GRADIENTE_AMARILLO, _GRADIENTE_VERDE, (v - 50) / 50)
+    brillo = (r * 299 + g * 587 + b * 114) / 1000
+    texto = "#000" if brillo > 140 else "#fff"
+    return f"background-color: rgb({r},{g},{b}); color: {texto}"
+
+
 def _selector_usuario(label: str, key: str, actual_id=None):
     opciones = ["(sin asignar)"] + equipo_df["nombre"].tolist()
     idx = 0
@@ -410,7 +435,8 @@ elif section == T("nav_health"):
     st.dataframe(h_display, use_container_width=True)
     st.subheader("Matriz por dimensión")
     matriz = health.matriz_por_dimension(proj_df, task_df, team_df).set_index("nombre")
-    st.dataframe(matriz.style.background_gradient(cmap="RdYlGn", vmin=0, vmax=100), use_container_width=True)
+    columnas_dim = [c for c in matriz.columns if c.startswith("dim_")]
+    st.dataframe(matriz.style.map(_color_por_indice, subset=columnas_dim), use_container_width=True)
 
 elif section == T("nav_dependencies"):
     st.subheader(T("nav_dependencies"))
