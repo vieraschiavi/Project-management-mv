@@ -4,8 +4,14 @@ Mismo patrón que `kobra_launcher.py` de MV Kobra AI: busca un puerto libre,
 arranca Streamlit embebido, y recién abre el navegador cuando el server ya
 respondió — para no mostrarle al usuario una pestaña en blanco mientras
 carga.
+
+Cuando corre embebido dentro del wrapper de Electron (`desktop/`), la
+variable de entorno MVPM_ELECTRON=1 evita abrir además una pestaña del
+navegador del sistema — Electron ya muestra su propia ventana nativa
+apuntando al mismo puerto.
 """
 
+import os
 import socket
 import sys
 import threading
@@ -45,10 +51,14 @@ def main() -> None:
 
     sys.path.insert(0, str(base_dir))
 
-    puerto = _puerto_libre()
+    # Electron elige el puerto y lo pasa por env var, para poder apuntar su
+    # ventana ahí sin tener que adivinarlo ni parsear stdout.
+    puerto = int(os.environ.get("MVPM_PORT") or _puerto_libre())
     url = f"http://127.0.0.1:{puerto}"
 
-    threading.Thread(target=_esperar_y_abrir, args=(url,), daemon=True).start()
+    if not os.environ.get("MVPM_ELECTRON"):
+        threading.Thread(target=_esperar_y_abrir, args=(url,), daemon=True).start()
+    print(f"MVPM_READY_PORT:{puerto}", flush=True)
 
     from streamlit.web import cli as stcli
 

@@ -58,6 +58,7 @@ api/verify-payment.js  verifica el pago y emite la licencia (nunca confía en el
 api/_license.js       mismo esquema de licencias que licensing.py, en JS
 landing/index.html  landing pública (HTML/CSS/JS, sin build, deploy directo en Vercel)
 packaging/           empaquetado para PC (launcher, PyInstaller, Inno Setup)
+desktop/              instalador Electron — misma UI de Streamlit, ventana nativa
 MV_ProjectManagement.bat  versión portable — doble clic, sin instalar nada
 tests/test_core.py   suite de tests del motor
 ```
@@ -108,12 +109,24 @@ pierde al recargar ni si el problema original deja de detectarse.
 
 ## Descargas
 
-- **Instalador Windows (.exe)**: se compila en CI al taguear `vX.Y.Z` (ver
-  `.github/workflows/build_windows.yml`) y queda como asset del release de
-  GitHub.
+Ambos instaladores Windows se compilan en CI al taguear `vX.Y.Z` (ver
+"Instalador de Windows" más abajo) y quedan como assets del mismo release
+de GitHub — el motor Python/Streamlit es exactamente el mismo en los dos:
+
+- **Instalador Windows — Python/Streamlit** (`.github/workflows/build_windows.yml`):
+  PyInstaller + Inno Setup, abre el programa en el navegador del sistema.
+  No necesita Python instalado en la PC del usuario.
+- **Instalador Windows — Electron** (`.github/workflows/build_electron.yml`,
+  código en [`desktop/`](desktop/)): el mismo motor Python/Streamlit,
+  envuelto en una ventana nativa de escritorio (ícono propio, sin barra de
+  navegador) en vez de abrir el navegador — la opción más "profesional"
+  para quien busca un `.exe` que se sienta como un programa de escritorio
+  de verdad, no una web. Tampoco necesita Python instalado; no reescribe
+  ninguna pantalla, sigue siendo la misma UI de Streamlit.
 - **Portable (.bat)**: `./run.sh portable` genera
   `dist/MVProjectManagement_portable_vX.Y.Z.zip` — se descomprime y se
-  ejecuta `MV_ProjectManagement.bat`, sin instalar nada.
+  ejecuta `MV_ProjectManagement.bat`, sin instalar nada. Este sí necesita
+  Python instalado en la PC (es la versión liviana, sin PyInstaller).
 - **100% web**: `./run.sh app` y se comparte la URL en la red interna.
 
 Más detalle en [`distribucion/README.md`](distribucion/README.md).
@@ -148,19 +161,25 @@ maquilladas).
 
 ## Instalador de Windows (pendiente de publicar)
 
-El workflow `.github/workflows/build_windows.yml` ya compila un instalador
-real (PyInstaller + Inno Setup, bundlea Python — no requiere tenerlo
-instalado) cada vez que se publica un tag `vX.Y.Z`. **Todavía no se publicó
-ningún tag**, así que la página de releases está vacía y la única opción
-hoy es la versión portable (`.bat`), que sí necesita Python instalado. Para
-publicar el primer instalador real:
+Dos workflows compilan sendos instaladores Windows reales cada vez que se
+publica un tag `vX.Y.Z` — ninguno requiere Python instalado en la PC del
+usuario:
+
+- `.github/workflows/build_windows.yml` — PyInstaller + Inno Setup.
+- `.github/workflows/build_electron.yml` — el mismo motor, envuelto en
+  Electron (ver [`desktop/`](desktop/)) para una ventana nativa en vez de
+  abrir el navegador del sistema.
+
+**Todavía no se publicó ningún tag**, así que la página de releases está
+vacía y la única opción hoy es la versión portable (`.bat`), que sí
+necesita Python instalado. Para publicar los dos instaladores reales:
 
 ```bash
 git tag v0.1.0
 git push origin v0.1.0
 ```
 
-Esto dispara el build en GitHub Actions y publica el `.exe` en
+Esto dispara los dos builds en GitHub Actions y publica ambos `.exe` en
 [Releases](https://github.com/vieraschiavi/Project-management-mv/releases)
 automáticamente.
 
@@ -176,7 +195,8 @@ automáticamente.
 - [x] Pestaña de Tutorial (guía de cada herramienta), Caso de uso completo y alineación honesta con PMBOK
 - [x] Iconos profesionales (SVG) en la landing, reemplazando los emoji
 - [x] Demo con datos públicos reales (portafolio de gobierno UK) y Asistente IA multi-proveedor con seguimiento
-- [ ] Publicar el primer tag (`v0.1.0`) para que exista un instalador Windows real descargable
+- [x] Instalador de escritorio con Electron (ventana nativa, mismo motor Python/Streamlit), código en `desktop/`
+- [ ] Publicar el primer tag (`v0.1.0`) para que existan los instaladores Windows reales descargables (Python y Electron)
 - [ ] Integraciones (Slack, Google Calendar, GitHub/Jira issues)
 - [ ] Reseñas verificadas de clientes piloto reales
 
