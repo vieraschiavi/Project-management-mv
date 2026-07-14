@@ -85,6 +85,18 @@ def init_db() -> None:
             creado_en TEXT NOT NULL,
             actualizado_en TEXT NOT NULL
         );
+
+        CREATE TABLE IF NOT EXISTS seguimientos (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            problema_id TEXT UNIQUE NOT NULL,
+            tipo TEXT NOT NULL,
+            titulo TEXT NOT NULL,
+            sugerencia TEXT NOT NULL,
+            proveedor TEXT,
+            estado TEXT NOT NULL DEFAULT 'abierto',
+            creado_en TEXT NOT NULL,
+            actualizado_en TEXT NOT NULL
+        );
         """)
 
 
@@ -246,6 +258,48 @@ def team() -> pd.DataFrame:
     usuarios["tareas_activas"] = usuarios["tareas_activas"].fillna(0)
     usuarios["carga_actual_hs"] = (usuarios["tareas_activas"] * _HORAS_POR_TAREA_ACTIVA).astype(int)
     return usuarios[["nombre", "rol", "capacidad_semanal_hs", "carga_actual_hs"]]
+
+
+# ---------------------------------------------------------------- seguimientos
+
+def crear_o_actualizar_seguimiento(problema_id: str, tipo: str, titulo: str,
+                                    sugerencia: str, proveedor: str | None = None) -> int:
+    """Un seguimiento por problema (problema_id es estable: '{tipo}:{entidad}').
+    Si ya existía, actualiza la sugerencia sin tocar su estado — así no se
+    pierde el progreso si alguien vuelve a pedir una sugerencia."""
+    with _connect() as conn:
+        row = conn.execute("SELECT id FROM seguimientos WHERE problema_id = ?", (problema_id,)).fetchone()
+        if row:
+            conn.execute(
+                "UPDATE seguimientos SET titulo = ?, sugerencia = ?, proveedor = ?, actualizado_en = ? WHERE id = ?",
+                (titulo, sugerencia, proveedor, _now(), row["id"]),
+            )
+            return row["id"]
+        cur = conn.execute(
+            "INSERT INTO seguimientos (problema_id, tipo, titulo, sugerencia, proveedor, creado_en, actualizado_en) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?)",
+            (problema_id, tipo, titulo, sugerencia, proveedor, _now(), _now()),
+        )
+        return cur.lastrowid
+
+
+def actualizar_estado_seguimiento(seguimiento_id: int, estado: str) -> None:
+    with _connect() as conn:
+        conn.execute("UPDATE seguimientos SET estado = ?, actualizado_en = ? WHERE id = ?",
+                     (estado, _now(), seguimiento_id))
+
+
+def listar_seguimientos() -> pd.DataFrame:
+    with _connect() as conn:
+        return pd.read_sql_query(
+            "SELECT id, problema_id, tipo, titulo, sugerencia, proveedor, estado, creado_en, actualizado_en "
+            "FROM seguimientos ORDER BY creado_en DESC", conn)
+
+
+def obtener_seguimiento_por_problema(problema_id: str) -> dict | None:
+    with _connect() as conn:
+        row = conn.execute("SELECT * FROM seguimientos WHERE problema_id = ?", (problema_id,)).fetchone()
+        return dict(row) if row else None
 
 
 # --------------------------------------------------------------------- seed

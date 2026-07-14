@@ -42,6 +42,25 @@ SECTIONS = [
         ],
     },
     {
+        "id": "nav_real_demo",
+        "titulo": "Demo con datos reales",
+        "resumen": "El motor corriendo sobre 132 proyectos reales del portafolio público del "
+                   "Reino Unido (datos abiertos, no simulados) — con dos casos narrados con el "
+                   "texto real de sus informes anuales.",
+        "pasos": [
+            "Los KPIs de arriba (presupuesto total, cuántos están sobre presupuesto) son el "
+            "resultado real de correr el catálogo sobre el dataset público — no son inventados.",
+            "El 'ahorro estimado' declara explícitamente su supuesto (minutos por revisión manual) "
+            "en vez de esconderlo — así se puede cuestionar o ajustar, no es una cifra de marketing.",
+            "Los dos casos incluyen el texto real de los informes anuales del gobierno británico "
+            "sobre por qué se desvió el presupuesto o por qué el proyecto salió bien.",
+        ],
+        "tips": [
+            "Es la prueba de que el motor no está hecho a medida del dataset de ejemplo — funciona "
+            "igual sobre datos públicos que nadie preparó pensando en esta herramienta.",
+        ],
+    },
+    {
         "id": "nav_portfolio",
         "titulo": "Portafolio",
         "resumen": "Catálogo único de proyectos, con KPIs del portafolio completo arriba.",
@@ -129,6 +148,27 @@ SECTIONS = [
         "tips": [
             "El cupo de IA depende del plan (ver 'licencia y plan de créditos de IA' más abajo); "
             "el motor de reglas no tiene límite en ningún plan, incluido el demo.",
+        ],
+    },
+    {
+        "id": "nav_advisor",
+        "titulo": "Asistente IA",
+        "resumen": "El motor de reglas detecta problemas del portafolio (bloqueos, dependencias "
+                   "huérfanas, proyectos en riesgo, sobrepresupuesto, sobrecarga, políticas "
+                   "incumplidas) y sugiere una acción — con seguimiento persistido.",
+        "pasos": [
+            "Elegí quién redacta la sugerencia: el motor de reglas solo, o un proveedor de IA "
+            "(Claude, ChatGPT o Gemini) — sólo aparecen los que tengan su clave configurada.",
+            "Cada problema detectado muestra una sugerencia concreta; 'Poner en seguimiento' la "
+            "guarda en la base con estado 'abierto'.",
+            "Desde el mismo problema podés pasar el seguimiento a 'en_progreso' o 'resuelto' — "
+            "queda en la tabla de Seguimientos aunque el problema original ya no se detecte.",
+        ],
+        "tips": [
+            "El motor de reglas nunca depende de la IA — si no configurás ninguna clave, el "
+            "asistente sigue detectando y sugiriendo igual, solo que sin pulir la redacción.",
+            "ChatGPT y Gemini necesitan además `OPENAI_MODEL` / `GEMINI_MODEL` en el entorno — "
+            "así nunca se asume un modelo por vos.",
         ],
     },
     {

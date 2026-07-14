@@ -17,10 +17,12 @@ import streamlit as st
 
 from mvpm import (
     BRAND,
+    advisor,
     auth,
     case_study,
     catalog,
     db,
+    demo_real,
     dependencies as dep_mod,
     exporters,
     glossary,
@@ -131,9 +133,9 @@ if st.sidebar.button("Cerrar sesión"):
 st.sidebar.title(T("app_title"))
 
 nav_options = [
-    T("nav_tutorial"), T("nav_case_study"), T("nav_portfolio"), T("nav_tasks"), T("nav_health"),
-    T("nav_dependencies"), T("nav_backlog"), T("nav_copilot"), T("nav_reports"),
-    T("nav_reviews"), T("nav_glossary"), T("nav_policies"), T("nav_pmbok"), T("nav_import"),
+    T("nav_tutorial"), T("nav_case_study"), T("nav_real_demo"), T("nav_portfolio"), T("nav_tasks"),
+    T("nav_health"), T("nav_dependencies"), T("nav_backlog"), T("nav_copilot"), T("nav_advisor"),
+    T("nav_reports"), T("nav_reviews"), T("nav_glossary"), T("nav_policies"), T("nav_pmbok"), T("nav_import"),
 ]
 if user["rol"] == "admin":
     nav_options.append(T("nav_users"))
@@ -203,6 +205,48 @@ elif section == T("nav_case_study"):
     if proj_df.empty:
         st.info("Todavía no cargaste tus propios proyectos — este recorrido usa el dato de ejemplo "
                 "para que veas el flujo completo antes de cargar los tuyos.")
+
+elif section == T("nav_real_demo"):
+    st.subheader(T("nav_real_demo"))
+    st.caption(f"Fuente: {demo_real.FUENTE}")
+    st.caption(f"No son datos sintéticos — son 132 proyectos reales de gobierno, filtrados a los "
+               f"que tienen calificación de confianza y presupuesto numérico completos en el "
+               f"informe original. [Descargar el dataset original]({demo_real.FUENTE_URL}).")
+
+    resumen = demo_real.resumen_portafolio()
+    c1, c2, c3, c4 = st.columns(4)
+    c1.metric("Proyectos reales analizados", resumen["total_proyectos"])
+    c2.metric("Sobre presupuesto (año fiscal)", resumen["sobre_presupuesto"])
+    c3.metric("Presupuesto total", f"£{resumen['presupuesto_total_m']:,.0f}M")
+    c4.metric("Ejecutado total", f"£{resumen['ejecutado_total_m']:,.0f}M")
+    st.caption("'Sobre presupuesto' compara el baseline y el ejecutado del año fiscal 2021/22 "
+               "reportado por cada departamento — no el costo total a lo largo de vida del proyecto.")
+
+    st.info(
+        f"⏱️ **Ahorro estimado de tiempo**: revisar a mano estos {resumen['total_proyectos']} "
+        f"proyectos para encontrar cuáles están sobre presupuesto — a un supuesto de "
+        f"{resumen['minutos_por_revision_manual_supuesto']} minutos por proyecto, un número "
+        f"explícito, no medido — tomaría ~{resumen['horas_ahorradas_estimadas']} horas de trabajo "
+        f"manual de un PMO. El motor los detecta a todos en segundos, cada vez que se le pide."
+    )
+
+    st.subheader("Los 10 más desviados, detectados por el motor")
+    st.dataframe(resumen["proyectos_sobre_presupuesto_detalle"], use_container_width=True)
+
+    st.divider()
+    st.subheader("Dos casos, con el texto real del informe anual")
+    for nombre in ["Social Housing Decarbonisation Fund", "Borders & Trade Programme"]:
+        c = demo_real.caso(nombre)
+        icon = {"Red": "🔴", "Amber": "🟡", "Green": "🟢"}[c["rag"]]
+        with st.expander(f"{icon} {c['nombre']} — {c['depto']}"):
+            st.write(c["resumen"])
+            st.markdown(f"**Lo que calcula el motor sobre este proyecto:** presupuesto £{c['presupuesto_m']:.1f}M, "
+                        f"ejecutado £{c['ejecutado_m']:.1f}M ({c['ejecucion_pct']}%) — "
+                        + ("marcado sobre presupuesto." if c["sobre_presupuesto"] else "dentro de presupuesto."))
+            st.markdown("**Texto real del informe anual sobre el presupuesto:**")
+            st.caption(c["narrativa_real"])
+            st.markdown("**Texto real del informe anual sobre la revisión de entrega:**")
+            st.caption(c["revision_real"])
 
 elif section == T("nav_portfolio"):
     kpis = catalog.kpis(proj_df)
@@ -403,6 +447,55 @@ elif section == T("nav_copilot"):
         result = copilot_mod.answer(q, proj_df, task_df, team_df, license_token=LICENSE_TOKEN)
         st.info(result["answer"])
         st.caption("Respuesta enriquecida con IA" if result["ai_enriched"] else "Respuesta del motor de reglas (sin IA)")
+
+elif section == T("nav_advisor"):
+    st.subheader(T("nav_advisor"))
+    st.caption("El motor de reglas detecta los problemas siempre. La redacción de la sugerencia se "
+               "puede pulir con el proveedor de IA que tengas configurado — nunca inventa el problema "
+               "ni el número que lo sustenta, sólo redacta mejor la acción sugerida.")
+    disponibles = advisor.proveedores_disponibles()
+    etiquetas = {"claude": "Claude", "chatgpt": "ChatGPT", "gemini": "Gemini"}
+    opciones_ia = ["Motor de reglas (sin IA)"] + [etiquetas[p] for p in disponibles]
+    elegido = st.radio("Redacción de la sugerencia", opciones_ia, horizontal=True)
+    proveedor = next((p for p in disponibles if etiquetas[p] == elegido), None)
+    if not disponibles:
+        st.caption("Sin proveedores de IA configurados — corriendo 100% con el motor de reglas. "
+                   "Para sumar redacción con IA, configurá ANTHROPIC_API_KEY (Claude), o "
+                   "OPENAI_API_KEY + OPENAI_MODEL (ChatGPT), o GEMINI_API_KEY + GEMINI_MODEL (Gemini).")
+
+    problemas = advisor.detectar_problemas(proj_df, task_df, team_df)
+    icon_severidad = {"alta": "🔴", "media": "🟡", "baja": "⚪"}
+    if not problemas:
+        st.success("El motor de reglas no detectó problemas activos en el portafolio ahora mismo.")
+    for p in problemas:
+        seg = db.obtener_seguimiento_por_problema(p["id"])
+        with st.expander(f"{icon_severidad[p['severidad']]} {p['titulo']}"):
+            resultado = advisor.sugerir(p, proveedor=proveedor)
+            st.write(resultado["sugerencia"])
+            st.caption(f"Redactado por {etiquetas[resultado['proveedor']]}" if resultado["ai_enriched"]
+                       else "Motor de reglas (sin IA)")
+            if seg:
+                nuevo_estado = st.selectbox(
+                    "Estado del seguimiento", ["abierto", "en_progreso", "resuelto"],
+                    index=["abierto", "en_progreso", "resuelto"].index(seg["estado"]),
+                    key=f"estado_{p['id']}",
+                )
+                if nuevo_estado != seg["estado"]:
+                    db.actualizar_estado_seguimiento(seg["id"], nuevo_estado)
+                    st.rerun()
+            elif st.button("📌 Poner en seguimiento", key=f"seguir_{p['id']}"):
+                db.crear_o_actualizar_seguimiento(p["id"], p["tipo"], p["titulo"],
+                                                   resultado["sugerencia"], resultado["proveedor"])
+                st.rerun()
+
+    seguimientos_df = db.listar_seguimientos()
+    if not seguimientos_df.empty:
+        st.divider()
+        st.subheader("Seguimientos")
+        st.caption("Se mantienen acá aunque el problema original ya no se detecte — así queda el "
+                   "historial de qué se resolvió y cuándo.")
+        st.dataframe(seguimientos_df[["titulo", "tipo", "estado", "proveedor", "actualizado_en"]],
+                     use_container_width=True)
 
 elif section == T("nav_reports"):
     st.subheader(T("nav_reports"))

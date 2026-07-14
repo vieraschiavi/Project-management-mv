@@ -19,6 +19,13 @@ Las **reseñas de usuarios son igual de honestas**: `mvpm/reviews.py` nunca
 genera testimonios falsos. Mientras no haya reseñas verificadas, la web
 muestra el estado real ("programa en fase beta"), no marketing inventado.
 
+La pestaña **Demo con datos reales** (`mvpm/demo_real.py`) va un paso más
+allá: corre el motor sobre 132 proyectos **reales** del portafolio público
+del Reino Unido (datos abiertos, Open Government Licence v3.0 — no son
+sintéticos ni preparados a medida). El "ahorro estimado" que se muestra ahí
+declara su supuesto explícitamente (minutos por revisión manual) en vez de
+esconderlo detrás de una cifra de marketing.
+
 ## Estructura
 
 ```
@@ -41,6 +48,8 @@ mvpm/            motor de dominio (un solo lugar, consumido por dashboard + API)
   pmbok.py                alineación honesta con las 10 áreas de conocimiento del PMBOK (PMI)
   tutorial.py              contenido de la pestaña Tutorial — guía paso a paso de cada herramienta
   case_study.py            caso de uso simulado completo: recorre un proyecto real de punta a punta
+  demo_real.py             demo con datos públicos reales (portafolio de gobierno del Reino Unido)
+  advisor.py               asistente: detecta problemas y sugiere acciones, con seguimiento persistido
   i18n.py               traducciones ES/EN/PT de la app
 app/app.py         dashboard operativo (Streamlit)
 api/main.py         API REST local para BI (Power BI, Tableau, Excel) + estado de licencia
@@ -73,6 +82,29 @@ firmado (HMAC-SHA256, mismo esquema en Python y en JS, ver
 `mvpm/licensing.py` y `api/_license.js`). Sin `MP_ACCESS_TOKEN` configurada,
 el checkout cae a un link de pago fijo por plan (`MP_LINK_PROFESSIONAL`) en
 vez de romper.
+
+## Asistente IA (multi-proveedor)
+
+La pestaña **Asistente IA** (`mvpm/advisor.py`) detecta problemas reales del
+portafolio con el motor de reglas (siempre disponible, sin configurar nada)
+y sugiere una acción concreta. La redacción de esa sugerencia se puede pulir
+con el proveedor de IA que tengas configurado — nunca inventa el problema ni
+el número que lo sustenta:
+
+| Proveedor | Variables de entorno | Paquete opcional |
+|---|---|---|
+| Claude | `ANTHROPIC_API_KEY` | ya incluido (`anthropic`) |
+| ChatGPT | `OPENAI_API_KEY` + `OPENAI_MODEL` | `pip install openai` |
+| Gemini | `GEMINI_API_KEY` + `GEMINI_MODEL` | `pip install google-generativeai` |
+
+El asistente sólo ofrece los proveedores con su clave configurada — nunca
+uno que vaya a fallar. Para ChatGPT y Gemini además hace falta declarar el
+modelo exacto (`OPENAI_MODEL`, `GEMINI_MODEL`): así el producto nunca asume
+un ID de modelo por vos, que podría quedar desactualizado.
+
+Cada sugerencia se puede marcar **en seguimiento** y cambiar de estado
+(abierto / en progreso / resuelto) — queda persistida en la base real, no se
+pierde al recargar ni si el problema original deja de detectarse.
 
 ## Descargas
 
@@ -143,6 +175,7 @@ automáticamente.
 - [x] Base de datos real (SQLite local), login con usuario y contraseña, y fichas para crear/editar/archivar proyectos y tareas
 - [x] Pestaña de Tutorial (guía de cada herramienta), Caso de uso completo y alineación honesta con PMBOK
 - [x] Iconos profesionales (SVG) en la landing, reemplazando los emoji
+- [x] Demo con datos públicos reales (portafolio de gobierno UK) y Asistente IA multi-proveedor con seguimiento
 - [ ] Publicar el primer tag (`v0.1.0`) para que exista un instalador Windows real descargable
 - [ ] Integraciones (Slack, Google Calendar, GitHub/Jira issues)
 - [ ] Reseñas verificadas de clientes piloto reales

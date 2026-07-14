@@ -87,7 +87,8 @@ def project_health(
         estado = "riesgo" if indice < 55 else ("observacion" if indice < 75 else "saludable")
         rows.append({"proyecto_id": p["proyecto_id"], "nombre": p["nombre"], "indice": indice,
                       "estado": estado, **{f"dim_{k}": round(v, 1) for k, v in scores.items()}})
-    return pd.DataFrame(rows)
+    columnas = ["proyecto_id", "nombre", "indice", "estado"] + [f"dim_{d}" for d in DIMENSIONS]
+    return pd.DataFrame(rows, columns=columnas)
 
 
 def overall_index(projects=None, tasks=None, team=None) -> float:
