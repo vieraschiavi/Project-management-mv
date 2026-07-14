@@ -3,6 +3,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
+import pandas as pd
 import pytest
 
 from mvpm import (
@@ -62,6 +63,44 @@ def test_catalog_kpis_consistent():
     k = catalog.kpis(proj)
     assert k["proyectos_activos"] == len(proj)
     assert k["ejecutado_total"] >= 0
+
+
+def test_catalog_kpis_presupuesto_cero_no_muestra_nan():
+    """Un proyecto recién creado con el formulario por defecto (presupuesto
+    0, ejecutado 0) no debe mostrar 'nan%' en el KPI — es el primer proyecto
+    real de cualquier cuenta nueva."""
+    proj = demo_data.projects().head(1).copy()
+    proj["presupuesto"] = 0
+    proj["ejecutado"] = 0
+    k = catalog.kpis(proj)
+    assert k["ejecucion_pct_promedio"] == 0.0
+    assert not pd.isna(k["ejecucion_pct_promedio"])
+
+    cat = catalog.catalog(proj)
+    assert pd.isna(cat.iloc[0]["ejecucion_pct"])  # el valor por fila sigue siendo indefinido...
+    assert not cat.iloc[0]["sobre_presupuesto"]    # ...pero no se marca como sobre presupuesto
+
+    # presupuesto 0 con gasto real sí debe marcarse sobre presupuesto,
+    # y seguir sin romper el promedio (antes daba inf%, no nan%, pero
+    # tampoco es un porcentaje real)
+    proj2 = proj.copy()
+    proj2["ejecutado"] = 500
+    k2 = catalog.kpis(proj2)
+    assert not pd.isna(k2["ejecucion_pct_promedio"])
+    assert catalog.catalog(proj2).iloc[0]["sobre_presupuesto"]
+
+
+def test_catalog_kpis_no_rompe_con_portafolio_vacio():
+    """Primera pantalla real de cualquier cuenta nueva: cero proyectos
+    todavía. Regresión: mean() sobre una Serie vacía devuelve un float
+    Python plano sin .round(), no un escalar numpy — kpis() encadenaba
+    .round(1) directo sobre ese mean() y reventaba con AttributeError."""
+    vacio = demo_data.projects().iloc[0:0]
+    k = catalog.kpis(vacio)
+    assert k == {
+        "proyectos_activos": 0, "presupuesto_total": 0.0, "ejecutado_total": 0.0,
+        "ejecucion_pct_promedio": 0.0, "sin_dueno": 0, "sobre_presupuesto": 0,
+    }
 
 
 # ---- health ----
