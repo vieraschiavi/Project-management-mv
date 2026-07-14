@@ -25,6 +25,23 @@ SECTIONS = [
         ],
     },
     {
+        "id": "nav_case_study",
+        "titulo": "Caso de uso completo",
+        "resumen": "Un proyecto simulado recorrido de punta a punta por todas las herramientas del "
+                   "programa, con los números reales del motor — para ver el flujo completo antes "
+                   "de cargar tus propios datos.",
+        "pasos": [
+            "El programa elige el proyecto de ejemplo con peor índice de salud y lo recorre por "
+            "Portafolio, Salud, Dependencias, Backlog, Copiloto y Reportes, uno detrás del otro.",
+            "Cada paso muestra el resultado real de correr el motor sobre ese proyecto — no es un "
+            "guion escrito a mano, se recalcula en cada visita.",
+        ],
+        "tips": [
+            "Es el mejor punto de partida para alguien que nunca usó el producto: muestra en 6 "
+            "pasos lo mismo que explica la pestaña Tutorial, pero aplicado a un caso concreto.",
+        ],
+    },
+    {
         "id": "nav_portfolio",
         "titulo": "Portafolio",
         "resumen": "Catálogo único de proyectos, con KPIs del portafolio completo arriba.",

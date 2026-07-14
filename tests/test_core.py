@@ -6,6 +6,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 import pytest
 
 from mvpm import (
+    case_study,
     catalog,
     demo_data,
     dependencies as dep_mod,
@@ -291,6 +292,41 @@ def test_tutorial_secciones_tienen_contenido_real():
         assert s["resumen"].strip()
         assert len(s["pasos"]) >= 1
         assert all(p.strip() for p in s["pasos"])
+
+
+# ---- case_study ----
+
+def test_narrar_caso_elige_el_proyecto_de_peor_salud():
+    caso = case_study.narrar_caso()
+    peor = health.project_health().sort_values("indice").iloc[0]
+    assert caso["proyecto_id"] == peor["proyecto_id"]
+    assert caso["indice"] == peor["indice"]
+
+
+def test_narrar_caso_tiene_los_seis_pasos_con_contenido_real():
+    caso = case_study.narrar_caso()
+    secciones = [p["seccion"] for p in caso["pasos"]]
+    assert secciones == ["Portafolio", "Salud de proyecto", "Dependencias",
+                          "Backlog priorizado", "Copiloto", "Reportes"]
+    for p in caso["pasos"]:
+        assert p["texto"].strip()
+        assert caso["proyecto_id"] not in p["texto"]  # el texto narra con el nombre, no el código
+
+
+def test_narrar_caso_admite_elegir_proyecto_explicito():
+    proj = demo_data.projects()
+    otro_id = proj.iloc[5]["proyecto_id"]
+    caso = case_study.narrar_caso(proyecto_id=otro_id)
+    assert caso["proyecto_id"] == otro_id
+
+
+def test_narrar_caso_funciona_con_portafolio_de_un_solo_proyecto_sin_tareas():
+    proj = demo_data.projects().head(1).copy()
+    tasks_vacias = demo_data.tasks().iloc[0:0]
+    team = demo_data.team()
+    caso = case_study.narrar_caso(proj, tasks_vacias, team)
+    assert caso["proyecto_id"] == proj.iloc[0]["proyecto_id"]
+    assert len(caso["pasos"]) == 6
 
 
 # ---- exporters ----

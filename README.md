@@ -40,6 +40,7 @@ mvpm/            motor de dominio (un solo lugar, consumido por dashboard + API)
   licensing.py          plan de créditos de IA — licencias firmadas + cupo mensual
   pmbok.py                alineación honesta con las 10 áreas de conocimiento del PMBOK (PMI)
   tutorial.py              contenido de la pestaña Tutorial — guía paso a paso de cada herramienta
+  case_study.py            caso de uso simulado completo: recorre un proyecto real de punta a punta
   i18n.py               traducciones ES/EN/PT de la app
 app/app.py         dashboard operativo (Streamlit)
 api/main.py         API REST local para BI (Power BI, Tableau, Excel) + estado de licencia
@@ -106,10 +107,30 @@ app, nunca en la nube por defecto) y se pueden crear, editar, archivar o
 borrar proyectos y tareas desde el dashboard.
 
 La sección **Tutorial** (primera del menú) explica paso a paso cada
-herramienta del programa, y **Metodología PMBOK** muestra, área por área,
-qué tanto se alinea el producto con la guía del PMI — sin inflar lo que no
-cubre (adquisiciones y comunicaciones, por ejemplo, quedan declaradas como
-huecos reales, no maquilladas).
+herramienta del programa, **Caso de uso completo** recorre un proyecto
+simulado por todas esas herramientas con los números reales que calcula el
+motor, y **Metodología PMBOK** muestra, área por área, qué tanto se alinea
+el producto con la guía del PMI — sin inflar lo que no cubre (adquisiciones
+y comunicaciones, por ejemplo, quedan declaradas como huecos reales, no
+maquilladas).
+
+## Instalador de Windows (pendiente de publicar)
+
+El workflow `.github/workflows/build_windows.yml` ya compila un instalador
+real (PyInstaller + Inno Setup, bundlea Python — no requiere tenerlo
+instalado) cada vez que se publica un tag `vX.Y.Z`. **Todavía no se publicó
+ningún tag**, así que la página de releases está vacía y la única opción
+hoy es la versión portable (`.bat`), que sí necesita Python instalado. Para
+publicar el primer instalador real:
+
+```bash
+git tag v0.1.0
+git push origin v0.1.0
+```
+
+Esto dispara el build en GitHub Actions y publica el `.exe` en
+[Releases](https://github.com/vieraschiavi/Project-management-mv/releases)
+automáticamente.
 
 ## Roadmap
 
@@ -120,7 +141,9 @@ huecos reales, no maquilladas).
 - [x] Checkout / licencias (MercadoPago + plan de créditos de IA, patrón de `MV Kobra AI`)
 - [x] Empaquetado: portable (.bat) generado y probado; instalador Windows vía CI (pendiente compilar un release real)
 - [x] Base de datos real (SQLite local), login con usuario y contraseña, y fichas para crear/editar/archivar proyectos y tareas
-- [x] Pestaña de Tutorial (guía de cada herramienta) y alineación honesta con PMBOK
+- [x] Pestaña de Tutorial (guía de cada herramienta), Caso de uso completo y alineación honesta con PMBOK
+- [x] Iconos profesionales (SVG) en la landing, reemplazando los emoji
+- [ ] Publicar el primer tag (`v0.1.0`) para que exista un instalador Windows real descargable
 - [ ] Integraciones (Slack, Google Calendar, GitHub/Jira issues)
 - [ ] Reseñas verificadas de clientes piloto reales
 

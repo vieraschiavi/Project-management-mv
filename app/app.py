@@ -18,6 +18,7 @@ import streamlit as st
 from mvpm import (
     BRAND,
     auth,
+    case_study,
     catalog,
     db,
     dependencies as dep_mod,
@@ -130,8 +131,8 @@ if st.sidebar.button("Cerrar sesión"):
 st.sidebar.title(T("app_title"))
 
 nav_options = [
-    T("nav_tutorial"), T("nav_portfolio"), T("nav_tasks"), T("nav_health"), T("nav_dependencies"),
-    T("nav_backlog"), T("nav_copilot"), T("nav_reports"),
+    T("nav_tutorial"), T("nav_case_study"), T("nav_portfolio"), T("nav_tasks"), T("nav_health"),
+    T("nav_dependencies"), T("nav_backlog"), T("nav_copilot"), T("nav_reports"),
     T("nav_reviews"), T("nav_glossary"), T("nav_policies"), T("nav_pmbok"), T("nav_import"),
 ]
 if user["rol"] == "admin":
@@ -184,6 +185,24 @@ if section == T("nav_tutorial"):
                 st.markdown("**Tips:**")
                 for tip in s["tips"]:
                     st.markdown(f"💡 {tip}")
+
+elif section == T("nav_case_study"):
+    st.subheader(T("nav_case_study"))
+    st.caption("Un proyecto simulado completo, recorrido por las herramientas del programa paso a "
+               "paso — con los números reales que calcula el motor sobre el dato de ejemplo, no un "
+               "guion inventado para la demo.")
+    caso = case_study.narrar_caso()
+    st.markdown(f"**Proyecto elegido:** {caso['nombre']} ({caso['proyecto_id']}) — "
+                f"índice de salud {caso['indice']}/100, estado *{caso['estado']}*.")
+    st.divider()
+    for paso in caso["pasos"]:
+        st.markdown(f"##### {paso['titulo']}")
+        st.caption(paso["seccion"])
+        st.write(paso["texto"])
+        st.write("")
+    if proj_df.empty:
+        st.info("Todavía no cargaste tus propios proyectos — este recorrido usa el dato de ejemplo "
+                "para que veas el flujo completo antes de cargar los tuyos.")
 
 elif section == T("nav_portfolio"):
     kpis = catalog.kpis(proj_df)
