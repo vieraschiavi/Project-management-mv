@@ -1,4 +1,6 @@
+import json
 import sys
+import time
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
@@ -237,15 +239,67 @@ def test_verify_license_rejects_unknown_plan():
         licensing.issue_license("plan_inexistente", "cliente@empresa.com")
 
 
-def test_demo_quota_enforced(tmp_path, monkeypatch):
+def _patch_store(tmp_path, monkeypatch):
     monkeypatch.setattr(licensing, "_STORE_DIR", tmp_path)
     monkeypatch.setattr(licensing, "_SECRET_FILE", tmp_path / "secret.txt")
     monkeypatch.setattr(licensing, "_USAGE_FILE", tmp_path / "uso.json")
-    cupo = licensing.PLANES["demo"]["cupo_mensual_ia"]
-    for _ in range(cupo):
+    monkeypatch.setattr(licensing, "_TRIAL_FILE", tmp_path / "trial.json")
+
+
+def test_trial_da_cupo_professional_sin_token(tmp_path, monkeypatch):
+    """Durante la prueba (sin token) el copiloto usa cupo Professional, no demo:
+    la prueba es completa, no capada."""
+    _patch_store(tmp_path, monkeypatch)
+    demo_cupo = licensing.PLANES["demo"]["cupo_mensual_ia"]
+    for _ in range(demo_cupo):
         licensing.registrar_uso_ia("demo@local")
-    puede, _ = licensing.puede_usar_ia(None)
-    assert puede is False
+    puede, _ = licensing.puede_usar_ia(None)  # sigue habilitado: cupo pro (1000)
+    assert puede is True
+
+
+# ---- candado de la prueba de 7 días ----
+
+def test_trial_activo_da_acceso_total(tmp_path, monkeypatch):
+    _patch_store(tmp_path, monkeypatch)
+    est = licensing.estado_acceso(None)
+    assert est["acceso"] is True
+    assert est["modo"] == "trial"
+    assert est["dias_restantes"] == licensing.TRIAL_DIAS
+
+
+def test_trial_vencido_bloquea_sin_borrar(tmp_path, monkeypatch):
+    _patch_store(tmp_path, monkeypatch)
+    # primer uso hace 8 días → prueba vencida
+    hace_8_dias = time.time() - 8 * licensing.DIA_SEGUNDOS
+    (tmp_path / "trial.json").write_text(json.dumps({"primer_uso": hace_8_dias}))
+    est = licensing.estado_acceso(None)
+    assert est["acceso"] is False
+    assert est["modo"] == "expirado"
+
+
+def test_licencia_paga_vigente_desbloquea_tras_vencer_trial(tmp_path, monkeypatch):
+    _patch_store(tmp_path, monkeypatch)
+    hace_8_dias = time.time() - 8 * licensing.DIA_SEGUNDOS
+    (tmp_path / "trial.json").write_text(json.dumps({"primer_uso": hace_8_dias}))
+    token = licensing.issue_license("professional", "cliente@empresa.com", payment_id="PAY-9")
+    est = licensing.estado_acceso(token)
+    assert est["acceso"] is True
+    assert est["modo"] == "licencia"
+    assert est["plan"] == "professional"
+
+
+def test_licencia_paga_vencida_no_desbloquea(tmp_path, monkeypatch):
+    _patch_store(tmp_path, monkeypatch)
+    hace_8_dias = time.time() - 8 * licensing.DIA_SEGUNDOS
+    (tmp_path / "trial.json").write_text(json.dumps({"primer_uso": hace_8_dias}))
+    token = licensing.issue_license("professional", "cliente@empresa.com")
+    # licencia emitida hace 40 días (vigencia professional = 30) → vencida
+    hace_40_dias = time.time() - 40 * licensing.DIA_SEGUNDOS
+    est = licensing.estado_acceso(token, ahora=time.time())
+    # forzamos iat viejo verificando el helper directamente
+    payload = licensing.verify_license(token)
+    payload["iat"] = hace_40_dias
+    assert licensing.licencia_vigente(payload) is False
 
 
 def test_enterprise_quota_unlimited(tmp_path, monkeypatch):

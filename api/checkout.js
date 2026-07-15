@@ -1,80 +1,88 @@
-// Checkout de MercadoPago — mismo patrón que api/checkout.js de MV Kobra AI:
-// crea una preferencia de pago vía la API REST de MercadoPago (sin SDK, con
-// fetch nativo de Node) y redirige al init_point. Si no hay MP_ACCESS_TOKEN
-// configurada, cae a un link de pago fijo por plan (MP_LINK_<PLAN>) para que
-// el checkout nunca rompa por falta de credenciales — solo deja de ser
-// dinámico.
+// Checkout de MercadoPago — función serverless (Vercel, CommonJS).
+// Misma estructura que api/checkout.js de MV Kobra AI, con los precios de
+// MV Project Management.
 //
-// Nota: Kobra protege este endpoint con Vercel BotID (paquete `botid/server`).
-// Se omite acá para no sumar una dependencia npm al deploy de solo-HTML;
-// es el primer hardening a agregar antes de manejar pagos reales.
+// El Access Token de MercadoPago vive SOLO como variable de entorno del
+// servidor (MP_ACCESS_TOKEN). Nunca se expone al navegador ni se guarda en el
+// repo. Alternativa sin token: configurar un link de pago por plan
+// (MP_LINK_PROFESSIONAL).
+//
+// POST + JSON (no GET/redirect): el cliente hace fetch acá, recibe la URL de
+// pago y recién después navega él mismo. Mismo patrón que Kobra — así una
+// futura verificación anti-bot (Vercel BotID) puede adjuntarse al fetch, que
+// nunca se puede hacer sobre una navegación de página completa.
 
-const { PLANES } = require('./_license');
+// Protección anti-bot opcional: si el proyecto tiene Vercel BotID configurado
+// (paquete `botid`), se usa; si no está instalado/configurado, el checkout
+// sigue funcionando igual (no se rompe la venta por falta de hardening).
+let checkBotId = null;
+try { ({ checkBotId } = require("botid/server")); } catch (_) { /* opcional */ }
 
-const PRECIOS_UNIDAD = {
-  professional: { unit_price: 9, currency_id: process.env.MVPM_CURRENCY || 'USD', title: 'MV Project Management — Professional (1 usuario/mes)' },
+const PLANS = {
+  professional: { title: "MV Project Management · Professional (mensual, por usuario)", price: 9.0 },
 };
+
+// La cuenta de cobro (collector) de MercadoPago es de Uruguay (site MLU), que
+// SOLO acepta preferencias en UYU: mandar "USD" hace que la API rechace la
+// preferencia (no llega init_point) y el checkout falla. Los precios se
+// muestran de referencia en USD pero se cobran en pesos uruguayos al tipo de
+// cambio del día — por eso acá se convierte antes de crear la preferencia.
+const CURRENCY = process.env.MP_CURRENCY || "UYU";
+const TASA_UYU = Number(process.env.MP_TASA_UYU) || 40; // US$1 ≈ $U 40 (referencia)
 
 module.exports = async (req, res) => {
-  const plan = (req.query.plan || req.body?.plan || 'professional').toString();
+  if (req.method !== "POST") { res.status(405).json({ error: "method" }); return; }
 
-  if (!PRECIOS_UNIDAD[plan]) {
-    res.status(400).json({ error: `Plan '${plan}' no está a la venta por checkout directo. Para Enterprise, escribinos.` });
-    return;
+  if (checkBotId) {
+    try {
+      const verification = await checkBotId({ advancedOptions: { headers: req.headers } });
+      if (verification.isBot) { res.status(403).json({ error: "bot" }); return; }
+    } catch (_) { /* si BotID no está configurado, no bloquea la venta */ }
   }
 
-  const accessToken = process.env.MP_ACCESS_TOKEN;
-  const fallbackLink = process.env[`MP_LINK_${plan.toUpperCase()}`];
+  const body = typeof req.body === "string" ? safeJson(req.body) : (req.body || {});
+  const plan = String(body.plan || "").toLowerCase();
+  const p = PLANS[plan];
+  if (!p) { res.status(400).json({ error: "plan_invalido" }); return; }
 
-  if (!accessToken) {
-    if (fallbackLink) {
-      res.writeHead(302, { Location: fallbackLink });
-      res.end();
-      return;
-    }
-    res.status(503).json({
-      error: 'Checkout no configurado todavía. Faltan MP_ACCESS_TOKEN o MP_LINK_' + plan.toUpperCase() + ' en las variables de entorno de Vercel.',
-    });
+  const base = "https://" + (req.headers.host || "");
+  const token = process.env.MP_ACCESS_TOKEN;
+  const link = process.env["MP_LINK_" + plan.toUpperCase()];
+
+  // Sin Access Token: si hay link de pago fijo configurado, se devuelve ese.
+  if (!token) {
+    if (link) { res.status(200).json({ url: link }); return; }
+    res.status(503).json({ error: "medio_pago_no_configurado" });
     return;
   }
-
-  const item = PRECIOS_UNIDAD[plan];
-  const origin = `https://${req.headers.host}`;
 
   try {
-    const mpRes = await fetch('https://api.mercadopago.com/checkout/preferences', {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-        'Content-Type': 'application/json',
+    const unitPrice = CURRENCY === "UYU" ? Math.round(p.price * TASA_UYU) : p.price;
+    const pref = {
+      items: [{ title: p.title, quantity: 1, unit_price: unitPrice, currency_id: CURRENCY }],
+      back_urls: {
+        success: base + "/?checkout=success&plan=" + plan,
+        pending: base + "/?checkout=pending&plan=" + plan,
+        failure: base + "/?checkout=failure&plan=" + plan,
       },
-      body: JSON.stringify({
-        items: [{ title: item.title, quantity: 1, unit_price: item.unit_price, currency_id: item.currency_id }],
-        back_urls: {
-          success: `${origin}/?checkout=success&plan=${plan}`,
-          pending: `${origin}/?checkout=pending&plan=${plan}`,
-          failure: `${origin}/?checkout=failure&plan=${plan}`,
-        },
-        auto_return: 'approved',
-        metadata: { plan },
-      }),
+      auto_return: "approved",
+      metadata: { plan: plan },
+    };
+    const r = await fetch("https://api.mercadopago.com/checkout/preferences", {
+      method: "POST",
+      headers: { Authorization: "Bearer " + token, "Content-Type": "application/json" },
+      body: JSON.stringify(pref),
     });
-
-    if (!mpRes.ok) {
-      const detail = await mpRes.text();
-      res.status(502).json({ error: 'MercadoPago rechazó la preferencia de pago.', detail });
+    const data = await r.json();
+    if (!r.ok || !data.init_point) {
+      res.status(502).json({ error: "mercadopago" });
       return;
     }
-
-    const pref = await mpRes.json();
-    res.writeHead(302, { Location: pref.init_point });
-    res.end();
-  } catch (err) {
-    if (fallbackLink) {
-      res.writeHead(302, { Location: fallbackLink });
-      res.end();
-      return;
-    }
-    res.status(500).json({ error: 'No se pudo iniciar el checkout.', detail: String(err) });
+    res.status(200).json({ url: data.init_point });
+  } catch (e) {
+    if (link) { res.status(200).json({ url: link }); return; }
+    res.status(500).json({ error: "exception" });
   }
 };
+
+function safeJson(s) { try { return JSON.parse(s); } catch (e) { return {}; } }

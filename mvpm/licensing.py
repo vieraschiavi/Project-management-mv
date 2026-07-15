@@ -21,6 +21,15 @@ from pathlib import Path
 _STORE_DIR = Path.home() / ".mv_project_management"
 _SECRET_FILE = _STORE_DIR / "license_secret.txt"
 _USAGE_FILE = _STORE_DIR / "uso_copiloto.json"
+_TRIAL_FILE = _STORE_DIR / "trial.json"
+
+# Prueba completa: el programa se descarga 100% desbloqueado y funciona sin
+# recortes durante estos días desde el primer uso. Al vencer, se bloquea el
+# acceso hasta cargar una licencia paga vigente — pero los datos ya cargados
+# NUNCA se borran: al pagar, la persona sigue con todo lo que hizo.
+TRIAL_DIAS = 7
+DIA_SEGUNDOS = 86400
+PLANES_PAGOS = ("professional", "enterprise")
 
 PLANES = {
     "demo": {
@@ -134,7 +143,7 @@ def puede_usar_ia(token: str | None) -> tuple[bool, str]:
     Sin token válido, se trata como plan demo (cupo bajo, siempre disponible
     para evaluar). Nunca bloquea el motor de reglas — solo la capa de IA."""
     payload = verify_license(token) if token else None
-    plan = payload["plan"] if payload else "demo"
+    plan = plan_para_cupo(token)
     email = payload["email"] if payload else "demo@local"
     cupo = PLANES[plan]["cupo_mensual_ia"]
     if cupo is None:  # enterprise: ilimitado
@@ -151,3 +160,92 @@ def registrar_uso_ia(email: str = "demo@local") -> None:
     usage.setdefault(email, {})
     usage[email][period] = usage[email].get(period, 0) + 1
     _save_usage(usage)
+
+
+# --------------------------------------------------------------- prueba 7 días
+
+def _leer_trial() -> dict:
+    if not _TRIAL_FILE.exists():
+        return {}
+    try:
+        return json.loads(_TRIAL_FILE.read_text())
+    except json.JSONDecodeError:
+        return {}
+
+
+def primer_uso(ahora: float | None = None) -> float:
+    """Devuelve el timestamp del primer uso, creándolo la primera vez. La marca
+    se guarda en disco y no se pisa: define desde cuándo corre la prueba."""
+    data = _leer_trial()
+    if "primer_uso" in data:
+        return float(data["primer_uso"])
+    ts = float(ahora if ahora is not None else time.time())
+    _STORE_DIR.mkdir(parents=True, exist_ok=True)
+    data["primer_uso"] = ts
+    _TRIAL_FILE.write_text(json.dumps(data, indent=2))
+    return ts
+
+
+def licencia_vigente(payload: dict | None, ahora: float | None = None) -> bool:
+    """Una licencia paga vale mientras no venza su `vigencia_dias` desde `iat`.
+    Enterprise/Professional tienen 30 días (se renuevan con cada pago mensual)."""
+    if not payload:
+        return False
+    plan = payload.get("plan")
+    if plan not in PLANES_PAGOS:
+        return False
+    vigencia = PLANES.get(plan, {}).get("vigencia_dias")
+    if vigencia is None:  # paga sin vencimiento explícito
+        return True
+    iat = float(payload.get("iat", 0))
+    ahora = float(ahora if ahora is not None else time.time())
+    return (ahora - iat) <= vigencia * DIA_SEGUNDOS
+
+
+def estado_acceso(token: str | None, ahora: float | None = None) -> dict:
+    """Candado maestro del programa. Devuelve si se puede usar la app completa:
+
+    - Con licencia paga vigente  → acceso total, modo 'licencia'.
+    - Dentro de los 7 días        → acceso total, modo 'trial'.
+    - Prueba vencida y sin pago    → bloqueado, modo 'expirado'.
+
+    Bloquear NUNCA borra datos: al cargar una licencia válida, la persona sigue
+    con todo lo que hizo. El motor de reglas y la app entera se habilitan igual
+    durante la prueba; sólo al vencer se corta hasta pagar.
+    """
+    ahora = float(ahora if ahora is not None else time.time())
+    payload = verify_license(token) if token else None
+
+    if licencia_vigente(payload, ahora):
+        return {
+            "acceso": True, "modo": "licencia", "plan": payload["plan"],
+            "dias_restantes": None,
+            "mensaje": f"Licencia {PLANES[payload['plan']]['nombre']} activa.",
+        }
+
+    inicio = primer_uso(ahora)
+    transcurridos = (ahora - inicio) / DIA_SEGUNDOS
+    restantes = TRIAL_DIAS - transcurridos
+    if restantes > 0:
+        dias = max(1, int(restantes + 0.999))  # redondeo hacia arriba, mínimo 1
+        return {
+            "acceso": True, "modo": "trial", "plan": "trial",
+            "dias_restantes": dias,
+            "mensaje": f"Prueba completa: te quedan {dias} día(s) con todo desbloqueado.",
+        }
+
+    return {
+        "acceso": False, "modo": "expirado", "plan": None, "dias_restantes": 0,
+        "mensaje": "La prueba de 7 días venció. Tus datos están guardados: "
+                   "activá una licencia Professional para seguir usándolos.",
+    }
+
+
+def plan_para_cupo(token: str | None, ahora: float | None = None) -> str:
+    """Plan efectivo para el cupo de IA. Durante la prueba se trata como
+    Professional (la prueba es completa); con licencia paga, su propio plan."""
+    payload = verify_license(token) if token else None
+    if licencia_vigente(payload, ahora):
+        return payload["plan"]
+    est = estado_acceso(token, ahora)
+    return "professional" if est["modo"] == "trial" else "demo"

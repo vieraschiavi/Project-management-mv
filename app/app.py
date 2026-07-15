@@ -124,8 +124,9 @@ LANG = st.sidebar.selectbox("Idioma / Language / Idioma", ["es", "en", "pt"], in
 LANG_ES_DEFAULT = LANG  # T() ya definida arriba usa esta variable global
 
 LICENSE_TOKEN = st.sidebar.text_input(
-    "Token de licencia (opcional)", type="password",
-    help="Se emite automáticamente al pagar el plan Professional. Sin token, corrés en plan demo.",
+    "Token de licencia", type="password",
+    help="Se emite automáticamente al pagar el plan Professional. Sin token, "
+         "corrés la prueba completa de 7 días con todo desbloqueado.",
 ) or None
 
 st.sidebar.divider()
@@ -133,6 +134,31 @@ st.sidebar.caption(f"👤 {user['nombre']} · {user['rol']}")
 if st.sidebar.button("Cerrar sesión"):
     st.session_state["user"] = None
     st.rerun()
+
+# Candado de la prueba de 7 días. El programa se descarga completo y funciona
+# 100% durante una semana; al vencer se bloquea hasta cargar una licencia paga
+# vigente. Bloquear NO borra datos: al pagar, se sigue con todo lo cargado.
+_acceso = licensing.estado_acceso(LICENSE_TOKEN)
+if _acceso["modo"] == "trial":
+    st.sidebar.info(f"⏳ Prueba: quedan {_acceso['dias_restantes']} día(s)")
+elif _acceso["modo"] == "licencia":
+    st.sidebar.success(f"✓ {_acceso['mensaje']}")
+
+if not _acceso["acceso"]:
+    st.title("🔒 La prueba de 7 días venció")
+    st.warning(_acceso["mensaje"])
+    st.markdown(
+        "**Tus datos siguen guardados.** Nada se borró: apenas cargues una "
+        "licencia Professional válida, seguís exactamente donde estabas, con "
+        "todos los proyectos, tareas, definiciones y responsables que cargaste."
+    )
+    st.markdown(
+        "1. Comprá el plan **Professional (US$9/usuario/mes)** desde la web.\n"
+        "2. Al aprobarse el pago recibís un **token de licencia**.\n"
+        "3. Pegalo en **«Token de licencia»** en la barra lateral y listo."
+    )
+    st.caption("¿Ya pagaste y no te llegó el token? Escribinos a vieraschiavi@gmail.com.")
+    st.stop()
 
 # Empresa activa — alcance de todo lo versionado (definiciones, organigrama,
 # responsables, notas PMBOK). Cada empresa guarda su propia historia.
