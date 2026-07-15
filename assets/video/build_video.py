@@ -1,5 +1,5 @@
 """
-MV Project Management · Generador del video demo (PIL + imageio-ffmpeg) con
+MV Proyect Management · Generador del video demo (PIL + imageio-ffmpeg) con
 narración en voz rioplatense (Piper TTS, voz es_AR "daniela").
 
 Produce ``landing/video/demo.mp4`` (1280×720): un recorrido animado del
@@ -112,7 +112,7 @@ def scene_intro(p: float) -> Image.Image:
     lw = d.textlength("MV", font=f_logo)
     d.text((W / 2 - lw / 2, 140 + size - 36), "MV", font=f_logo, fill=AMBER)
     if p > 0.18:
-        center_text(d, 310, "MV Project Management", font(52), INK)
+        center_text(d, 310, "MV Proyect Management", font(52), INK)
     if p > 0.38:
         center_text(d, 388, "Portafolio con salud medible, no reuniones de estado", font(24, False), MUTED)
     if p > 0.55:
@@ -303,20 +303,20 @@ def scene_trial(p: float) -> Image.Image:
 def scene_outro(p: float) -> Image.Image:
     img = base_frame()
     d = ImageDraw.Draw(img)
-    center_text(d, 200, "MV Project Management", font(50), INK)
+    center_text(d, 200, "MV Proyect Management", font(50), INK)
     center_text(d, 280, "Tu portafolio, gobernado de punta a punta.", font(23, False), MUTED)
     center_text(d, 318, "Your portfolio, governed end to end.", font(19, False), FAINT)
     if p > 0.35:
-        badge(d, W // 2, 400, "DESCARGA · 7 DÍAS COMPLETOS · MV_ProjectManagement", font(18))
+        badge(d, W // 2, 400, "DESCARGA COMPLETA · PROBALA 7 DÍAS · SIN RECORTES", font(18))
     if p > 0.6:
-        center_text(d, 480, "github.com/vieraschiavi/Project-management-mv", font(20), AMBER)
+        center_text(d, 480, "Descargá el programa completo y conservá todo lo que cargues", font(19, False), MUTED)
     return img
 
 
 # (escena, duración mínima visual, narración rioplatense)
 SCENES = [
     (scene_intro, 6.0,
-     "MV Project Management: tu portafolio de proyectos con salud medible, "
+     "MV Proyect Management: tu portafolio de proyectos con salud medible, "
      "en vez de reuniones de estado. Cien por ciento web y PC, en español, "
      "inglés y portugués."),
     (scene_portfolio, 8.0,
@@ -347,7 +347,7 @@ SCENES = [
      "todo desbloqueado. Al vencer se bloquea, pero tus datos no se borran: "
      "cargás tu licencia Professional y seguís exactamente donde estabas."),
     (scene_outro, 5.0,
-     "MV Project Management. Tu portafolio, gobernado de punta a punta. "
+     "MV Proyect Management. Tu portafolio, gobernado de punta a punta. "
      "Descargalo hoy y probalo completo, siete días."),
 ]
 FADE = 0.5

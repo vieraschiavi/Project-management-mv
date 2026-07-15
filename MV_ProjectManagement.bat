@@ -1,10 +1,10 @@
 @echo off
 setlocal enabledelayedexpansion
-title MV Project Management
+title MV Proyect Management
 cd /d "%~dp0"
 
 echo ============================================
-echo   MV Project Management - iniciando...
+echo   MV Proyect Management - iniciando...
 echo ============================================
 echo.
 
@@ -50,7 +50,7 @@ if errorlevel 1 (
 )
 
 echo.
-echo Abriendo MV Project Management en tu navegador...
+echo Abriendo MV Proyect Management en tu navegador...
 ".venv\Scripts\python.exe" -m streamlit run app\app.py --server.headless true
 
 pause
