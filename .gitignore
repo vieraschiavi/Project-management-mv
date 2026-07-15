@@ -10,3 +10,4 @@ build/
 node_modules/
 desktop/release/
 desktop/resources/*.exe
+assets/video/demo.mp4
