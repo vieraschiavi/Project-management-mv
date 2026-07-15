@@ -247,3 +247,5 @@ automáticamente.
 
 [MV Kobra AI]: https://github.com/vieraschiavi
 [MV Data Governance]: https://github.com/vieraschiavi
+
+<!-- deploy: checkout MercadoPago en UYU activo (trigger) -->
