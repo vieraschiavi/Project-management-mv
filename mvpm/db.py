@@ -97,6 +97,49 @@ def init_db() -> None:
             creado_en TEXT NOT NULL,
             actualizado_en TEXT NOT NULL
         );
+
+        CREATE TABLE IF NOT EXISTS empresas (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            nombre TEXT UNIQUE NOT NULL,
+            creado_en TEXT NOT NULL
+        );
+
+        -- Store genérico versionado: cualquier dato "manual" (definición de un
+        -- concepto, texto de una etapa PMBOK, asignación de responsable) se
+        -- guarda acá como una fila nueva por cada cambio. El estado vigente de
+        -- una entidad es su fila más reciente por (empresa, entidad, clave).
+        -- Guarda quién lo recomendó (IA o motor de reglas) y quién lo validó
+        -- (nombre + cargo del data owner / steward) — nunca se pisa la
+        -- historia, cada versión queda.
+        CREATE TABLE IF NOT EXISTS versiones (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            empresa_id INTEGER NOT NULL REFERENCES empresas(id) ON DELETE CASCADE,
+            entidad TEXT NOT NULL,
+            clave TEXT NOT NULL,
+            contenido TEXT NOT NULL,
+            estado TEXT NOT NULL DEFAULT 'borrador',
+            recomendado_por TEXT,
+            validado_por_nombre TEXT,
+            validado_por_cargo TEXT,
+            creado_en TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_versiones_entidad
+            ON versiones (empresa_id, entidad, clave, id DESC);
+
+        -- Organigrama cargado (Excel/CSV/SQL/foto). Cada persona con su cargo,
+        -- área y a quién reporta — poblado por el usuario o autocompletado por
+        -- IA a partir del archivo, y editable en cualquier momento.
+        CREATE TABLE IF NOT EXISTS organigrama_personas (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            empresa_id INTEGER NOT NULL REFERENCES empresas(id) ON DELETE CASCADE,
+            nombre TEXT NOT NULL,
+            cargo TEXT,
+            area TEXT,
+            reporta_a TEXT,
+            email TEXT,
+            fuente TEXT,
+            creado_en TEXT NOT NULL
+        );
         """)
 
 
@@ -300,6 +343,99 @@ def obtener_seguimiento_por_problema(problema_id: str) -> dict | None:
     with _connect() as conn:
         row = conn.execute("SELECT * FROM seguimientos WHERE problema_id = ?", (problema_id,)).fetchone()
         return dict(row) if row else None
+
+
+# ---------------------------------------------------------------- empresas
+
+def crear_empresa(nombre: str) -> int:
+    with _connect() as conn:
+        cur = conn.execute(
+            "INSERT INTO empresas (nombre, creado_en) VALUES (?, ?)",
+            (nombre.strip(), _now()),
+        )
+        return cur.lastrowid
+
+
+def obtener_o_crear_empresa(nombre: str) -> int:
+    with _connect() as conn:
+        row = conn.execute("SELECT id FROM empresas WHERE nombre = ?", (nombre.strip(),)).fetchone()
+        if row:
+            return row["id"]
+    return crear_empresa(nombre)
+
+
+def listar_empresas() -> pd.DataFrame:
+    with _connect() as conn:
+        return pd.read_sql_query("SELECT id, nombre, creado_en FROM empresas ORDER BY nombre", conn)
+
+
+# ------------------------------------------------------------- versiones
+
+def guardar_version(empresa_id: int, entidad: str, clave: str, contenido: str,
+                    estado: str = "borrador", recomendado_por: str | None = None,
+                    validado_por_nombre: str | None = None,
+                    validado_por_cargo: str | None = None) -> int:
+    """Guarda una versión nueva de un dato manual. Nunca pisa la anterior —
+    el estado vigente es la fila más reciente por (empresa, entidad, clave)."""
+    with _connect() as conn:
+        cur = conn.execute(
+            "INSERT INTO versiones (empresa_id, entidad, clave, contenido, estado, "
+            "recomendado_por, validado_por_nombre, validado_por_cargo, creado_en) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            (empresa_id, entidad, clave, contenido, estado, recomendado_por,
+             validado_por_nombre, validado_por_cargo, _now()),
+        )
+        return cur.lastrowid
+
+
+def obtener_version_actual(empresa_id: int, entidad: str, clave: str) -> dict | None:
+    """Última versión guardada de una entidad (o None si nunca se guardó — en
+    ese caso quien consume usa la definición preestablecida de fábrica)."""
+    with _connect() as conn:
+        row = conn.execute(
+            "SELECT * FROM versiones WHERE empresa_id = ? AND entidad = ? AND clave = ? "
+            "ORDER BY id DESC LIMIT 1",
+            (empresa_id, entidad, clave),
+        ).fetchone()
+        return dict(row) if row else None
+
+
+def historial_versiones(empresa_id: int, entidad: str, clave: str) -> pd.DataFrame:
+    with _connect() as conn:
+        return pd.read_sql_query(
+            "SELECT id, contenido, estado, recomendado_por, validado_por_nombre, "
+            "validado_por_cargo, creado_en FROM versiones "
+            "WHERE empresa_id = ? AND entidad = ? AND clave = ? ORDER BY id DESC",
+            conn, params=(empresa_id, entidad, clave))
+
+
+# ----------------------------------------------------------- organigrama
+
+def reemplazar_organigrama(empresa_id: int, personas: list[dict], fuente: str) -> int:
+    """Reemplaza el organigrama de una empresa por el recién cargado. Devuelve
+    cuántas personas quedaron. Cada persona: {nombre, cargo, area, reporta_a, email}."""
+    with _connect() as conn:
+        conn.execute("DELETE FROM organigrama_personas WHERE empresa_id = ?", (empresa_id,))
+        for p in personas:
+            if not (p.get("nombre") or "").strip():
+                continue
+            conn.execute(
+                "INSERT INTO organigrama_personas (empresa_id, nombre, cargo, area, "
+                "reporta_a, email, fuente, creado_en) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                (empresa_id, str(p["nombre"]).strip(), p.get("cargo"), p.get("area"),
+                 p.get("reporta_a"), p.get("email"), fuente, _now()),
+            )
+        n = conn.execute("SELECT COUNT(*) AS n FROM organigrama_personas WHERE empresa_id = ?",
+                         (empresa_id,)).fetchone()["n"]
+    return n
+
+
+def listar_organigrama(empresa_id: int) -> pd.DataFrame:
+    with _connect() as conn:
+        return pd.read_sql_query(
+            "SELECT id, nombre, cargo, area, reporta_a, email, fuente "
+            "FROM organigrama_personas WHERE empresa_id = ? ORDER BY nombre",
+            conn, params=(empresa_id,))
 
 
 # --------------------------------------------------------------------- seed

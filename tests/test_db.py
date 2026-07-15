@@ -8,7 +8,10 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 import pandas as pd
 import pytest
 
-from mvpm import auth, catalog, db, dependencies as dep_mod, exporters, health, prioritizer
+from mvpm import (
+    auth, catalog, db, dependencies as dep_mod, exporters, governance, health,
+    organigrama, pmbok, prioritizer,
+)
 
 
 @pytest.fixture
@@ -240,3 +243,107 @@ def test_exporters_usan_datos_reales_de_db_no_la_demo(tmp_db):
     libro = exporters.to_excel_bytes(proj, tasks, team)
     hojas = pd.read_excel(io.BytesIO(libro), sheet_name="proyectos")
     assert hojas["nombre"].tolist() == ["Proyecto Real Único"]
+
+
+# ------------------------------------------------------- empresas + versiones
+
+def test_empresa_obtener_o_crear_es_idempotente(tmp_db):
+    a = tmp_db.obtener_o_crear_empresa("Lab X")
+    b = tmp_db.obtener_o_crear_empresa("Lab X")
+    assert a == b
+    assert len(tmp_db.listar_empresas()) == 1
+
+
+def test_versiones_guardan_historia_y_vigente_es_la_ultima(tmp_db):
+    eid = tmp_db.obtener_o_crear_empresa("Lab X")
+    tmp_db.guardar_version(eid, "concepto", "alcance", "v1", estado="borrador")
+    tmp_db.guardar_version(eid, "concepto", "alcance", "v2", estado="validado",
+                            validado_por_nombre="Ana", validado_por_cargo="PMO")
+    vig = tmp_db.obtener_version_actual(eid, "concepto", "alcance")
+    assert vig["contenido"] == "v2" and vig["estado"] == "validado"
+    assert len(tmp_db.historial_versiones(eid, "concepto", "alcance")) == 2  # no se pisa
+
+
+def test_versiones_scope_por_empresa(tmp_db):
+    e1 = tmp_db.obtener_o_crear_empresa("Lab A")
+    e2 = tmp_db.obtener_o_crear_empresa("Lab B")
+    tmp_db.guardar_version(e1, "concepto", "alcance", "def de A")
+    assert tmp_db.obtener_version_actual(e2, "concepto", "alcance") is None  # aislado por empresa
+
+
+def test_organigrama_reemplaza_y_omite_filas_sin_nombre(tmp_db):
+    eid = tmp_db.obtener_o_crear_empresa("Lab X")
+    n = tmp_db.reemplazar_organigrama(eid, [
+        {"nombre": "Ana", "cargo": "PMO"}, {"nombre": "", "cargo": "x"}, {"cargo": "y"},
+    ], "excel")
+    assert n == 1
+    # reemplazar de verdad reemplaza, no acumula
+    n2 = tmp_db.reemplazar_organigrama(eid, [{"nombre": "Beto", "cargo": "Dev"}], "csv")
+    assert n2 == 1
+    assert tmp_db.listar_organigrama(eid)["nombre"].tolist() == ["Beto"]
+
+
+# ------------------------------------------------------------ governance
+
+def test_governance_definicion_vigente_cae_a_preestablecida(tmp_db):
+    eid = tmp_db.obtener_o_crear_empresa("Lab X")
+    vig = governance.definicion_vigente(eid, "alcance")
+    assert vig["origen"] == "preestablecida"
+    assert vig["texto"] == governance.concepto_base("alcance")["definicion"]
+
+
+def test_governance_guardar_crea_version_validada(tmp_db):
+    eid = tmp_db.obtener_o_crear_empresa("Lab X")
+    governance.guardar(eid, "alcance", "Def de la empresa.", "motor de reglas",
+                       "Ana Pérez", "Data Owner")
+    vig = governance.definicion_vigente(eid, "alcance")
+    assert vig["origen"] == "versionada" and vig["estado"] == "validado"
+    assert vig["validado_por_nombre"] == "Ana Pérez"
+
+
+def test_governance_recomendar_sin_ia_devuelve_definicion_de_fabrica(tmp_db):
+    rec = governance.recomendar_definicion("riesgo", proveedor=None)
+    assert rec["texto"] == governance.concepto_base("riesgo")["definicion"]
+    assert "motor de reglas" in rec["recomendado_por"]
+
+
+# ------------------------------------------------------------ organigrama
+
+def test_organigrama_parsear_reconoce_columnas_variadas():
+    df = pd.DataFrame([
+        {"Nombre": "Ana", "Puesto": "Gerente de Proyecto", "Área": "PMO", "Reporta a": "Beto"},
+        {"Nombre": "", "Puesto": "x"},  # se descarta
+    ])
+    personas = organigrama.parsear(df)
+    assert len(personas) == 1
+    assert personas[0]["nombre"] == "Ana" and personas[0]["cargo"] == "Gerente de Proyecto"
+
+
+def test_organigrama_sugiere_responsable_por_cargo():
+    personas = [
+        {"nombre": "Dir", "cargo": "Directora General", "area": "Dirección"},
+        {"nombre": "PM", "cargo": "Gerente de Proyecto (PMO)", "area": "PMO"},
+    ]
+    sugerencias = organigrama.sugerir_responsables(personas)
+    por_etapa = {s["etapa_clave"]: s for s in sugerencias}
+    assert por_etapa["inicio"]["persona"]["nombre"] == "Dir"        # director -> inicio
+    assert por_etapa["planificacion"]["persona"]["nombre"] == "PM"  # PMO -> planificación
+    assert len(sugerencias) == len(organigrama.ETAPAS) == 5
+
+
+def test_organigrama_guardar_responsable_versionado(tmp_db):
+    eid = tmp_db.obtener_o_crear_empresa("Lab X")
+    organigrama.guardar_responsable(eid, "planificacion", "Ana", "PMO",
+                                     "motor de reglas", "Beto", "Director")
+    v = organigrama.responsable_vigente(eid, "planificacion")
+    assert v["persona"]["nombre"] == "Ana" and v["validado_por_nombre"] == "Beto"
+
+
+# ------------------------------------------------------------ pmbok notas
+
+def test_pmbok_nota_empresa_versionada(tmp_db):
+    eid = tmp_db.obtener_o_crear_empresa("Lab X")
+    assert pmbok.nota_empresa(eid, "adquisiciones") is None
+    pmbok.guardar_nota(eid, "adquisiciones", "Compras las maneja Legal.", "Ana", "CFO")
+    n = pmbok.nota_empresa(eid, "adquisiciones")
+    assert n["texto"].startswith("Compras") and n["validado_por_cargo"] == "CFO"

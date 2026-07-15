@@ -224,17 +224,75 @@ SECTIONS = [
     {
         "id": "nav_pmbok",
         "titulo": "Metodología PMBOK",
-        "resumen": "Cómo se alinea el producto con las 10 áreas de conocimiento del PMBOK (guía "
-                   "del PMI) — honesto sobre lo que cubre y lo que no.",
+        "resumen": "El PMBOK (guía del PMI) en dos registros: técnico (como lo diría un PMP) y en "
+                   "criollo (castellano de todos los días), con las 10 áreas de conocimiento y "
+                   "los 5 grupos de procesos.",
         "pasos": [
-            "Cada área muestra su nivel de cobertura real (completa / parcial / no cubierta) y "
-            "qué parte del producto la resuelve.",
-            "Donde falta cobertura, se dice explícitamente qué sigue siendo trabajo humano o de "
-            "otra herramienta — no se infla la cobertura para vender más.",
+            "En 'áreas de conocimiento', cada área tiene su definición técnica y su versión en "
+            "criollo, más cuánto la cubre el producto (completa / parcial / no cubierta), sin inflar.",
+            "En 'grupos de procesos' está el ciclo de vida (Inicio → Planificación → Ejecución → "
+            "Monitoreo → Cierre), también técnico + criollo.",
+            "Cada área admite una nota interna de tu empresa (algo que no se automatiza) que se "
+            "edita a mano y queda versionada, con quién la validó.",
         ],
         "tips": [
             "No es una certificación oficial del PMI, es una referencia para equipos que ya "
             "trabajan con esa guía y quieren saber en qué se apoya la herramienta.",
+        ],
+    },
+    {
+        "id": "nav_governance",
+        "titulo": "Gobernanza de datos",
+        "resumen": "Cada concepto de gestión ya viene con una definición preestablecida; la IA "
+                   "recomienda una mejora y el Data Owner / Data Steward la valida o edita y "
+                   "guarda, versionada por empresa.",
+        "pasos": [
+            "La definición nunca aparece en blanco: sale preestablecida de fábrica, o pulida por "
+            "la IA si tenés un proveedor configurado.",
+            "El responsable (Data Owner) la valida o la edita y la guarda con su nombre y cargo — "
+            "cada cambio es una versión nueva, no se pisa la anterior.",
+            "Todo se guarda por empresa (elegís la empresa activa en la barra lateral), así cada "
+            "organización tiene su propia historia de definiciones.",
+        ],
+        "tips": [
+            "Es el mismo criterio de MV Data Governance: la definición vigente es la última "
+            "versión validada; si nunca se tocó, rige la de fábrica.",
+        ],
+    },
+    {
+        "id": "nav_organigrama",
+        "titulo": "Organigrama y responsables",
+        "resumen": "Cargás el organigrama (Excel/CSV o base SQLite) y la IA autocompleta por "
+                   "defecto quién es responsable de cada etapa del proyecto, editable y versionado.",
+        "pasos": [
+            "Subí el organigrama; reconoce columnas comunes (nombre, cargo, área, reporta a) sin "
+            "exigir un formato exacto.",
+            "Para cada etapa (los 5 grupos de procesos del PMBOK) aparece un responsable "
+            "pre-recomendado según el cargo — lo validás o lo cambiás y queda guardado.",
+            "Si el organigrama es una foto, hace falta un proveedor de IA con visión; sin eso, "
+            "exportalo a Excel/CSV y subilo.",
+        ],
+        "tips": [
+            "Los responsables validados por etapa aparecen también en la pestaña PMBOK, en cada "
+            "grupo de procesos.",
+        ],
+    },
+    {
+        "id": "nav_pharma",
+        "titulo": "Demo laboratorio (Pharma)",
+        "resumen": "El motor corriendo sobre 474 ensayos clínicos reales de tres laboratorios "
+                   "multinacionales (AstraZeneca, Pfizer, Novartis), de punta a punta hasta Power BI.",
+        "pasos": [
+            "Cada ensayo es un proyecto: sponsor (el laboratorio), fechas, fase y estado. El motor "
+            "deriva la criticidad del estado real (terminado/suspendido = en riesgo).",
+            "Los gráficos por estado y por laboratorio, y la lista de ensayos en riesgo, salen de "
+            "correr el motor sobre el dato real — no hay cifras inventadas (la fuente no publica "
+            "presupuesto, y se dice).",
+            "Desde la misma pestaña bajás la tabla lista para BI y seguís la guía para conectar "
+            "Power BI a la API local con un clic (.pbids).",
+        ],
+        "tips": [
+            "Fuente: ClinicalTrials.gov (U.S. National Library of Medicine), dominio público.",
         ],
     },
     {

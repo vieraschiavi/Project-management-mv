@@ -12,7 +12,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from mvpm import db, exporters, licensing, reviews
+from mvpm import db, demo_pharma, exporters, licensing, reviews
 
 app = FastAPI(title="MV Project Management API", version="0.1.0")
 
@@ -49,6 +49,18 @@ def get_table(table: str, format: str = "json"):
     if table not in tables:
         raise HTTPException(status_code=404, detail=f"Tabla '{table}' no encontrada. Disponibles: {list(tables)}")
     df = tables[table]
+    if format == "csv":
+        return JSONResponse(content=df.to_csv(index=False), media_type="text/csv")
+    return df.to_dict("records")
+
+
+@app.get("/api/demo/pharma")
+def demo_pharma_bi(format: str = "json"):
+    """Ensayos clínicos reales (ClinicalTrials.gov) listos para Power BI /
+    Tableau — es el endpoint al que apunta el archivo .pbids de la carpeta
+    `distribucion/powerbi/`. Un ensayo por fila, con estado, fase, laboratorio
+    y criticidad derivada. Dominio público (U.S. NLM / NIH)."""
+    df = demo_pharma.tabla_para_bi()
     if format == "csv":
         return JSONResponse(content=df.to_csv(index=False), media_type="text/csv")
     return df.to_dict("records")

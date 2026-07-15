@@ -1,0 +1,14 @@
+{
+  "version": "0.1",
+  "connections": [
+    {
+      "details": {
+        "protocol": "http",
+        "address": {
+          "url": "http://127.0.0.1:8600/api/demo/pharma"
+        }
+      },
+      "mode": "Import"
+    }
+  ]
+}
