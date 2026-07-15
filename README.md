@@ -249,3 +249,4 @@ automáticamente.
 [MV Data Governance]: https://github.com/vieraschiavi
 
 <!-- deploy: checkout MercadoPago en UYU activo (trigger) -->
+<!-- redeploy 2: forzar alias al build de git con checkout UYU -->
