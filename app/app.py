@@ -18,18 +18,22 @@ import streamlit as st
 from mvpm import (
     BRAND,
     advisor,
+    ai,
     auth,
     case_study,
     catalog,
     db,
+    demo_pharma,
     demo_real,
     dependencies as dep_mod,
     exporters,
     glossary,
+    governance,
     health,
     help_center,
     i18n,
     licensing,
+    organigrama,
     pmbok,
     policies,
     prioritizer,
@@ -130,12 +134,28 @@ if st.sidebar.button("Cerrar sesión"):
     st.session_state["user"] = None
     st.rerun()
 
+# Empresa activa — alcance de todo lo versionado (definiciones, organigrama,
+# responsables, notas PMBOK). Cada empresa guarda su propia historia.
+db.obtener_o_crear_empresa("Mi empresa")
+_empresas = db.listar_empresas()
+_empresa_nombres = _empresas["nombre"].tolist()
+with st.sidebar.expander("🏢 Empresa"):
+    empresa_sel = st.selectbox("Empresa activa", _empresa_nombres,
+                               index=0, key="empresa_sel")
+    _nueva = st.text_input("➕ Nueva empresa", key="empresa_nueva")
+    if st.button("Crear empresa", key="crear_empresa_btn") and _nueva.strip():
+        db.crear_empresa(_nueva.strip())
+        st.rerun()
+EMPRESA_ID = int(_empresas[_empresas["nombre"] == empresa_sel]["id"].iloc[0])
+
 st.sidebar.title(T("app_title"))
 
 nav_options = [
-    T("nav_tutorial"), T("nav_case_study"), T("nav_real_demo"), T("nav_portfolio"), T("nav_tasks"),
-    T("nav_health"), T("nav_dependencies"), T("nav_backlog"), T("nav_copilot"), T("nav_advisor"),
-    T("nav_reports"), T("nav_reviews"), T("nav_glossary"), T("nav_policies"), T("nav_pmbok"), T("nav_import"),
+    T("nav_tutorial"), T("nav_case_study"), T("nav_real_demo"), T("nav_pharma"),
+    T("nav_portfolio"), T("nav_tasks"), T("nav_health"), T("nav_dependencies"),
+    T("nav_backlog"), T("nav_copilot"), T("nav_advisor"), T("nav_reports"),
+    T("nav_governance"), T("nav_organigrama"), T("nav_pmbok"),
+    T("nav_reviews"), T("nav_glossary"), T("nav_policies"), T("nav_import"),
 ]
 if user["rol"] == "admin":
     nav_options.append(T("nav_users"))
@@ -272,6 +292,56 @@ elif section == T("nav_real_demo"):
             st.caption(c["narrativa_real"])
             st.markdown("**Texto real del informe anual sobre la revisión de entrega:**")
             st.caption(c["revision_real"])
+
+elif section == T("nav_pharma"):
+    st.subheader(T("nav_pharma"))
+    st.caption(f"Fuente: {demo_pharma.FUENTE} — [ClinicalTrials.gov]({demo_pharma.FUENTE_URL}). "
+               "Un ensayo clínico es un proyecto: tiene sponsor (un laboratorio multinacional), "
+               "fechas, fase y un estado que se comporta igual que el estado de un proyecto.")
+    st.caption("ClinicalTrials.gov no publica presupuesto, así que la señal de PM acá es el "
+               "estado del ensayo (no la plata) — no se inventan cifras de presupuesto.")
+
+    r = demo_pharma.resumen_portafolio()
+    c1, c2, c3 = st.columns(3)
+    c1.metric("Ensayos reales analizados", r["total_ensayos"])
+    c2.metric("En riesgo (terminados/suspendidos)", r["en_riesgo"])
+    c3.metric("Laboratorios", len(r["por_sponsor"]))
+    st.info(
+        f"⏱️ **Ahorro estimado**: revisar a mano estos {r['total_ensayos']} ensayos para marcar "
+        f"cuáles están frenados — a un supuesto explícito de {r['minutos_por_revision_manual_supuesto']} "
+        f"minutos por ensayo — serían ~{r['horas_ahorradas_estimadas']} horas de trabajo manual. "
+        "El motor los clasifica a todos en segundos."
+    )
+
+    cc1, cc2 = st.columns(2)
+    with cc1:
+        st.markdown("**Por estado (dato real del ensayo)**")
+        _est = pd.DataFrame({"estado": list(r["por_estado"].keys()),
+                             "ensayos": list(r["por_estado"].values())})
+        st.bar_chart(_est, x="estado", y="ensayos")
+    with cc2:
+        st.markdown("**Por laboratorio**")
+        _lab = pd.DataFrame({"laboratorio": list(r["por_sponsor"].keys()),
+                             "ensayos": list(r["por_sponsor"].values())})
+        st.bar_chart(_lab, x="laboratorio", y="ensayos")
+
+    st.subheader("Ensayos que el motor marca en riesgo")
+    st.dataframe(demo_pharma.en_riesgo_detalle(15), use_container_width=True)
+
+    st.divider()
+    st.subheader("🔌 De acá a Power BI, end-to-end")
+    st.markdown(
+        "El mismo motor sirve estos ensayos por la **API REST local** (`./run.sh api`), así que "
+        "Power BI se conecta al dato en vivo sin exportar planillas:\n\n"
+        "1. Levantá la API: `./run.sh api` (queda en `http://127.0.0.1:8600`).\n"
+        "2. Doble clic en `distribucion/powerbi/MV_ProjectManagement_Pharma.pbids` — Power BI "
+        "Desktop abre ya conectado a `/api/demo/pharma`.\n"
+        "3. Cargá y armá el tablero (ensayos por laboratorio, por estado, semáforo por criticidad).\n\n"
+        "Guía completa: `distribucion/powerbi/README.md`."
+    )
+    st.download_button("Descargar la tabla lista para BI (CSV)",
+                       demo_pharma.tabla_para_bi().to_csv(index=False),
+                       file_name="ensayos_pharma_bi.csv")
 
 elif section == T("nav_portfolio"):
     kpis = catalog.kpis(proj_df)
@@ -571,22 +641,190 @@ elif section == T("nav_policies"):
 
 elif section == T("nav_pmbok"):
     st.subheader(T("nav_pmbok"))
-    st.caption("Alineación con las 10 áreas de conocimiento del PMBOK (guía del PMI) — no es una "
-               "certificación oficial, es una referencia honesta de qué cubre el producto y qué no.")
+    st.caption("El PMBOK (guía del PMI) en dos registros: **técnico** (como lo diría un PMP) y "
+               "**en criollo** (castellano de todos los días). No es una certificación oficial — "
+               "es una referencia honesta de qué cubre el producto y qué no.")
     r = pmbok.resumen()
-    c1, c2, c3 = st.columns(3)
-    c1.metric("Cobertura completa", r["completa"])
-    c2.metric("Cobertura parcial", r["parcial"])
-    c3.metric("No cubierta", r["no_cubierta"])
-    st.divider()
+    c1, c2, c3, c4 = st.columns(4)
+    c1.metric("Áreas de conocimiento", r["total_areas"])
+    c2.metric("Grupos de procesos", r["grupos_proceso"])
+    c3.metric("Cobertura completa", r["completa"])
+    c4.metric("No cubierta", r["no_cubierta"])
+
+    tab_areas, tab_grupos = st.tabs(["10 áreas de conocimiento", "5 grupos de procesos"])
     icon = {"completa": "✅", "parcial": "🟡", "no_cubierta": "⚪"}
-    for a in pmbok.areas():
-        st.markdown(f"{icon[a['cobertura']]} **{a['area']}** ({a['area_en']})")
-        if a["como_lo_cubre"]:
-            st.write(a["como_lo_cubre"])
-        if a["lo_que_falta"]:
-            st.caption(f"Lo que falta: {a['lo_que_falta']}")
+    with tab_areas:
+        for a in pmbok.areas():
+            with st.expander(f"{icon[a['cobertura']]} {a['area']} ({a['area_en']})"):
+                st.markdown("**Técnico (PMBOK):**")
+                st.write(a["definicion_tecnica"])
+                st.markdown("**En criollo:**")
+                st.info(a["criollo"])
+                if a["como_lo_cubre"]:
+                    st.markdown(f"**Cómo lo cubre este producto:** {a['como_lo_cubre']}")
+                if a["lo_que_falta"]:
+                    st.caption(f"Lo que falta: {a['lo_que_falta']}")
+                _nota = pmbok.nota_empresa(EMPRESA_ID, a["clave"])
+                if _nota:
+                    st.success(f"📝 Nota de la empresa (validada por {_nota['validado_por_nombre']}, "
+                               f"{_nota['validado_por_cargo']}): {_nota['texto']}")
+                with st.form(f"nota_pmbok_{a['clave']}"):
+                    st.caption("Nota interna de tu empresa (algo que no se automatiza) — se guarda "
+                               "versionada para esta empresa.")
+                    txt = st.text_area("Nota", value=_nota["texto"] if _nota else "",
+                                       key=f"nota_txt_{a['clave']}")
+                    cn, cc = st.columns(2)
+                    val_n = cn.text_input("Validado por (nombre)", key=f"nota_n_{a['clave']}")
+                    val_c = cc.text_input("Cargo", key=f"nota_c_{a['clave']}")
+                    if st.form_submit_button("💾 Guardar nota") and txt.strip() and val_n.strip():
+                        pmbok.guardar_nota(EMPRESA_ID, a["clave"], txt.strip(), val_n.strip(), val_c.strip())
+                        st.success("Nota guardada.")
+                        st.rerun()
+    with tab_grupos:
+        st.caption("El ciclo de vida de la dirección de proyectos, en orden.")
+        for g in pmbok.grupos_proceso():
+            with st.expander(f"{g['nombre']} ({g['nombre_en']})"):
+                st.markdown("**Técnico (PMBOK):**")
+                st.write(g["definicion_tecnica"])
+                st.markdown("**En criollo:**")
+                st.info(g["criollo"])
+                _resp = organigrama.responsable_vigente(EMPRESA_ID, g["clave"])
+                if _resp:
+                    st.success(f"👤 Responsable asignado: {_resp['persona'].get('nombre')} "
+                               f"({_resp['persona'].get('cargo') or 's/d'}) — validado por "
+                               f"{_resp['validado_por_nombre']}, {_resp['validado_por_cargo']}. "
+                               "Se asigna desde la pestaña Organigrama.")
+
+elif section == T("nav_governance"):
+    st.subheader(T("nav_governance"))
+    st.caption("Cada concepto ya viene con una definición preestablecida (de fábrica). La IA "
+               "puede recomendar una versión mejorada, y el **Data Owner / Data Steward** la "
+               "valida o la edita y la guarda. Cada cambio queda versionado para esta empresa.")
+    _provs = ai.proveedores_disponibles()
+    _etq = {"claude": "Claude", "chatgpt": "ChatGPT", "gemini": "Gemini"}
+    _opts = ["Motor de reglas (definición de fábrica)"] + [_etq[p] for p in _provs]
+    _elegido = st.radio("¿Quién recomienda la definición?", _opts, horizontal=True)
+    _prov = next((p for p in _provs if _etq[p] == _elegido), None)
+    if not _provs:
+        st.caption("Sin proveedores de IA configurados — las recomendaciones salen del motor de "
+                   "reglas (la definición de fábrica). Para que la IA pula las definiciones, "
+                   "configurá ANTHROPIC_API_KEY (Claude), OPENAI_API_KEY+OPENAI_MODEL (ChatGPT) "
+                   "o GEMINI_API_KEY+GEMINI_MODEL (Gemini).")
+
+    for c in governance.catalogo():
+        vig = governance.definicion_vigente(EMPRESA_ID, c["clave"])
+        estado_icon = "✅" if vig["estado"] == "validado" else "📋"
+        with st.expander(f"{estado_icon} {c['termino']}  ·  {c['categoria']}"):
+            st.markdown(f"**Definición vigente** ({vig['origen']}):")
+            st.write(vig["texto"])
+            if vig["validado_por_nombre"]:
+                st.caption(f"Validada por {vig['validado_por_nombre']} ({vig['validado_por_cargo']}) "
+                           f"· recomendada por {vig['recomendado_por']}")
+            rec = governance.recomendar_definicion(c["clave"], _prov)
+            with st.form(f"gov_{c['clave']}"):
+                st.caption(f"Recomendado por {rec['recomendado_por']} — validá, editá y guardá:")
+                txt = st.text_area("Definición", value=rec["texto"], key=f"gov_txt_{c['clave']}")
+                co, cs = st.columns(2)
+                owner = co.text_input("Data Owner que valida (nombre)", key=f"gov_o_{c['clave']}")
+                cargo = cs.text_input("Cargo", value="Data Owner", key=f"gov_c_{c['clave']}")
+                if st.form_submit_button("💾 Validar y guardar") and txt.strip() and owner.strip():
+                    governance.guardar(EMPRESA_ID, c["clave"], txt.strip(), rec["recomendado_por"],
+                                       owner.strip(), cargo.strip())
+                    st.success("Definición validada y guardada (nueva versión).")
+                    st.rerun()
+            hist = db.historial_versiones(EMPRESA_ID, "concepto", c["clave"])
+            if len(hist) > 0:
+                st.caption(f"📚 {len(hist)} versión(es) guardada(s) — la historia completa queda.")
+                st.dataframe(hist[["contenido", "estado", "validado_por_nombre", "creado_en"]],
+                             use_container_width=True)
+
+elif section == T("nav_organigrama"):
+    st.subheader(T("nav_organigrama"))
+    st.caption("Cargá el organigrama (Excel/CSV o base SQLite) y la IA autocompleta por defecto "
+               "quién es responsable de cada etapa del proyecto — según su cargo. Todo editable "
+               "y guardado versionado por empresa.")
+
+    _provs = ai.proveedores_disponibles()
+    _org_actual = db.listar_organigrama(EMPRESA_ID)
+
+    with st.expander("📤 Cargar / actualizar organigrama", expanded=_org_actual.empty):
+        st.caption("Reconoce columnas comunes (nombre, cargo, área, reporta a) sin exigir un "
+                   "formato exacto.")
+        fuente_tipo = st.radio("Origen", ["Excel/CSV", "Base SQLite (.db)"], horizontal=True)
+        if fuente_tipo == "Excel/CSV":
+            up = st.file_uploader("Subí el organigrama (CSV/Excel)", type=["csv", "xlsx"], key="org_upl")
+            if up is not None:
+                df_org = pd.read_csv(up) if up.name.endswith("csv") else pd.read_excel(up)
+                personas = organigrama.parsear(df_org)
+                st.write(f"{len(personas)} persona(s) detectada(s):")
+                st.dataframe(pd.DataFrame(personas), use_container_width=True)
+                if st.button("✅ Guardar este organigrama"):
+                    n = db.reemplazar_organigrama(EMPRESA_ID, personas, "excel/csv")
+                    st.success(f"Organigrama guardado ({n} personas).")
+                    st.rerun()
+        else:
+            up = st.file_uploader("Subí una base SQLite (.db)", type=["db", "sqlite", "sqlite3"], key="org_db")
+            tabla = st.text_input("Nombre de la tabla con el organigrama", value="empleados")
+            if up is not None and tabla.strip():
+                import sqlite3 as _sqlite3, tempfile as _tmp, os as _os
+                _p = _os.path.join(_tmp.gettempdir(), "org_upload.db")
+                with open(_p, "wb") as _f:
+                    _f.write(up.getbuffer())
+                try:
+                    _conn = _sqlite3.connect(_p)
+                    df_org = pd.read_sql_query(f"SELECT * FROM {tabla.strip()}", _conn)
+                    _conn.close()
+                    personas = organigrama.parsear(df_org)
+                    st.write(f"{len(personas)} persona(s) detectada(s):")
+                    st.dataframe(pd.DataFrame(personas), use_container_width=True)
+                    if st.button("✅ Guardar este organigrama"):
+                        n = db.reemplazar_organigrama(EMPRESA_ID, personas, "sqlite")
+                        st.success(f"Organigrama guardado ({n} personas).")
+                        st.rerun()
+                except Exception as e:
+                    st.error(f"No pude leer la tabla '{tabla}': {e}")
+        st.caption("¿Tenés el organigrama como foto? Se puede, pero extraer texto de una imagen "
+                   "necesita un proveedor de IA con visión configurado. Sin eso, exportalo a "
+                   "Excel/CSV y subilo acá.")
+
+    if not _org_actual.empty:
+        st.subheader("Organigrama actual")
+        st.dataframe(_org_actual, use_container_width=True)
+
         st.divider()
+        st.subheader("Responsables por etapa (pre-recomendados por IA)")
+        personas = _org_actual.to_dict("records")
+        sugerencias = organigrama.sugerir_responsables(personas, _provs[0] if _provs else None)
+        for s in sugerencias:
+            per = s["persona"]
+            _resp = organigrama.responsable_vigente(EMPRESA_ID, s["etapa_clave"])
+            with st.expander(f"🔹 {s['etapa_nombre']}"):
+                st.caption(s["etapa_desc"])
+                if _resp:
+                    st.success(f"Asignado: {_resp['persona'].get('nombre')} "
+                               f"({_resp['persona'].get('cargo') or 's/d'}) — validado por "
+                               f"{_resp['validado_por_nombre']}, {_resp['validado_por_cargo']}")
+                if per:
+                    st.markdown(f"**Recomendado ({s['recomendado_por']}):** {per['nombre']} — "
+                                f"{per.get('cargo') or 's/d'}")
+                    if s["justificacion"]:
+                        st.caption(s["justificacion"])
+                else:
+                    st.warning("El organigrama no tiene un cargo que encaje — asignalo a mano.")
+                with st.form(f"resp_{s['etapa_clave']}"):
+                    nombres = [p["nombre"] for p in personas]
+                    idx = nombres.index(per["nombre"]) if per and per["nombre"] in nombres else 0
+                    elegido = st.selectbox("Responsable", nombres, index=idx, key=f"resp_sel_{s['etapa_clave']}")
+                    cargo_p = next((p.get("cargo") for p in personas if p["nombre"] == elegido), None)
+                    cv1, cv2 = st.columns(2)
+                    val_n = cv1.text_input("Validado por (nombre)", key=f"resp_vn_{s['etapa_clave']}")
+                    val_c = cv2.text_input("Cargo de quien valida", key=f"resp_vc_{s['etapa_clave']}")
+                    if st.form_submit_button("💾 Validar responsable") and val_n.strip():
+                        organigrama.guardar_responsable(
+                            EMPRESA_ID, s["etapa_clave"], elegido, cargo_p or "",
+                            s["recomendado_por"], val_n.strip(), val_c.strip())
+                        st.success("Responsable validado y guardado.")
+                        st.rerun()
 
 elif section == T("nav_import"):
     st.subheader(T("nav_import"))

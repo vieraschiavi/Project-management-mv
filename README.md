@@ -42,17 +42,23 @@ mvpm/            motor de dominio (un solo lugar, consumido por dashboard + API)
   reports.py          reporte ejecutivo generado del dato real
   exporters.py         export uniforme CSV/Excel/JSON
   demo_data.py         datos sintéticos deterministas (solo para "cargar datos de ejemplo")
-  db.py                  base de datos real (SQLite) — proyectos, tareas y usuarios persistidos
+  db.py                  base de datos real (SQLite) — proyectos, tareas, usuarios, empresas y versiones
+  # versiones: toda dato manual queda versionado por empresa (quién lo recomendó, quién lo validó, cuándo)
   auth.py                login con usuario y contraseña (PBKDF2, sin dependencias nuevas)
   licensing.py          plan de créditos de IA — licencias firmadas + cupo mensual
-  pmbok.py                alineación honesta con las 10 áreas de conocimiento del PMBOK (PMI)
+  pmbok.py                PMBOK técnico + "en criollo": 10 áreas de conocimiento y 5 grupos de proceso, con notas editables por empresa
   tutorial.py              contenido de la pestaña Tutorial — guía paso a paso de cada herramienta
   case_study.py            caso de uso simulado completo: recorre un proyecto real de punta a punta
   demo_real.py             demo con datos públicos reales (portafolio de gobierno del Reino Unido)
+  demo_pharma.py           demo pharma end-to-end con datos públicos reales (ClinicalTrials.gov / NIH)
+  governance.py            conceptos PM preestablecidos, recomendados por IA y validados por el data owner
+  organigrama.py           carga de organigrama (Excel/CSV/SQLite) → IA autocompleta responsables por etapa
   advisor.py               asistente: detecta problemas y sugiere acciones, con seguimiento persistido
+  ai.py                    capa multi-proveedor genérica (Claude/ChatGPT/Gemini), siempre opcional y aditiva
   i18n.py               traducciones ES/EN/PT de la app
 app/app.py         dashboard operativo (Streamlit)
 api/main.py         API REST local para BI (Power BI, Tableau, Excel) + estado de licencia
+distribucion/powerbi/  conector .pbids de un clic + guía para conectar Power BI a la API local
 api/checkout.js      checkout de MercadoPago (función serverless en Vercel)
 api/verify-payment.js  verifica el pago y emite la licencia (nunca confía en el cliente)
 api/_license.js       mismo esquema de licencias que licensing.py, en JS
@@ -106,6 +112,45 @@ un ID de modelo por vos, que podría quedar desactualizado.
 Cada sugerencia se puede marcar **en seguimiento** y cambiar de estado
 (abierto / en progreso / resuelto) — queda persistida en la base real, no se
 pierde al recargar ni si el problema original deja de detectarse.
+
+## Demo pharma end-to-end (dato público real → Power BI)
+
+La pestaña **Demo laboratorio (Pharma)** (`mvpm/demo_pharma.py`) carga 474
+ensayos clínicos reales de laboratorios multinacionales (AstraZeneca, Pfizer,
+Novartis) tomados de **ClinicalTrials.gov** — base de la U.S. National Library
+of Medicine (NIH), **dominio público, sin autenticación**. El estado clínico
+de cada ensayo se traduce a criticidad del portafolio (TERMINATED/SUSPENDED →
+Alta, RECRUITING/ACTIVE → Media, COMPLETED → Baja), de modo que el mismo motor
+de portafolio funciona sin cambios.
+
+Honestidad: ClinicalTrials.gov **no publica presupuesto**, así que
+`presupuesto`/`ejecutado` quedan en 0 con una nota explícita — no se inventa
+un número financiero que no existe.
+
+El flujo llega hasta Power BI de una punta a la otra: la API local expone el
+portafolio en `GET /api/demo/pharma` (JSON o CSV) y el archivo
+`distribucion/powerbi/MV_ProjectManagement_Pharma.pbids` conecta Power BI de un
+clic contra ese endpoint (ver `distribucion/powerbi/README.md`).
+
+## Gobernanza, organigrama y versionado por empresa
+
+Todo dato manual del sistema sigue el mismo patrón: **la IA lo recomienda
+primero, el responsable lo valida o lo corrige, y cada versión queda guardada
+por empresa** (quién la recomendó, quién la validó — nombre y cargo — y cuándo).
+La tabla `versiones` de `db.py` nunca sobrescribe: guarda una fila nueva y
+mantiene el historial completo.
+
+- **Gobernanza de datos** (`mvpm/governance.py`): 14 conceptos de PM ya vienen
+  con su definición preestablecida. Cualquiera se puede afinar con IA y luego
+  el data owner/steward lo valida y guarda. Queda el historial de cada cambio.
+- **Organigrama y responsables** (`mvpm/organigrama.py`): se carga el
+  organigrama de la empresa (Excel, CSV o base SQLite) y la IA autocompleta los
+  responsables por etapa del PMBOK a partir de cargos y áreas. Todo se puede
+  editar y guardar. (El parseo de organigramas en foto requiere IA de visión;
+  se declara explícitamente en vez de simularlo.)
+- **PMBOK técnico + "en criollo"** (`mvpm/pmbok.py`): cada área de conocimiento
+  y cada grupo de proceso trae su definición técnica y su explicación en
+  criollo, más una nota editable y guardable por empresa.
 
 ## Descargas
 

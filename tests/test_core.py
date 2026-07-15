@@ -11,6 +11,7 @@ from mvpm import (
     case_study,
     catalog,
     demo_data,
+    demo_pharma,
     demo_real,
     dependencies as dep_mod,
     exporters,
@@ -414,6 +415,55 @@ def test_proveedores_disponibles_solo_lista_los_configurados(monkeypatch):
     assert advisor.proveedores_disponibles() == []
     monkeypatch.setenv("OPENAI_API_KEY", "sk-test")
     assert advisor.proveedores_disponibles() == ["chatgpt"]
+
+
+# ---- demo_pharma ----
+
+def test_pharma_tiene_el_esquema_de_demo_data():
+    proj = demo_pharma.cargar_portafolio_pharma()
+    assert list(proj.columns) == list(demo_data.projects().columns)
+    assert len(proj) > 0
+    assert proj["criticidad"].isin(["Alta", "Media", "Baja"]).all()
+
+
+def test_pharma_criticidad_deriva_del_estado_real():
+    r = demo_pharma.resumen_portafolio()
+    assert r["total_ensayos"] > 0
+    # terminados/suspendidos existen y se marcan en riesgo (dato real, no inventado)
+    assert r["en_riesgo"] > 0
+    assert len(r["por_sponsor"]) == 3  # AstraZeneca, Pfizer, Novartis
+
+
+def test_pharma_no_inventa_presupuesto():
+    proj = demo_pharma.cargar_portafolio_pharma()
+    # la fuente no publica presupuesto — se deja en 0, no se fabrica
+    assert (proj["presupuesto"] == 0).all()
+    assert (proj["ejecutado"] == 0).all()
+
+
+def test_pharma_tabla_bi_lista_para_powerbi():
+    bi = demo_pharma.tabla_para_bi()
+    for col in ("nct", "titulo", "laboratorio", "estado", "criticidad", "fase"):
+        assert col in bi.columns
+    assert not bi.empty
+    assert catalog.kpis(demo_pharma.cargar_portafolio_pharma())["proyectos_activos"] == len(bi)
+
+
+# ---- pmbok grupos de procesos ----
+
+def test_pmbok_tiene_cinco_grupos_de_procesos_tecnico_y_criollo():
+    grupos = pmbok.grupos_proceso()
+    assert len(grupos) == 5
+    for g in grupos:
+        assert g["definicion_tecnica"].strip() and g["criollo"].strip()
+    assert pmbok.resumen()["grupos_proceso"] == 5
+
+
+def test_pmbok_cada_area_tiene_tecnico_y_criollo():
+    for a in pmbok.areas():
+        assert a["definicion_tecnica"].strip()
+        assert a["criollo"].strip()
+        assert a["clave"]
 
 
 # ---- demo_real ----
