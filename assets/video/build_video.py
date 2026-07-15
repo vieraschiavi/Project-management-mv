@@ -1,5 +1,5 @@
 """
-MV Proyect Management · Generador del video demo (PIL + imageio-ffmpeg) con
+MV Project Management · Generador del video demo (PIL + imageio-ffmpeg) con
 narración en voz rioplatense (Piper TTS, voz es_AR "daniela").
 
 Produce ``landing/video/demo.mp4`` (1280×720): un recorrido animado del
@@ -112,7 +112,7 @@ def scene_intro(p: float) -> Image.Image:
     lw = d.textlength("MV", font=f_logo)
     d.text((W / 2 - lw / 2, 140 + size - 36), "MV", font=f_logo, fill=AMBER)
     if p > 0.18:
-        center_text(d, 310, "MV Proyect Management", font(52), INK)
+        center_text(d, 310, "MV Project Management", font(52), INK)
     if p > 0.38:
         center_text(d, 388, "Portafolio con salud medible, no reuniones de estado", font(24, False), MUTED)
     if p > 0.55:
@@ -303,7 +303,7 @@ def scene_trial(p: float) -> Image.Image:
 def scene_outro(p: float) -> Image.Image:
     img = base_frame()
     d = ImageDraw.Draw(img)
-    center_text(d, 200, "MV Proyect Management", font(50), INK)
+    center_text(d, 200, "MV Project Management", font(50), INK)
     center_text(d, 280, "Tu portafolio, gobernado de punta a punta.", font(23, False), MUTED)
     center_text(d, 318, "Your portfolio, governed end to end.", font(19, False), FAINT)
     if p > 0.35:
