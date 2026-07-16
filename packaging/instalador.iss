@@ -30,7 +30,8 @@ Name: "spanish"; MessagesFile: "compiler:Languages\Spanish.isl"
 Name: "english"; MessagesFile: "compiler:Default.isl"
 
 [Files]
-Source: "..\dist\MVProjectManagement\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
+; PyInstaller compila en modo onefile → un único .exe (no una carpeta).
+Source: "..\dist\{#MyAppExeName}"; DestDir: "{app}"; Flags: ignoreversion
 
 [Icons]
 ; Acceso directo en el menú Inicio / barra de programas (siempre)
