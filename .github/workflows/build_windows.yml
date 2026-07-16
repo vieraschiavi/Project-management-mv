@@ -4,6 +4,14 @@ on:
   push:
     tags:
       - "v*"
+    branches:
+      - main
+    paths:
+      - "packaging/**"
+      - "mvpm/**"
+      - "app/**"
+      - "requirements.txt"
+      - ".github/workflows/build_windows.yml"
   workflow_dispatch: {}
 
 jobs:
