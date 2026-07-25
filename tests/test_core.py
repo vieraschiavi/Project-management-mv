@@ -293,13 +293,15 @@ def test_licencia_paga_vencida_no_desbloquea(tmp_path, monkeypatch):
     hace_8_dias = time.time() - 8 * licensing.DIA_SEGUNDOS
     (tmp_path / "trial.json").write_text(json.dumps({"primer_uso": hace_8_dias}))
     token = licensing.issue_license("professional", "cliente@empresa.com")
-    # licencia emitida hace 40 días (vigencia professional = 30) → vencida
-    hace_40_dias = time.time() - 40 * licensing.DIA_SEGUNDOS
-    est = licensing.estado_acceso(token, ahora=time.time())
-    # forzamos iat viejo verificando el helper directamente
+    # Licencia emitida hace 400 días (vigencia professional = 365) → vencida.
+    # Al año hay que renovar: es lo que corta el acceso a quien dejó de pagar.
     payload = licensing.verify_license(token)
-    payload["iat"] = hace_40_dias
+    payload["iat"] = time.time() - 400 * licensing.DIA_SEGUNDOS
     assert licensing.licencia_vigente(payload) is False
+
+    # Y a los 100 días sigue vigente: quien pagó no queda afuera entre cobros.
+    payload["iat"] = time.time() - 100 * licensing.DIA_SEGUNDOS
+    assert licensing.licencia_vigente(payload) is True
 
 
 def test_enterprise_quota_unlimited(tmp_path, monkeypatch):
@@ -583,5 +585,35 @@ def test_build_release_portable_zip(monkeypatch):
             assert any(n.startswith("mvpm/") for n in names)
             assert any(n.startswith("app/") for n in names)
             assert not any(".venv" in n or "__pycache__" in n for n in names)
+            # El panel del owner NUNCA puede viajar al cliente: usa el secreto
+            # de firma de licencias y el token de MercadoPago. Si se filtra,
+            # cualquiera se emite licencias gratis.
+            assert not any(n.startswith("owner/") for n in names)
     finally:
         zip_path.unlink(missing_ok=True)
+
+
+def test_planes_pagos_tienen_vigencia_larga():
+    """El cobro es recurrente pero la licencia se emite una sola vez: si la
+    vigencia fuera de 30 días, el cliente que YA pagó quedaría bloqueado al
+    día 31 esperando un token nuevo."""
+    from mvpm import licensing as lic
+
+    for plan in lic.PLANES_PAGOS:
+        vigencia = lic.PLANES[plan]["vigencia_dias"]
+        assert vigencia is None or vigencia >= 365, (
+            f"El plan pago '{plan}' vence en {vigencia} días y dejaría afuera a "
+            "alguien que pagó."
+        )
+
+
+def test_licencia_anual_desbloquea_tras_vencer_la_prueba(tmp_path, monkeypatch):
+    """Una compra anual tiene que dar acceso aunque la prueba ya haya vencido."""
+    _patch_store(tmp_path, monkeypatch)
+    (tmp_path / "trial.json").write_text(
+        json.dumps({"primer_uso": time.time() - 30 * licensing.DIA_SEGUNDOS})
+    )
+    token = licensing.issue_license("professional_anual", "cliente@empresa.com", "FAC-1")
+    estado = licensing.estado_acceso(token)
+    assert estado["acceso"] is True
+    assert estado["modo"] == "licencia"

@@ -8,6 +8,7 @@ const crypto = require('crypto');
 const PLANES = {
   demo: { nombre: 'Demo de evaluación', precio_usd: 0, cupo_mensual_ia: 20 },
   professional: { nombre: 'Professional', precio_usd: 9, cupo_mensual_ia: 1000 },
+  professional_anual: { nombre: 'Professional (12 meses)', precio_usd: 90, cupo_mensual_ia: 1000 },
   enterprise: { nombre: 'Enterprise', precio_usd: null, cupo_mensual_ia: null },
 };
 

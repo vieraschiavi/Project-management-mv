@@ -338,16 +338,15 @@
         <div class="amount">US$9<span data-i="p2_period">/usuario/mes</span></div>
         <div class="amount-uyu" data-i="p2_uyu">≈ $UYU 360/mes · se cobra en pesos al cambio del día</div>
         <p data-i="p2_d">Seguís con todo lo que cargaste en la prueba. Portfolios ilimitados, priorizador IA, dependencias, reporte automático.</p>
-        <ul><li data-i="p2_l1">Copiloto IA: 1.000 consultas/mes</li><li data-i="p2_l2">Integraciones (Slack, Calendar, Git)</li><li data-i="p2_l3">Soporte prioritario en español</li></ul>
+        <ul><li data-i="p2_l1">Suscripción mensual — se renueva sola, cancelás cuando quieras</li><li data-i="p2_l2">Copiloto IA sin límite de cupo (con tu propia clave de IA)</li><li data-i="p2_l3">Soporte prioritario en español</li></ul>
         <button class="btn btn-primary" type="button" onclick="comprar('professional', this)" data-i="p2_cta">Pagar con MercadoPago</button>
       </div>
       <div class="price-card">
-        <h3 data-i="p3_t">Enterprise</h3>
-        <div class="amount" data-i="p3_amount">Desde US$1.500<span data-i="p3_period">/mes</span></div>
-        <div class="amount-uyu" data-i="p3_uyu">≈ $UYU 62.250/mes (cotización aprox.)</div>
-        <p data-i="p3_d">On-premise, SSO/OIDC, auditoría, cumplimiento y usuarios ilimitados.</p>
-        <ul><li data-i="p3_l1">Integraciones a medida</li><li data-i="p3_l2">Steward de adopción dedicado</li><li data-i="p3_l3">White-label para consultoras</li></ul>
-        <a class="btn btn-ghost" href="#contacto" data-i="p3_cta">Hablar con ventas</a>
+        <h3 data-i="p3_t">Implementación a medida</h3>
+        <div class="amount" style="font-size:22px; line-height:1.3;" data-i="p3_amount">Consultanos<span style="display:block; font-size:12.5px; margin-top:2px;" data-i="p3_period">cotizada por proyecto, según alcance</span></div>
+        <p data-i="p3_d">Lo integramos con la base de datos o el ERP que ya usás, para que el portafolio se alimente solo de tus sistemas — sin cargar nada a mano.</p>
+        <ul><li data-i="p3_l1">Integración con tu BD / ERP</li><li data-i="p3_l2">Puesta en marcha y capacitación del equipo</li><li data-i="p3_l3">Soporte y mantenimiento mensual</li></ul>
+        <a class="btn btn-ghost" href="#contacto" data-i="p3_cta">Pedir una propuesta</a>
       </div>
     </div>
   </div>
@@ -513,9 +512,10 @@ const I18N = {
     p1_t:"Full trial", p1_period:"/7 days, fully unlocked", p1_d:"You download the complete program and it runs 100% for 7 days — every feature, no cuts. When it expires it locks, but everything you entered stays saved.",
     p1_l1:"The complete program, not a crippled version", p1_l2:"All features + AI copilot", p1_l3:"No credit card to start", p1_cta:"Download and try",
     p2_t:"Professional", p2_period:"/user/month", p2_uyu:"≈ UYU 360/month · charged in local currency at the day's rate", p2_d:"Keep everything you entered during the trial. Unlimited portfolios, AI prioritizer, dependencies, automatic report.",
-    p2_l1:"AI copilot: 1,000 queries/month", p2_l2:"Integrations (Slack, Calendar, Git)", p2_l3:"Priority support", p2_cta:"Pay with MercadoPago",
-    p3_t:"Enterprise", p3_amount:"From US$1,500", p3_period:"/month", p3_uyu:"≈ UYU 62,250/month (approx. rate)", p3_d:"On-premise, SSO/OIDC, auditing and unlimited users.",
-    p3_l1:"Custom integrations", p3_l2:"Dedicated adoption steward", p3_l3:"White-label for consultancies", p3_cta:"Talk to sales",
+    p2_l1:"Monthly subscription — renews itself, cancel anytime", p2_l2:"AI copilot with no quota (using your own AI key)", p2_l3:"Priority support", p2_cta:"Pay with MercadoPago",
+    p3_t:"Custom implementation", p3_amount:"Talk to us", p3_period:"quoted per project, based on scope", p3_uyu:"",
+    p3_d:"We integrate it with the database or ERP you already run, so your portfolio feeds itself from your own systems — nothing typed by hand.",
+    p3_l1:"Integration with your DB / ERP", p3_l2:"Rollout and team training", p3_l3:"Monthly support and maintenance", p3_cta:"Request a proposal",
     reviews_kicker:"Reviews", reviews_h2:"Real user ratings",
     reviews_empty_title:"⭐ Program in beta", reviews_empty_body:"We don't have real customer reviews yet — we won't fabricate testimonials to look bigger than we are. Be one of the first to leave yours after trying the product; we'll publish it once verified.",
     faq_kicker:"FAQ", faq_h2:"What people ask before trying it",
@@ -573,9 +573,10 @@ const I18N = {
     p1_t:"Teste completo", p1_period:"/7 dias, tudo desbloqueado", p1_d:"Você baixa o programa completo e ele roda 100% por 7 dias — todas as funções, sem cortes. Ao vencer, bloqueia, mas tudo o que você carregou fica salvo.",
     p1_l1:"O programa completo, não uma versão capada", p1_l2:"Todas as funções + copiloto IA", p1_l3:"Sem cartão de crédito para começar", p1_cta:"Baixar e testar",
     p2_t:"Professional", p2_period:"/usuário/mês", p2_uyu:"≈ UYU 360/mês · cobrado em moeda local à cotação do dia", p2_d:"Continua com tudo o que carregou no teste. Portfólios ilimitados, priorizador IA, dependências, relatório automático.",
-    p2_l1:"Copiloto IA: 1.000 consultas/mês", p2_l2:"Integrações (Slack, Calendar, Git)", p2_l3:"Suporte prioritário", p2_cta:"Pagar com MercadoPago",
-    p3_t:"Enterprise", p3_amount:"A partir de US$1.500", p3_period:"/mês", p3_uyu:"≈ UYU 62.250/mês (cotação aprox.)", p3_d:"On-premise, SSO/OIDC, auditoria e usuários ilimitados.",
-    p3_l1:"Integrações sob medida", p3_l2:"Steward de adoção dedicado", p3_l3:"White-label para consultorias", p3_cta:"Falar com vendas",
+    p2_l1:"Assinatura mensal — renova sozinha, cancele quando quiser", p2_l2:"Copiloto IA sem limite de cota (com sua própria chave de IA)", p2_l3:"Suporte prioritário", p2_cta:"Pagar com MercadoPago",
+    p3_t:"Implementação sob medida", p3_amount:"Fale conosco", p3_period:"cotizada por projeto, conforme o escopo", p3_uyu:"",
+    p3_d:"Integramos com o banco de dados ou o ERP que você já usa, para o portfólio se alimentar sozinho dos seus sistemas — sem digitar nada à mão.",
+    p3_l1:"Integração com seu BD / ERP", p3_l2:"Implantação e treinamento da equipe", p3_l3:"Suporte e manutenção mensal", p3_cta:"Pedir uma proposta",
     reviews_kicker:"Avaliações", reviews_h2:"Avaliação de usuários reais",
     reviews_empty_title:"⭐ Programa em fase beta", reviews_empty_body:"Ainda não temos avaliações de clientes reais — não vamos inventar depoimentos para parecer maiores do que somos. Seja um dos primeiros a deixar a sua depois de testar o produto; publicamos assim que for verificada.",
     faq_kicker:"Perguntas frequentes", faq_h2:"O que perguntam antes de testar",

@@ -29,7 +29,7 @@ _TRIAL_FILE = _STORE_DIR / "trial.json"
 # NUNCA se borran: al pagar, la persona sigue con todo lo que hizo.
 TRIAL_DIAS = 7
 DIA_SEGUNDOS = 86400
-PLANES_PAGOS = ("professional", "enterprise")
+PLANES_PAGOS = ("professional", "professional_anual", "enterprise")
 
 PLANES = {
     "demo": {
@@ -41,17 +41,30 @@ PLANES = {
     },
     "professional": {
         "nombre": "Professional",
-        "precio_usd": 9,  # por usuario/mes
+        "precio_usd": 9,  # por usuario/mes (suscripción mensual automática)
         "cupo_mensual_ia": 1000,
-        "vigencia_dias": 30,
+        # 365 días, no 30: el cobro es recurrente en MercadoPago, pero la
+        # licencia se emite una sola vez. Con 30 días el cliente que YA pagó
+        # quedaba bloqueado al día 31 esperando un token nuevo. La vigencia
+        # larga desacopla "cobrar todos los meses" de "no dejar afuera a quien
+        # pagó". Si alguien cancela, se deja de cobrar y no se renueva al año.
+        "vigencia_dias": 365,
+        "features": ["catalogo", "salud", "dependencias", "backlog", "copiloto_reglas",
+                     "copiloto_ia", "reportes_automaticos", "integraciones"],
+    },
+    "professional_anual": {
+        "nombre": "Professional (12 meses)",
+        "precio_usd": 90,  # 12 meses al precio de 10
+        "cupo_mensual_ia": 1000,
+        "vigencia_dias": 365,
         "features": ["catalogo", "salud", "dependencias", "backlog", "copiloto_reglas",
                      "copiloto_ia", "reportes_automaticos", "integraciones"],
     },
     "enterprise": {
         "nombre": "Enterprise",
-        "precio_usd": None,  # a medida, desde US$1.500/mes
+        "precio_usd": None,  # implementación a medida, cotizada por proyecto
         "cupo_mensual_ia": None,  # ilimitado
-        "vigencia_dias": 30,
+        "vigencia_dias": 365,
         "features": ["catalogo", "salud", "dependencias", "backlog", "copiloto_reglas",
                      "copiloto_ia", "reportes_automaticos", "integraciones",
                      "sso", "auditoria", "white_label"],

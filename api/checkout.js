@@ -1,16 +1,23 @@
 // Checkout de MercadoPago — función serverless (Vercel, CommonJS).
-// Misma estructura que api/checkout.js de MV Kobra AI, con los precios de
-// MV Project Management.
+//
+// Dos modalidades de cobro:
+//   - "professional"       → SUSCRIPCIÓN mensual recurrente (/preapproval_plan).
+//                            MercadoPago cobra solo todos los meses.
+//   - "professional_anual" → pago único por 12 meses (/checkout/preferences).
+//
+// Por qué importa: con /checkout/preferences a secas el cobro es UNA sola vez.
+// El cliente pagaba, a los 30 días se le vencía la licencia y tenía que
+// acordarse de comprar de nuevo a mano — o sea, no había ingreso recurrente.
+// La suscripción lo cobra automáticamente; el pago anual lo evita de raíz.
 //
 // El Access Token de MercadoPago vive SOLO como variable de entorno del
 // servidor (MP_ACCESS_TOKEN). Nunca se expone al navegador ni se guarda en el
-// repo. Alternativa sin token: configurar un link de pago por plan
-// (MP_LINK_PROFESSIONAL).
+// repo. Alternativa sin token: un link de pago fijo por plan (MP_LINK_<PLAN>).
 //
 // POST + JSON (no GET/redirect): el cliente hace fetch acá, recibe la URL de
-// pago y recién después navega él mismo. Mismo patrón que Kobra — así una
-// futura verificación anti-bot (Vercel BotID) puede adjuntarse al fetch, que
-// nunca se puede hacer sobre una navegación de página completa.
+// pago y recién después navega él mismo. Así una futura verificación anti-bot
+// (Vercel BotID) puede adjuntarse al fetch, que nunca se puede hacer sobre una
+// navegación de página completa.
 
 // Protección anti-bot opcional: si el proyecto tiene Vercel BotID configurado
 // (paquete `botid`), se usa; si no está instalado/configurado, el checkout
@@ -18,17 +25,25 @@
 let checkBotId = null;
 try { ({ checkBotId } = require("botid/server")); } catch (_) { /* opcional */ }
 
-const PLANS = {
-  professional: { title: "MV Project Management · Professional (mensual, por usuario)", price: 9.0 },
-};
-
 // La cuenta de cobro (collector) de MercadoPago es de Uruguay (site MLU), que
-// SOLO acepta preferencias en UYU: mandar "USD" hace que la API rechace la
-// preferencia (no llega init_point) y el checkout falla. Los precios se
-// muestran de referencia en USD pero se cobran en pesos uruguayos al tipo de
-// cambio del día — por eso acá se convierte antes de crear la preferencia.
+// SOLO acepta UYU: mandar "USD" hace que la API rechace la operación. Los
+// precios se muestran de referencia en USD pero se cobran en pesos uruguayos
+// al tipo de cambio del día — por eso acá se convierte antes de cobrar.
 const CURRENCY = process.env.MP_CURRENCY || "UYU";
 const TASA_UYU = Number(process.env.MP_TASA_UYU) || 40; // US$1 ≈ $U 40 (referencia)
+
+const PLANS = {
+  professional: {
+    title: "MV Project Management · Professional",
+    priceUsd: 9.0,
+    recurring: true,          // suscripción mensual automática
+  },
+  professional_anual: {
+    title: "MV Project Management · Professional (12 meses)",
+    priceUsd: 90.0,           // 12 meses al precio de 10: 2 meses bonificados
+    recurring: false,         // pago único
+  },
+};
 
 module.exports = async (req, res) => {
   if (req.method !== "POST") { res.status(405).json({ error: "method" }); return; }
@@ -51,36 +66,75 @@ module.exports = async (req, res) => {
 
   // Sin Access Token: si hay link de pago fijo configurado, se devuelve ese.
   if (!token) {
-    if (link) { res.status(200).json({ url: link }); return; }
+    if (link) { res.status(200).json({ url: link, modo: "link_fijo" }); return; }
     res.status(503).json({ error: "medio_pago_no_configurado" });
     return;
   }
 
+  const amount = CURRENCY === "UYU" ? Math.round(p.priceUsd * TASA_UYU) : p.priceUsd;
+
   try {
-    const unitPrice = CURRENCY === "UYU" ? Math.round(p.price * TASA_UYU) : p.price;
-    const pref = {
-      items: [{ title: p.title, quantity: 1, unit_price: unitPrice, currency_id: CURRENCY }],
-      back_urls: {
-        success: base + "/?checkout=success&plan=" + plan,
-        pending: base + "/?checkout=pending&plan=" + plan,
-        failure: base + "/?checkout=failure&plan=" + plan,
-      },
-      auto_return: "approved",
-      metadata: { plan: plan },
-    };
-    const r = await fetch("https://api.mercadopago.com/checkout/preferences", {
+    if (p.recurring) {
+      // --- Suscripción mensual automática -------------------------------
+      const r = await fetch("https://api.mercadopago.com/preapproval_plan", {
+        method: "POST",
+        headers: { Authorization: "Bearer " + token, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          reason: p.title,
+          auto_recurring: {
+            frequency: 1,
+            frequency_type: "months",
+            transaction_amount: amount,
+            currency_id: CURRENCY,
+          },
+          back_url: base + "/?checkout=success&plan=" + plan,
+        }),
+      });
+      const data = await r.json();
+      if (r.ok && data.init_point) {
+        res.status(200).json({ url: data.init_point, modo: "suscripcion" });
+        return;
+      }
+      // Si la cuenta no tiene suscripciones habilitadas, no se pierde la
+      // venta: se cae al cobro único de 12 meses en vez de romper.
+      console.error("preapproval_plan rechazado:", JSON.stringify(data).slice(0, 400));
+    }
+
+    // --- Pago único (anual, o fallback de la suscripción) ----------------
+    const anual = PLANS.professional_anual;
+    const item = p.recurring ? anual : p;
+    const unitPrice = CURRENCY === "UYU"
+      ? Math.round(item.priceUsd * TASA_UYU)
+      : item.priceUsd;
+
+    const r2 = await fetch("https://api.mercadopago.com/checkout/preferences", {
       method: "POST",
       headers: { Authorization: "Bearer " + token, "Content-Type": "application/json" },
-      body: JSON.stringify(pref),
+      body: JSON.stringify({
+        items: [{
+          title: item.title,
+          quantity: 1,
+          unit_price: unitPrice,
+          currency_id: CURRENCY,
+        }],
+        back_urls: {
+          success: base + "/?checkout=success&plan=professional_anual",
+          pending: base + "/?checkout=pending&plan=professional_anual",
+          failure: base + "/?checkout=failure&plan=professional_anual",
+        },
+        auto_return: "approved",
+        metadata: { plan: "professional_anual" },
+      }),
     });
-    const data = await r.json();
-    if (!r.ok || !data.init_point) {
+    const data2 = await r2.json();
+    if (!r2.ok || !data2.init_point) {
+      if (link) { res.status(200).json({ url: link, modo: "link_fijo" }); return; }
       res.status(502).json({ error: "mercadopago" });
       return;
     }
-    res.status(200).json({ url: data.init_point });
+    res.status(200).json({ url: data2.init_point, modo: "pago_unico_anual" });
   } catch (e) {
-    if (link) { res.status(200).json({ url: link }); return; }
+    if (link) { res.status(200).json({ url: link, modo: "link_fijo" }); return; }
     res.status(500).json({ error: "exception" });
   }
 };
