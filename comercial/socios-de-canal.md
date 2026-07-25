@@ -180,3 +180,10 @@ pregunta algo técnico (respuesta: lo atendés vos).
 
 > El número concreto para la reunión con el socio: **~USD 800 el primer año por
 > cliente referido, ~USD 500/año recurrente**. La cuenta está en [`precios.md`](precios.md).
+
+> ⚠️ **Lo que el socio puede vender es el paquete Arranque (USD 700), no la
+> Integración.** Una integración completa te consume ~80 horas — trabajando de
+> noche, eso es 2 meses por cliente y un techo de 4-5 clientes al año. Un socio
+> que te trae 6 clientes de integración te satura y te deja quedando mal con la
+> mitad. Decíselo de entrada: los referidos entran por Arranque, y la integración
+> se cotiza aparte, después de un relevamiento pago.
