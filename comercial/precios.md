@@ -52,6 +52,10 @@ Alcance basado en lo que el producto realmente necesita para arrancar en una
 empresa: instalación, conexión al origen de datos, carga de organigrama,
 configuración de gobernanza/PMBOK, conector de Power BI y capacitación.
 
+> **Parámetros confirmados por vos:** implementación típica de **10-25 horas**,
+> valor hora objetivo **USD 30-50**, modelo **proyecto + mantenimiento mensual**.
+> Todo lo que sigue está calculado con un piso de **USD 40/h** (mitad del rango).
+
 | | **Básico** | **Estándar** | **Completo** |
 |---|---|---|---|
 | Instalación y puesta en marcha | ✅ | ✅ | ✅ |
@@ -61,28 +65,43 @@ configuración de gobernanza/PMBOK, conector de Power BI y capacitación.
 | Conector Power BI configurado | ✅ | ✅ | ✅ |
 | Gobernanza / PMBOK a medida | — | Preestablecido | A medida |
 | Capacitación | 1 sesión (2h) | 2 sesiones | 4 sesiones + manual |
-| **Horas estimadas** | **10-14 h** | **22-30 h** | **45-60 h** |
+| **Horas estimadas** | **~10 h** | **~18 h** | **~32 h** |
 
-### Cuánto cobrar por eso
+### La lista de precios
 
-> 🔴 **Estos valores de hora son estimaciones de referencia para el mercado
-> uruguayo, no un dato verificado.** Validalos con 2 o 3 colegas que facturen
-> como independientes antes de fijar tu lista.
+| Paquete | Horas | Costo a USD 40/h | **Precio de lista** | Margen |
+|---|---|---|---|---|
+| Básico | 10 h | USD 400 | **USD 600** | 1,5× |
+| Estándar | 18 h | USD 720 | **USD 1.200** | 1,7× |
+| Completo | 32 h | USD 1.280 | **USD 2.200** | 1,7× |
 
-| Tu hora | Básico (12h) | Estándar (26h) | Completo (52h) |
-|---|---|---|---|
-| USD 25/h | ~USD 300 | ~USD 650 | ~USD 1.300 |
-| USD 35/h | ~USD 420 | ~USD 910 | ~USD 1.820 |
-| USD 45/h | ~USD 540 | ~USD 1.170 | ~USD 2.340 |
+Ese margen de 1,5-1,7× no es ganancia extra: cubre lo que **siempre** aparece y
+nunca está en la estimación — el dato sucio, el ERP sin esquema documentado, la
+reunión que se repite, y el tiempo comercial que no facturás.
 
-**Pero no cotices por hora.** Cotizá **precio cerrado por paquete**, redondeado
-hacia arriba:
+### ⚠️ La regla que evita que trabajes gratis
 
-| Paquete | Precio de lista sugerido |
+**La comisión del socio sale de tu precio, no se suma arriba.** Entonces el piso
+real no es `horas × tu hora`, es:
+
+```
+precio mínimo = (horas × valor hora) ÷ (1 − comisión)
+```
+
+Verificación del paquete Estándar con un socio al 25%:
+
+| | |
 |---|---|
-| Básico | **USD 600** |
-| Estándar | **USD 1.500** |
-| Completo | **USD 3.000** |
+| Precio de lista | USD 1.200 |
+| − comisión 25% | − USD 300 |
+| **Te queda** | **USD 900** por 18 h = **USD 50/h** ✅ |
+
+Queda por encima de tu piso de USD 40. **Si algún día negociás una comisión del
+40%, el Estándar a USD 1.200 te deja USD 720 → USD 40/h justo, sin colchón.** Ahí
+subís el precio o bajás la comisión — no las dos cosas.
+
+**No cotices por hora.** Cotizá precio cerrado: el cliente compra un resultado, y
+si mejorás el proceso y tardás menos, ganás más. Por hora, mejorar te castiga.
 
 **Por qué cerrado y no por hora:**
 1. El cliente compra un resultado, no tu tiempo. Cotizar horas te convierte en proveedor de horas.
@@ -107,11 +126,15 @@ recurrente, sin vender nada nuevo. Ofrecelo **siempre**, desde el primer cliente
 
 | Concepto | Año 1 |
 |---|---|
-| Implementación Estándar | USD 1.500 |
+| Implementación Estándar | USD 1.200 |
 | Licencia (25 × USD 90) | USD 2.250 |
-| Soporte (USD 250 × 12) | USD 3.000 |
-| **Total año 1** | **USD 6.750** |
+| Mantenimiento (USD 250 × 12) | USD 3.000 |
+| **Total año 1** | **USD 6.450** |
 | **Recurrente año 2+** | **USD 5.250/año** |
+
+Mirá la proporción: **la implementación es solo el 19% del año 1**. El resto es
+recurrente. Por eso elegiste bien el modelo — la implementación te abre la puerta,
+el mantenimiento es el negocio.
 
 ### Lo que se lleva el socio de canal
 
@@ -119,14 +142,18 @@ Con las comisiones de `socios-de-canal.md` (referido acompañado, 25% + 10% recu
 
 | Concepto | Comisión |
 |---|---|
-| 25% de implementación | USD 375 |
-| 10% de licencia + soporte año 1 | USD 525 |
-| **Total año 1 por un cliente** | **~USD 900** |
+| 25% de implementación | USD 300 |
+| 10% de licencia + mantenimiento año 1 | USD 525 |
+| **Total año 1 por un cliente** | **~USD 825** |
 | Recurrente año 2+ | ~USD 525/año |
 
 **Ese número sí mueve a un socio.** Es lo que le podés decir en la reunión:
-> *"Por cada cliente que me presentes, son unos USD 900 el primer año y USD 500
+> *"Por cada cliente que me presentes, son unos USD 800 el primer año y USD 500
 > por año mientras el cliente siga. Con tres clientes tuyos ya es un ingreso real."*
+
+Notá que **la mayor parte de su comisión es recurrente, no de la implementación**.
+Eso juega a tu favor: al socio le conviene que el cliente se quede contento y siga
+pagando, no cerrar una venta y desaparecer.
 
 ---
 
@@ -160,12 +187,30 @@ que duran meses.
 
 ---
 
-## Lo único que falta que puedas decidir solo vos
+## Estado de la lista
 
-- [ ] **Tu valor hora real.** Fijate cuánto ganás por hora en tu trabajo actual y
-      no cobres menos que eso como independiente — asumís más riesgo, no menos.
-- [ ] **Validar las tres cifras de lista** (600 / 1.500 / 3.000) con 2-3 colegas
-      que facturen como independientes en Uruguay. Es una llamada de 15 minutos
-      y te evita fijar la lista con datos míos que son estimados.
+| Definido | Valor |
+|---|---|
+| Valor hora piso | USD 40 (rango 30-50) |
+| Implementación | 600 / 1.200 / 2.200 |
+| Mantenimiento mensual | USD 150-400 |
+| Licencia | USD 9 usuario/mes · USD 90 anual |
+| Comisión de canal | 25% implementación + 10% recurrente |
 
-Con eso, la lista queda cerrada y ya podés abrir la conversación con socios.
+**La lista está cerrada. Ya podés abrir la conversación con socios.**
+
+### Dos cosas para hacer en paralelo (no bloquean nada)
+
+- [ ] **Cronometrá la primera implementación real.** Tu estimación de 10-25 h es
+      una hipótesis razonable, no un dato — nadie acierta la primera. Anotá las
+      horas reales del primer cliente y recalculá la lista con eso. Si te lleva
+      35 h en vez de 18, el Estándar a USD 1.200 te deja USD 26/h después de
+      comisión, muy por debajo del piso.
+- [ ] **Contrastá las tres cifras con 2-3 colegas independientes** en Uruguay.
+      Los valores de hora que usé son estimaciones de referencia, no un dato de
+      mercado verificado. Es una llamada de 15 minutos.
+
+> Si la primera implementación se va muy por encima de 25 h, el problema no es el
+> precio: es que el producto todavía necesita trabajo manual que debería ser
+> automático. Eso es información de producto, no de ventas — y vale más que la
+> diferencia de plata.
