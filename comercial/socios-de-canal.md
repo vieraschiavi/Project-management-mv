@@ -174,5 +174,9 @@ pregunta algo técnico (respuesta: lo atendés vos).
 - [x] Producto funcionando y descargable ✅
 - [x] Video demo ✅
 - [x] Conector a Power BI ✅
-- [ ] **Tu precio de implementación** (aunque sea un rango) ← sin esto no podés hablar de comisión
+- [x] **Precio de implementación y comisión** → [`precios.md`](precios.md) ✅
+- [ ] Validar las 3 cifras de lista con 2-3 colegas independientes (llamada de 15 min)
 - [ ] Una demo de 7 minutos que puedas hacer dormido — practicala 3 veces solo
+
+> El número concreto para la reunión con el socio: **~USD 900 el primer año por
+> cliente referido, ~USD 500/año recurrente**. La cuenta está en [`precios.md`](precios.md).
