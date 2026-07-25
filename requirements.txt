@@ -1,5 +1,11 @@
 streamlit>=1.38
 pandas>=2.2
+# pyarrow lo instala Streamlit para serializar las tablas. La 25.0.0 hace
+# segfault (libarrow) al renderizar DataFrames: el proceso se cae entero, no
+# lanza excepción, y el cliente ve "Connection error". Verificado con y sin los
+# cambios del importador, y con pandas 2.3 y 3.0 — el que falla es pyarrow.
+# Sin este techo, una instalación nueva se rompe al abrir cualquier tabla.
+pyarrow>=14,<21
 fastapi>=0.115
 uvicorn>=0.30
 openpyxl>=3.1
