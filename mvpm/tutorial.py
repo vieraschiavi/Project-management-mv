@@ -298,17 +298,26 @@ SECTIONS = [
     {
         "id": "nav_import",
         "titulo": "Importar datos",
-        "resumen": "Subir proyectos o tareas existentes desde un CSV/Excel — se cargan de verdad "
-                   "a la base, no es solo una vista previa.",
+        "resumen": "Subir proyectos o tareas desde tu CSV/Excel tal como lo tenés — sin "
+                   "preparar el archivo antes. Se cargan de verdad a la base.",
         "pasos": [
-            "Elegí si estás importando proyectos o tareas, subí el archivo, y revisá la vista "
-            "previa y las columnas con datos faltantes antes de confirmar.",
-            "El importador reconoce nombres de columna comunes (nombre/proyecto/titulo, "
-            "presupuesto/budget, estado/status, etc.) sin exigir un formato exacto.",
-            "Las tareas importadas quedan asociadas al primer proyecto del portafolio — "
-            "reasignalas desde la ficha de tarea si corresponde a otro.",
+            "Subí el archivo como está. El sistema detecta solo a qué campo corresponde cada "
+            "columna, aunque se llame «Nombre del Proyecto», «Área Responsable» o «Monto Total».",
+            "Revisá el mapeo propuesto y corregí con las listas desplegables lo que haga falta. "
+            "El tilde verde es coincidencia exacta; el amarillo es una suposición.",
+            "Mirá el informe previo: cuántas filas se crean, cuántas se descartan y por qué. "
+            "Nada se escribe hasta que confirmás.",
+            "Recién ahí apretá Importar.",
         ],
-        "tips": [],
+        "tips": [
+            "Traduce los valores solo: «En curso» → en progreso, «URGENTE» → Alta, "
+            "«$ 1.234.567» → 1234567, «01/03/2026» → 1 de marzo.",
+            "Las tareas se asocian a su proyecto por nombre, y el responsable se busca "
+            "por nombre o email contra el equipo cargado.",
+            "Detecta filas repetidas y las que ya existen en el sistema, así podés reimportar "
+            "el mismo archivo sin duplicar nada.",
+            "Si no tenés archivo, descargá la plantilla desde la misma pantalla.",
+        ],
     },
     {
         "id": "nav_users",

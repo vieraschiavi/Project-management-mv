@@ -32,6 +32,7 @@ from mvpm import (
     health,
     help_center,
     i18n,
+    importer,
     licensing,
     organigrama,
     pmbok,
@@ -854,77 +855,136 @@ elif section == T("nav_organigrama"):
 
 elif section == T("nav_import"):
     st.subheader(T("nav_import"))
-    st.caption("Subí un archivo y elegí si son proyectos o tareas — se cargan de verdad a tu base, no es solo una vista previa.")
-    tipo = st.radio("¿Qué estás importando?", ["Proyectos", "Tareas"], horizontal=True)
+    st.caption("Subí tu archivo tal como lo tenés. El sistema reconoce solo cómo se "
+               "llaman tus columnas y traduce los valores — no hace falta que lo "
+               "prepares antes.")
+
+    # El resultado se guarda en sesión porque después de importar hay un rerun:
+    # sin esto el st.success() se pierde y la pantalla queda mostrando "no queda
+    # ninguna fila", que parece un error cuando en realidad salió todo bien.
+    if st.session_state.get("import_resultado"):
+        st.success(st.session_state.pop("import_resultado"))
+
+    tipo_label = st.radio("¿Qué estás importando?", ["Proyectos", "Tareas"], horizontal=True)
+    tipo = "proyectos" if tipo_label == "Proyectos" else "tareas"
+
+    with st.expander("¿No sabés cómo armar el archivo? Descargá la plantilla"):
+        plantilla_df = importer.plantilla(tipo)
+        st.dataframe(plantilla_df, use_container_width=True)
+        st.download_button(
+            f"⬇️ Plantilla de {tipo_label.lower()} (CSV)",
+            plantilla_df.to_csv(index=False).encode("utf-8-sig"),
+            file_name=f"plantilla_{tipo}.csv", mime="text/csv")
+        st.caption("La plantilla es una ayuda, no un requisito: el importador acepta "
+                   "cualquier nombre de columna.")
+
     uploaded = st.file_uploader("Subí un CSV/Excel", type=["csv", "xlsx"])
+
     if uploaded is not None:
-        df_import = pd.read_csv(uploaded) if uploaded.name.endswith("csv") else pd.read_excel(uploaded)
-        st.write(f"{len(df_import)} filas, {len(df_import.columns)} columnas detectadas.")
-        st.dataframe(df_import.head(20), use_container_width=True)
-        nulos = df_import.isna().sum()
-        con_nulos = nulos[nulos > 0]
-        if not con_nulos.empty:
-            st.write("Columnas con datos faltantes:")
-            st.dataframe(con_nulos.rename("valores_nulos"))
+        try:
+            df_import = (pd.read_csv(uploaded) if uploaded.name.lower().endswith("csv")
+                         else pd.read_excel(uploaded))
+        except Exception as exc:                                  # archivo ilegible
+            st.error(f"No pude leer el archivo: {exc}")
+            df_import = None
 
-        def _col(df, *nombres):
-            cols_lower = {c.lower().strip(): c for c in df.columns}
-            for n in nombres:
-                if n in cols_lower:
-                    return cols_lower[n]
-            return None
+        if df_import is not None and df_import.empty:
+            st.warning("El archivo no tiene filas.")
+            df_import = None
 
-        if st.button(f"✅ Confirmar importación como {tipo.lower()}"):
-            creadas = 0
-            if tipo == "Proyectos":
-                c_nombre = _col(df_import, "nombre", "proyecto", "titulo")
-                if not c_nombre:
-                    st.error("No encontré una columna 'nombre' (o 'proyecto'/'titulo') en el archivo.")
+        if df_import is not None:
+            df_import.columns = [str(c) for c in df_import.columns]
+            st.write(f"**{len(df_import)} filas, {len(df_import.columns)} columnas.**")
+            st.dataframe(df_import.head(10), use_container_width=True)
+
+            # --- paso 1: mapeo de columnas -------------------------------------
+            st.markdown("#### 1. Revisá a qué corresponde cada columna")
+            sugerencias = importer.detectar_columnas(df_import, tipo)
+            opciones = ["— sin usar —"] + list(df_import.columns)
+            mapeo: dict[str, str] = {}
+
+            for campo in importer.campos_de(tipo):
+                sug = sugerencias[campo.clave]
+                col1, col2 = st.columns([3, 2])
+                etiqueta = campo.etiqueta + (" *" if campo.requerido else "")
+                indice = opciones.index(sug.columna) if sug.columna in opciones else 0
+                elegida = col1.selectbox(etiqueta, opciones, index=indice,
+                                         key=f"map_{tipo}_{campo.clave}",
+                                         help=campo.ayuda or None)
+                if sug.columna:
+                    icono = "✅" if sug.confianza >= 0.9 else "🟡"
+                    col2.caption(f"{icono} detectado: {sug.motivo}")
+                elif campo.requerido:
+                    col2.caption("⚠️ hace falta elegir una columna")
                 else:
-                    c_portafolio = _col(df_import, "portafolio")
-                    c_sponsor = _col(df_import, "sponsor")
-                    c_criticidad = _col(df_import, "criticidad", "prioridad")
-                    c_presupuesto = _col(df_import, "presupuesto", "budget")
-                    c_ejecutado = _col(df_import, "ejecutado", "spent")
-                    for _, row in df_import.iterrows():
-                        if pd.isna(row.get(c_nombre)):
-                            continue
-                        db.crear_proyecto(
-                            nombre=str(row[c_nombre]),
-                            portafolio=str(row[c_portafolio]) if c_portafolio and pd.notna(row.get(c_portafolio)) else "Importado",
-                            sponsor=str(row[c_sponsor]) if c_sponsor and pd.notna(row.get(c_sponsor)) else None,
-                            dueno_id=None, segmento="Interno",
-                            fecha_inicio=None, fecha_fin=None,
-                            presupuesto=float(row[c_presupuesto]) if c_presupuesto and pd.notna(row.get(c_presupuesto)) else 0,
-                            ejecutado=float(row[c_ejecutado]) if c_ejecutado and pd.notna(row.get(c_ejecutado)) else 0,
-                            criticidad=str(row[c_criticidad]) if c_criticidad and str(row.get(c_criticidad)) in ["Alta", "Media", "Baja"] else "Media",
-                        )
-                        creadas += 1
+                    col2.caption("—")
+                if elegida != "— sin usar —":
+                    mapeo[campo.clave] = elegida
+
+            # --- paso 2: opciones ----------------------------------------------
+            st.markdown("#### 2. Opciones")
+            omitir_dup = st.checkbox(
+                "Omitir filas repetidas y las que ya existen en el sistema", value=True)
+
+            proyecto_default_id = None
+            if tipo == "tareas":
+                if proj_df.empty:
+                    st.error("Todavía no hay proyectos cargados. Importá primero los "
+                             "proyectos para poder asociarles las tareas.")
+                else:
+                    nombres = list(proj_df["nombre"])
+                    usar_default = st.checkbox(
+                        "Si una tarea no coincide con ningún proyecto, mandarla igual a uno",
+                        value="proyecto" not in mapeo)
+                    if usar_default:
+                        elegido = st.selectbox("Proyecto por defecto", nombres)
+                        proyecto_default_id = int(
+                            proj_df[proj_df["nombre"] == elegido].iloc[0]["_id"])
+
+            # --- paso 3: informe previo ----------------------------------------
+            st.markdown("#### 3. Qué va a pasar")
+            reporte = importer.validar(
+                df_import, tipo, mapeo,
+                proyectos=proj_df if tipo == "tareas" else None,
+                usuarios=db.listar_usuarios() if tipo == "tareas" else None,
+                existentes=(db.projects(incluir_archivados=True) if tipo == "proyectos"
+                            else db.tasks()),
+                proyecto_default_id=proyecto_default_id,
+                omitir_duplicados=omitir_dup)
+
+            if reporte.faltan_requeridos:
+                st.error(reporte.resumen())
             else:
-                c_titulo = _col(df_import, "titulo", "tarea", "nombre")
-                if not c_titulo or proj_df.empty:
-                    st.error("No encontré una columna 'titulo' (o 'tarea'/'nombre'), o todavía no hay proyectos para asociar las tareas.")
-                else:
-                    c_estado = _col(df_import, "estado", "status")
-                    c_prioridad = _col(df_import, "prioridad", "priority")
-                    proyecto_default_id = int(proj_df.iloc[0]["_id"])
-                    for _, row in df_import.iterrows():
-                        if pd.isna(row.get(c_titulo)):
-                            continue
-                        db.crear_tarea(
-                            proyecto_id=proyecto_default_id, titulo=str(row[c_titulo]),
-                            responsable_id=None,
-                            estado=str(row[c_estado]) if c_estado and str(row.get(c_estado)) in ["todo", "in_progress", "blocked", "done"] else "todo",
-                            vencimiento=None,
-                            prioridad=str(row[c_prioridad]) if c_prioridad and str(row.get(c_prioridad)) in ["Alta", "Media", "Baja"] else "Media",
-                            depende_de=None,
-                        )
-                        creadas += 1
-                    if creadas:
-                        st.caption(f"Todas las tareas importadas quedaron asociadas a '{proj_df.iloc[0]['nombre']}' — reasignalas desde la ficha de tarea si corresponde.")
-            if creadas:
-                st.success(f"Se importaron {creadas} fila(s).")
-                st.rerun()
+                m1, m2, m3 = st.columns(3)
+                m1.metric("Se van a crear", reporte.filas_validas)
+                m2.metric("Se descartan", reporte.filas_rechazadas)
+                m3.metric("Repetidas", reporte.duplicados_archivo + reporte.duplicados_base)
+                st.caption(reporte.resumen())
+
+                for aviso in reporte.avisos_columna:
+                    st.warning(aviso)
+
+                if reporte.problemas:
+                    with st.expander(f"Ver detalle de {len(reporte.problemas)} observación(es)"):
+                        st.dataframe(reporte.problemas_df(), use_container_width=True)
+                        st.caption("Severidad «error» descarta la fila; «aviso» la importa "
+                                   "igual, dejando ese dato vacío o con el valor por defecto.")
+
+                if reporte.filas:
+                    st.write("Vista previa de lo que se va a guardar:")
+                    st.dataframe(reporte.vista_previa(), use_container_width=True)
+
+                # --- paso 4: confirmar -----------------------------------------
+                st.markdown("#### 4. Confirmar")
+                if not reporte.puede_importar:
+                    st.info("No queda ninguna fila para importar con estas opciones.")
+                elif st.button(f"✅ Importar {reporte.filas_validas} {tipo}",
+                               type="primary"):
+                    creadas = importer.aplicar(reporte, db.crear_proyecto, db.crear_tarea)
+                    st.session_state["import_resultado"] = (
+                        f"Listo: se importaron {creadas} {tipo}. Ya podés verlos en "
+                        f"{'Portafolio' if tipo == 'proyectos' else 'Tareas'}.")
+                    st.rerun()
 
 elif section == T("nav_users"):
     st.subheader(T("nav_users"))
