@@ -20,8 +20,10 @@ from mvpm import (
     advisor,
     ai,
     auth,
+    capacitacion,
     case_study,
     catalog,
+    conectores,
     db,
     demo_pharma,
     demo_real,
@@ -35,6 +37,7 @@ from mvpm import (
     importer,
     licensing,
     organigrama,
+    plantillas,
     pmbok,
     policies,
     prioritizer,
@@ -181,8 +184,9 @@ nav_options = [
     T("nav_tutorial"), T("nav_case_study"), T("nav_real_demo"), T("nav_pharma"),
     T("nav_portfolio"), T("nav_tasks"), T("nav_health"), T("nav_dependencies"),
     T("nav_backlog"), T("nav_copilot"), T("nav_advisor"), T("nav_reports"),
-    T("nav_governance"), T("nav_organigrama"), T("nav_pmbok"),
-    T("nav_reviews"), T("nav_glossary"), T("nav_policies"), T("nav_import"),
+    T("nav_governance"), T("nav_organigrama"), T("nav_pmbok"), T("nav_plantillas"),
+    T("nav_reviews"), T("nav_glossary"), T("nav_policies"),
+    T("nav_import"), T("nav_conectores"), T("nav_capacitacion"),
 ]
 if user["rol"] == "admin":
     nav_options.append(T("nav_users"))
@@ -985,6 +989,243 @@ elif section == T("nav_import"):
                         f"Listo: se importaron {creadas} {tipo}. Ya podés verlos en "
                         f"{'Portafolio' if tipo == 'proyectos' else 'Tareas'}.")
                     st.rerun()
+
+elif section == T("nav_plantillas"):
+    st.subheader(T("nav_plantillas"))
+    st.caption("Gobernanza lista para el rubro del cliente: etapas con puerta de "
+               "salida, quién aprueba cada una, riesgos típicos y normativa. Es un "
+               "punto de partida para discutir, no una norma.")
+
+    _activa = plantillas.aplicada(EMPRESA_ID)
+    if _activa and _activa["plantilla"]:
+        _v = _activa["version"]
+        _firma = (f" · validada por {_v['validado_por_nombre']}"
+                  if _v.get("validado_por_nombre") else " · en borrador")
+        st.success(f"Esta empresa adoptó **{_activa['plantilla'].rubro}**{_firma}.")
+
+    _rubros = plantillas.rubros()
+    _indice = 0
+    if _activa:
+        _claves = [c for c, _ in _rubros]
+        _indice = _claves.index(_activa["clave"]) if _activa["clave"] in _claves else 0
+    _elegido = st.selectbox("Rubro", _rubros, index=_indice,
+                            format_func=lambda r: r[1])[0]
+    _p = plantillas.obtener(_elegido)
+    st.write(f"**{_p.rubro}** — {_p.resumen}")
+    if _p.nota:
+        st.info(_p.nota)
+
+    _t1, _t2, _t3, _t4 = st.tabs(["Etapas", "Roles y riesgos", "Indicadores y normativa",
+                                  "Adoptar"])
+    with _t1:
+        for _i, _e in enumerate(_p.etapas, 1):
+            with st.expander(f"{_i}. {_e.nombre}  ·  {_e.grupo_pmbok}"):
+                st.write(f"*{_e.objetivo}*")
+                st.write("**Entregables:**")
+                for _x in _e.entregables:
+                    st.write(f"- {_x}")
+                st.write(f"**Puerta de salida:** {_e.criterio_salida}")
+                st.write(f"**Aprueba:** {_e.aprueba}")
+        st.download_button("⬇️ Descargar la gobernanza completa (Markdown)",
+                           plantillas.como_texto(_elegido).encode("utf-8"),
+                           file_name=f"gobernanza_{_elegido}.md", mime="text/markdown")
+    with _t2:
+        st.write("**Roles y qué decide cada uno**")
+        st.dataframe(pd.DataFrame(_p.roles, columns=["Rol", "Qué decide"]),
+                     use_container_width=True, hide_index=True)
+        st.write("**Riesgos típicos del rubro**")
+        st.dataframe(pd.DataFrame([{"Riesgo": _r.titulo, "Área PMBOK": _r.area_pmbok,
+                                    "Señal temprana": _r.senal_temprana,
+                                    "Mitigación": _r.mitigacion} for _r in _p.riesgos]),
+                     use_container_width=True, hide_index=True)
+        st.write("**Áreas de PMBOK donde poner el esfuerzo en este rubro**")
+        for _a in plantillas.areas_criticas_explicadas(_elegido):
+            st.write(f"- **{_a['area']}** — {_a['criollo']}")
+        st.caption("Que estas áreas pesen más no significa ignorar las otras: las "
+                   "diez aplican siempre.")
+    with _t3:
+        st.write("**Indicadores que en este rubro se miran de verdad**")
+        for _x in _p.indicadores:
+            st.write(f"- {_x}")
+        st.write("**Normativa de referencia**")
+        for _x in _p.normativa:
+            st.write(f"- {_x}")
+        st.warning("Las referencias normativas son orientativas y están tomadas de "
+                   "Uruguay salvo que digan otra cosa. Confirmalas con quien lleva "
+                   "calidad, legales o compliance en la empresa: cambian, y cada "
+                   "empresa tiene su interpretación. Esto no es asesoramiento legal.")
+    with _t4:
+        st.write("Adoptar la plantilla la deja registrada como la gobernanza de esta "
+                 "empresa, con quién la validó. Queda versionada: cambiarla más "
+                 "adelante no borra la historia.")
+        with st.form("adoptar_plantilla"):
+            _vn = st.text_input("Validada por (nombre)")
+            _vc = st.text_input("Cargo de quien valida")
+            if st.form_submit_button(f"Adoptar «{_p.rubro}»"):
+                plantillas.adoptar(EMPRESA_ID, _elegido, _vn.strip(), _vc.strip())
+                st.success("Plantilla adoptada y registrada.")
+                st.rerun()
+        st.caption("Se puede adoptar sin validar: queda en borrador hasta que "
+                   "alguien de la empresa la firme.")
+
+elif section == T("nav_conectores"):
+    st.subheader(T("nav_conectores"))
+    st.caption("Traer proyectos y tareas directo del ERP. Siempre de solo lectura: "
+               "el sistema rechaza cualquier consulta que no sea un SELECT.")
+
+    _fam = conectores.familias()
+    _cf1, _cf2 = st.columns([1, 2])
+    _familia = _cf1.selectbox("Familia", list(_fam))
+    _perfil = _cf2.selectbox("Sistema", _fam[_familia], format_func=lambda p: p.nombre)
+
+    st.write(f"**Cómo se conecta:** {_perfil.como_conectar}")
+    for _a in _perfil.advertencias:
+        st.warning(_a)
+
+    if not _perfil.consultas:
+        st.info("Este perfil no trae consultas de fábrica: escribí la tuya y el "
+                "resultado entra por el mismo informe previo que un archivo.")
+    else:
+        _tipo = st.radio("¿Qué querés traer?", list(_perfil.consultas),
+                         horizontal=True, format_func=str.capitalize)
+        _ce1, _ce2 = st.columns(2)
+        _esquema = _ce1.text_input("Esquema", value=_perfil.esquema_default,
+                                   help="Cambia según la instalación. Si el sondeo "
+                                        "no encuentra las tablas, suele ser esto.")
+        _empresa_erp = _ce2.text_input(
+            "Empresa (sólo NAV/Business Central)", value="",
+            help="En NAV las tablas llevan la empresa adelante: «CRONUS$Job».")
+
+        _sql = conectores.sql_de(_perfil.clave, _tipo, esquema=_esquema,
+                                 empresa=_empresa_erp or "EMPRESA")
+        st.write("**Consulta que se va a ejecutar** — editable si tu instalación "
+                 "tiene otros nombres:")
+        _sql_editado = st.text_area("SQL", value=_sql, height=220,
+                                    label_visibility="collapsed")
+
+        _consulta = _perfil.consultas[_tipo]
+        if _consulta.nota:
+            st.caption(f"ℹ️ {_consulta.nota}")
+        st.write("**Cómo se interpreta cada columna:**")
+        st.dataframe(pd.DataFrame([
+            {"Columna": _c.columna, "Va a": _c.destino,
+             "Conversión": _c.transformacion, "Nota": _c.nota}
+            for _c in _consulta.campos]), use_container_width=True, hide_index=True)
+
+        st.markdown("#### Conectarse")
+        _cadena = st.text_input(
+            "Cadena de conexión", type="password", placeholder="mssql+pyodbc://...",
+            help="Usá un usuario de solo lectura. Es la protección de verdad: el "
+                 "candado del software es sólo la segunda línea.")
+
+        _cb1, _cb2 = st.columns(2)
+        if _cb1.button("🔍 Sondear el esquema", disabled=not _cadena):
+            try:
+                _ej = conectores.crear_ejecutor(_cadena)
+                _s = conectores.sondear(_ej, _perfil.clave, _tipo, esquema=_esquema,
+                                        empresa=_empresa_erp)
+                (st.success if _s.sirve else st.error)(_s.resumen())
+                if _s.detalle:
+                    with st.expander("Detalle del error del motor"):
+                        st.json(_s.detalle)
+            except Exception as _exc:
+                st.error(f"No se pudo conectar: {_exc}")
+
+        if _cb2.button("⬇️ Traer los datos", disabled=not _cadena, type="primary"):
+            try:
+                _ej = conectores.crear_ejecutor(_cadena)
+                conectores.validar_solo_lectura(_sql_editado)
+                _crudo = _ej(_sql_editado)
+                _df_erp = conectores.convertir(_crudo, _perfil.clave, _tipo)
+                st.session_state["erp_df"] = _df_erp
+                st.success(f"Se trajeron {len(_df_erp)} fila(s) del ERP.")
+            except conectores.ConsultaInsegura as _exc:
+                st.error(str(_exc))
+            except Exception as _exc:
+                st.error(f"Falló la consulta: {_exc}")
+
+        _df_erp = st.session_state.get("erp_df")
+        if _df_erp is not None and not _df_erp.empty:
+            st.write("**Lo que llegó del ERP, ya convertido:**")
+            st.dataframe(_df_erp.head(20), use_container_width=True)
+            st.caption("Revisá un par de fechas e importes contra el ERP antes de "
+                       "importar. Es el control que evita una carga silenciosamente "
+                       "equivocada.")
+            _destino = "proyectos" if _tipo == "proyectos" else "tareas"
+            _sug = importer.detectar_columnas(_df_erp, _destino)
+            _rep_erp = importer.validar(
+                _df_erp, _destino, {k: v.columna for k, v in _sug.items() if v.columna},
+                proyectos=proj_df if _destino == "tareas" else None,
+                usuarios=db.listar_usuarios() if _destino == "tareas" else None,
+                existentes=(db.projects(incluir_archivados=True)
+                            if _destino == "proyectos" else db.tasks()),
+                proyecto_default_id=(int(proj_df.iloc[0]["_id"])
+                                     if _destino == "tareas" and not proj_df.empty
+                                     else None))
+            _m1, _m2, _m3 = st.columns(3)
+            _m1.metric("Se van a crear", _rep_erp.filas_validas)
+            _m2.metric("Se descartan", _rep_erp.filas_rechazadas)
+            _m3.metric("Repetidas", _rep_erp.duplicados_archivo + _rep_erp.duplicados_base)
+            st.caption(_rep_erp.resumen())
+            for _av in _rep_erp.avisos_columna:
+                st.warning(_av)
+            if _rep_erp.problemas:
+                with st.expander(f"Ver {len(_rep_erp.problemas)} observación(es)"):
+                    st.dataframe(_rep_erp.problemas_df(), use_container_width=True)
+            if _rep_erp.puede_importar and st.button(
+                    f"✅ Importar {_rep_erp.filas_validas} {_destino}", type="primary",
+                    key="importar_erp"):
+                _n = importer.aplicar(_rep_erp, db.crear_proyecto, db.crear_tarea)
+                st.session_state.pop("erp_df", None)
+                st.success(f"Listo: se importaron {_n} {_destino} desde el ERP.")
+                st.rerun()
+
+elif section == T("nav_capacitacion"):
+    st.subheader(T("nav_capacitacion"))
+    st.caption("Cada rol necesita cosas distintas. Al sponsor no le sirve aprender a "
+               "cargar dependencias — y si le hacés mirar una hora de video, no mira "
+               "nada. Cada módulo está listo para grabar una vez y reusar.")
+
+    _rol = st.selectbox("Rol", capacitacion.roles(),
+                        format_func=lambda r: f"{r[1]} — {r[2]} min")[0]
+    _c = capacitacion.obtener(_rol)
+
+    st.write(f"**{_c.rol}** · {_c.minutos} minutos en {len(_c.modulos)} módulos")
+    st.write(f"**Para quién:** {_c.para_quien}")
+    st.write(f"**Al terminar va a poder:** {_c.promesa}")
+    if _c.requiere:
+        st.info("Antes de esto: " +
+                ", ".join(capacitacion.obtener(_r).rol for _r in _c.requiere))
+
+    _tc1, _tc2, _tc3 = st.tabs(["Módulos", "Verificación", "Plan de grabación"])
+    with _tc1:
+        for _i, _m in enumerate(_c.modulos, 1):
+            with st.expander(f"{_i}. {_m.titulo}  ·  {_m.minutos} min"):
+                st.write(f"*{_m.objetivo}* — se hace en «{_m.seccion_app}».")
+                st.write("**Guion:**")
+                for _j, _paso in enumerate(_m.guion, 1):
+                    st.write(f"{_j}. {_paso}")
+                st.write(f"**Práctica:** {_m.practica}")
+                st.write("**Verificación:**")
+                for _v in _m.verificacion:
+                    st.write(f"- {_v}")
+        st.download_button("⬇️ Descargar el guion completo (Markdown)",
+                           capacitacion.guion_de(_rol).encode("utf-8"),
+                           file_name=f"capacitacion_{_rol}.md", mime="text/markdown")
+    with _tc2:
+        st.write("Preguntas de toda la ruta, incluidos los requisitos previos. Si la "
+                 "persona las contesta, puede trabajar sola.")
+        st.dataframe(pd.DataFrame(capacitacion.checklist_de_verificacion(_rol)),
+                     use_container_width=True, hide_index=True)
+    with _tc3:
+        _plan = capacitacion.plan_de_grabacion()
+        st.write(f"**{len(_plan)} módulos, {capacitacion.minutos_totales_a_grabar()} "
+                 f"minutos** para cubrir los seis roles. Un módulo que usan varios "
+                 f"roles se graba una sola vez.")
+        st.dataframe(pd.DataFrame([
+            {"Módulo": _m["titulo"], "Min": _m["minutos"],
+             "Dónde": _m["seccion_app"], "Roles": ", ".join(_m["roles"])}
+            for _m in _plan]), use_container_width=True, hide_index=True)
 
 elif section == T("nav_users"):
     st.subheader(T("nav_users"))

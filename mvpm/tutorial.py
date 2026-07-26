@@ -296,6 +296,85 @@ SECTIONS = [
         ],
     },
     {
+        "id": "nav_plantillas",
+        "titulo": "Plantillas por rubro",
+        "resumen": "Gobernanza lista para el rubro del cliente — etapas con puerta de salida, "
+                   "quién aprueba, riesgos típicos y normativa — para no arrancar de una hoja "
+                   "en blanco en cada implementación.",
+        "pasos": [
+            "Elegí el rubro y recorré las etapas: cada una dice qué entregables pide, cuál es "
+            "el criterio para pasar a la siguiente, y quién firma.",
+            "Mirá la pestaña de roles y riesgos: el registro de riesgos arranca con los "
+            "típicos del rubro en vez de vacío, cada uno atado a su área de PMBOK.",
+            "Adoptala desde la pestaña «Adoptar», con el nombre de quien la valida. Queda "
+            "versionada: cambiar de plantilla más adelante no borra la historia.",
+            "Editala con la gente de la casa. Sale de fábrica para discutirla, no para "
+            "aplicarla tal cual.",
+        ],
+        "tips": [
+            "Las referencias normativas son orientativas y están tomadas de Uruguay salvo "
+            "que digan otra cosa. Hay que confirmarlas con calidad, legales o compliance: "
+            "cambian, y cada empresa las interpreta a su manera.",
+            "Que un rubro tenga áreas de PMBOK marcadas como críticas indica dónde poner el "
+            "esfuerzo, no qué áreas ignorar. Las diez aplican siempre.",
+            "Se puede descargar la gobernanza completa en Markdown para llevarla impresa a "
+            "la reunión de arranque.",
+        ],
+    },
+    {
+        "id": "nav_conectores",
+        "titulo": "Conectores ERP",
+        "resumen": "Traer proyectos y tareas directo de SAP, Oracle, Dynamics o JD Edwards, "
+                   "sin exportar a Excel primero. Siempre de solo lectura.",
+        "pasos": [
+            "Elegí la familia y el sistema. Cada perfil trae las tablas y campos de fábrica "
+            "de ese ERP y explica cómo se conecta.",
+            "Sondeá antes de extraer. El sondeo verifica que las tablas y columnas existan y "
+            "te dice exactamente cuáles faltan, en vez de tirarte un error del motor.",
+            "Si falta alguna columna, editá la consulta con los nombres reales de esa "
+            "instalación. Es lo normal en un ERP con años encima.",
+            "Traé los datos y revisalos: lo extraído pasa por el mismo informe previo que un "
+            "archivo subido a mano, con duplicados y filas descartadas.",
+        ],
+        "tips": [
+            "Los conectores son de solo lectura y el sistema rechaza cualquier consulta que "
+            "no sea un SELECT. Aun así, conectate con un usuario de solo lectura: ésa es la "
+            "protección de verdad, el candado del software es la segunda línea.",
+            "Las conversiones raras son la fuente más común de errores silenciosos: JD "
+            "Edwards guarda las fechas en Julian (124001 es el 1/1/2024), SAP como texto "
+            "YYYYMMDD, y Dynamics usa 1900-01-01 como «sin fecha».",
+            "Contrastá un par de fechas e importes contra el ERP antes de dar una carga por "
+            "buena. En JD Edwards los importes vienen con decimales implícitos y la cantidad "
+            "depende de cada instalación.",
+            "Si el ERP está en la nube (Oracle Fusion, D365 en SaaS) normalmente no hay "
+            "acceso directo a la base: se exporta y se importa el archivo.",
+        ],
+    },
+    {
+        "id": "nav_capacitacion",
+        "titulo": "Capacitación por rol",
+        "resumen": "Currícula, guion de grabación y preguntas de verificación para cada rol, "
+                   "para grabar una vez y dejar de repetir la misma sesión en vivo en cada "
+                   "implementación.",
+        "pasos": [
+            "Elegí el rol: sponsor, PM, miembro, PMO, administrador o referente de datos. "
+            "Cada uno tiene su propia ruta y duración.",
+            "Cada módulo trae el guion para grabar, la práctica que hace la persona después "
+            "de mirar, y las preguntas que confirman que puede trabajar sola.",
+            "Usá la pestaña de verificación como checklist al cerrar la capacitación.",
+            "El plan de grabación lista todos los módulos sin repetir: uno que sirve a varios "
+            "roles se graba una sola vez.",
+        ],
+        "tips": [
+            "La currícula del sponsor dura quince minutos a propósito. Un sponsor no mira una "
+            "hora de video, y si se le exige, no mira nada.",
+            "Las preguntas de verificación son lo que hace que la capacitación pueda fallar. "
+            "Una capacitación que no puede fallar no sirve para saber si alguien aprendió.",
+            "El PMO arranca por la ruta del PM, y el referente de datos por la del "
+            "administrador: la app muestra los requisitos previos de cada rol.",
+        ],
+    },
+    {
         "id": "nav_import",
         "titulo": "Importar datos",
         "resumen": "Subir proyectos o tareas desde tu CSV/Excel tal como lo tenés — sin "
