@@ -1,21 +1,33 @@
 """
 MV Project Management · Generador del video demo (PIL + imageio-ffmpeg) con
-narración en voz rioplatense (Piper TTS, voz es_AR "daniela").
+narración en los 3 idiomas del producto (Piper TTS: es_AR "daniela",
+en_US "amy", pt_BR "faber").
 
-Produce ``landing/video/demo.mp4`` (1280×720): un recorrido animado del
+Produce un ``demo.mp4`` por idioma (1280×720): el mismo recorrido animado del
 producto con la voz en off sincronizada escena por escena (la duración de cada
 escena se ajusta a su narración, sin desfases). Es una animación explicativa
-del producto —no un screencast— y así se declara en la landing.
+del producto —no un screencast— y así se declara en la landing. Las escenas
+(lo que se dibuja en pantalla) son las mismas para los tres idiomas; lo que
+cambia es sólo el audio — la landing ya declara "100% WEB + PC · ES / EN / PT"
+en pantalla, en las tres versiones.
 
 Ejecutar desde la raíz del repo:
     python assets/video/build_video.py
 
-Voz (opcional pero recomendada): descargar el modelo una vez y exportar
-MVPM_VOICE_ONNX con su ruta. Si no está, el video sale sin narración.
+Voz (opcional pero recomendada): descargar los modelos una vez y exportar
+cada ruta en su variable. El idioma que no tenga modelo configurado sale sin
+narración (silencioso, no se salta).
     pip install piper-tts
-    curl -LO https://huggingface.co/rhasspy/piper-voices/resolve/v1.0.0/es/es_AR/daniela/high/es_AR-daniela-high.onnx
-    curl -LO https://huggingface.co/rhasspy/piper-voices/resolve/v1.0.0/es/es_AR/daniela/high/es_AR-daniela-high.onnx.json
-    MVPM_VOICE_ONNX=./es_AR-daniela-high.onnx python assets/video/build_video.py
+    curl -LO https://huggingface.co/rhasspy/piper-voices/resolve/v1.0.0/es/es_AR/daniela/high/es_AR-daniela-high.onnx{,.json}
+    curl -LO https://huggingface.co/rhasspy/piper-voices/resolve/v1.0.0/en/en_US/amy/medium/en_US-amy-medium.onnx{,.json}
+    curl -LO https://huggingface.co/rhasspy/piper-voices/resolve/v1.0.0/pt/pt_BR/faber/medium/pt_BR-faber-medium.onnx{,.json}
+    MVPM_VOICE_ONNX_ES=./es_AR-daniela-high.onnx \\
+    MVPM_VOICE_ONNX_EN=./en_US-amy-medium.onnx \\
+    MVPM_VOICE_ONNX_PT=./pt_BR-faber-medium.onnx \\
+    python assets/video/build_video.py
+
+Compatibilidad: MVPM_VOICE_ONNX (sin sufijo) sigue funcionando como alias de
+MVPM_VOICE_ONNX_ES, para no romper el flujo anterior de un solo idioma.
 """
 from __future__ import annotations
 
@@ -44,8 +56,18 @@ FAINT = (108, 127, 153)
 
 _FONT_DIR = "/usr/share/fonts/truetype/dejavu"
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-OUT = os.path.join(ROOT, "assets", "video", "demo.mp4")
-LANDING_COPY = os.path.join(ROOT, "landing", "video", "demo.mp4")
+
+# "es" mantiene el nombre de archivo histórico (demo.mp4) porque la landing
+# ya apunta ahí por defecto; en/pt suman el sufijo de idioma.
+_SUFFIX = {"es": "", "en": "_en", "pt": "_pt"}
+
+
+def _out_path(lang: str) -> str:
+    return os.path.join(ROOT, "assets", "video", f"demo{_SUFFIX[lang]}.mp4")
+
+
+def _landing_path(lang: str) -> str:
+    return os.path.join(ROOT, "landing", "video", f"demo{_SUFFIX[lang]}.mp4")
 
 
 def font(size: int, bold: bool = True) -> ImageFont.FreeTypeFont:
@@ -313,50 +335,139 @@ def scene_outro(p: float) -> Image.Image:
     return img
 
 
-# (escena, duración mínima visual, narración rioplatense)
+# (función de escena, duración mínima visual) — igual en los 3 idiomas: lo
+# que cambia entre versiones es sólo la narración, no el dibujo.
 SCENES = [
-    (scene_intro, 6.0,
-     "MV Proyect Management: tu portafolio de proyectos con salud medible, "
-     "en vez de reuniones de estado. Cien por ciento web y PC, en español, "
-     "inglés y portugués."),
-    (scene_portfolio, 8.0,
-     "Cada proyecto tiene un índice de salud en seis dimensiones: alcance, "
-     "cronograma, presupuesto, riesgo, dependencias y equipo. El motor detecta "
-     "qué tarea bloquea a cuántas otras, calculado, no estimado a ojo."),
-    (scene_pharma, 9.5,
-     "Podés trabajar de punta a punta con datos públicos reales: cuatrocientos "
-     "setenta y cuatro ensayos clínicos de laboratorios multinacionales, desde "
-     "ClinicalTrials.gov. El estado clínico se traduce a criticidad, y todo "
-     "sale a Power BI con un conector de un clic. Y somos honestos: si el dato "
-     "no trae presupuesto, no lo inventamos."),
-    (scene_governance, 9.0,
-     "Todo lo manual aparece primero recomendado por inteligencia artificial. "
-     "Después, el data owner lo valida o lo corrige y lo guarda. Nada se "
-     "sobrescribe: queda el historial completo por empresa, con quién lo validó, "
-     "su nombre y su cargo."),
-    (scene_organigrama, 8.5,
-     "Subís el organigrama de la empresa en Excel, CSV o base de datos, y la "
-     "inteligencia artificial autocompleta las áreas y los responsables de cada "
-     "etapa. Después lo editás y lo guardás cuando quieras."),
-    (scene_pmbok, 8.5,
-     "Y para demostrar conocimiento, cada área del PMBOK viene con su definición "
-     "técnica y su explicación en criollo. Cualquier etapa que no sea "
-     "automatizable, la anotás a mano y queda guardada por empresa."),
-    (scene_trial, 9.0,
-     "Lo descargás completo y funciona cien por ciento durante siete días, con "
-     "todo desbloqueado. Al vencer se bloquea, pero tus datos no se borran: "
-     "cargás tu licencia Professional y seguís exactamente donde estabas."),
-    (scene_outro, 5.0,
-     "MV Proyect Management. Tu portafolio, gobernado de punta a punta. "
-     "Descargalo hoy y probalo completo, siete días."),
+    (scene_intro, 6.0),
+    (scene_portfolio, 8.0),
+    (scene_pharma, 9.5),
+    (scene_governance, 9.0),
+    (scene_organigrama, 8.5),
+    (scene_pmbok, 8.5),
+    (scene_trial, 9.0),
+    (scene_outro, 5.0),
 ]
+
+# Narración por idioma, escena por escena — mismo orden que SCENES. El
+# español es la voz rioplatense original; inglés y portugués son traducción
+# directa, no resumen, para que la duración de cada escena quede pareja entre
+# versiones (el largo del texto es lo que fija cuánto dura la escena).
+NARRATIONS = {
+    "es": [
+        "MV Proyect Management: tu portafolio de proyectos con salud medible, "
+        "en vez de reuniones de estado. Cien por ciento web y PC, en español, "
+        "inglés y portugués.",
+        "Cada proyecto tiene un índice de salud en seis dimensiones: alcance, "
+        "cronograma, presupuesto, riesgo, dependencias y equipo. El motor detecta "
+        "qué tarea bloquea a cuántas otras, calculado, no estimado a ojo.",
+        "Podés trabajar de punta a punta con datos públicos reales: cuatrocientos "
+        "setenta y cuatro ensayos clínicos de laboratorios multinacionales, desde "
+        "ClinicalTrials.gov. El estado clínico se traduce a criticidad, y todo "
+        "sale a Power BI con un conector de un clic. Y somos honestos: si el dato "
+        "no trae presupuesto, no lo inventamos.",
+        "Todo lo manual aparece primero recomendado por inteligencia artificial. "
+        "Después, el data owner lo valida o lo corrige y lo guarda. Nada se "
+        "sobrescribe: queda el historial completo por empresa, con quién lo validó, "
+        "su nombre y su cargo.",
+        "Subís el organigrama de la empresa en Excel, CSV o base de datos, y la "
+        "inteligencia artificial autocompleta las áreas y los responsables de cada "
+        "etapa. Después lo editás y lo guardás cuando quieras.",
+        "Y para demostrar conocimiento, cada área del PMBOK viene con su definición "
+        "técnica y su explicación en criollo. Cualquier etapa que no sea "
+        "automatizable, la anotás a mano y queda guardada por empresa.",
+        "Lo descargás completo y funciona cien por ciento durante siete días, con "
+        "todo desbloqueado. Al vencer se bloquea, pero tus datos no se borran: "
+        "cargás tu licencia Professional y seguís exactamente donde estabas.",
+        "MV Proyect Management. Tu portafolio, gobernado de punta a punta. "
+        "Descargalo hoy y probalo completo, siete días.",
+    ],
+    "en": [
+        "MV Project Management: your project portfolio with measurable health, "
+        "instead of status meetings. One hundred percent web and desktop, in "
+        "Spanish, English, and Portuguese.",
+        "Every project has a health index across six dimensions: scope, "
+        "schedule, budget, risk, dependencies, and team. The engine detects "
+        "which task blocks how many others — calculated, not eyeballed.",
+        "You can work end to end with real public data: four hundred "
+        "seventy-four clinical trials from multinational labs, sourced from "
+        "ClinicalTrials.gov. Clinical status maps straight to criticality, and "
+        "everything flows to Power BI with a one-click connector. And we're "
+        "honest about it: if the data has no budget field, we don't make one up.",
+        "Every manual field shows up first as an AI-recommended suggestion. "
+        "Then the data owner validates or corrects it and saves. Nothing gets "
+        "overwritten: the full history stays per company, with who validated "
+        "it, their name, and their role.",
+        "Upload the company's org chart from Excel, CSV, or a database, and the "
+        "AI auto-fills the areas and owners for each stage. Then you edit it "
+        "and save whenever you want.",
+        "And to show real methodology knowledge, every PMBOK area comes with "
+        "its technical definition and a plain-language explanation. Any stage "
+        "that can't be automated, you note by hand, and it's saved per company.",
+        "You download it in full, and it runs one hundred percent for seven "
+        "days, everything unlocked. When it expires, it locks — but your data "
+        "is never deleted: load your Professional license and you're right "
+        "back where you left off.",
+        "MV Project Management. Your portfolio, governed end to end. Download "
+        "it today and try the full version, free for seven days.",
+    ],
+    "pt": [
+        "MV Project Management: seu portfólio de projetos com saúde mensurável, "
+        "em vez de reuniões de status. Cem por cento web e PC, em espanhol, "
+        "inglês e português.",
+        "Cada projeto tem um índice de saúde em seis dimensões: escopo, "
+        "cronograma, orçamento, risco, dependências e equipe. O motor detecta "
+        "qual tarefa bloqueia quantas outras — calculado, não estimado no "
+        "olhômetro.",
+        "Você pode trabalhar de ponta a ponta com dados públicos reais: "
+        "quatrocentos e setenta e quatro ensaios clínicos de laboratórios "
+        "multinacionais, do ClinicalTrials.gov. O status clínico se traduz em "
+        "criticidade, e tudo vai para o Power BI com um conector de um clique. "
+        "E somos honestos: se o dado não traz orçamento, não inventamos.",
+        "Todo campo manual aparece primeiro recomendado por inteligência "
+        "artificial. Depois, o data owner valida ou corrige e salva. Nada é "
+        "sobrescrito: fica o histórico completo por empresa, com quem validou, "
+        "nome e cargo.",
+        "Você envia o organograma da empresa em Excel, CSV ou banco de dados, e "
+        "a inteligência artificial autocompleta as áreas e os responsáveis de "
+        "cada etapa. Depois você edita e salva quando quiser.",
+        "E para demonstrar conhecimento, cada área do PMBOK vem com sua "
+        "definição técnica e sua explicação em linguagem simples. Qualquer "
+        "etapa que não seja automatizável, você anota à mão e fica salva por "
+        "empresa.",
+        "Você baixa completo e funciona cem por cento durante sete dias, com "
+        "tudo desbloqueado. Ao vencer, bloqueia — mas seus dados não são "
+        "apagados: você carrega sua licença Professional e continua exatamente "
+        "de onde parou.",
+        "MV Project Management. Seu portfólio, governado de ponta a ponta. "
+        "Baixe hoje e experimente completo, sete dias.",
+    ],
+}
+
+for _lang, _texts in NARRATIONS.items():
+    assert len(_texts) == len(SCENES), (
+        f"NARRATIONS[{_lang!r}] tiene {len(_texts)} textos, pero SCENES tiene "
+        f"{len(SCENES)} escenas — tienen que ir 1 a 1.")
+
 FADE = 0.5
 VOICE_LEAD = 0.4
 VOICE_TAIL = 0.9
 
+# Alias por compatibilidad: el flujo anterior de un solo idioma exportaba
+# MVPM_VOICE_ONNX (sin sufijo) para la voz española.
+_VOICE_ENV = {"es": ("MVPM_VOICE_ONNX_ES", "MVPM_VOICE_ONNX"),
+              "en": ("MVPM_VOICE_ONNX_EN",), "pt": ("MVPM_VOICE_ONNX_PT",)}
 
-def _synth_narrations(tmpdir: str) -> list[str] | None:
-    model = os.environ.get("MVPM_VOICE_ONNX", "")
+
+def _voice_model_path(lang: str) -> str:
+    for var in _VOICE_ENV[lang]:
+        val = os.environ.get(var, "")
+        if val:
+            return val
+    return ""
+
+
+def _synth_narrations(lang: str, tmpdir: str) -> list[str] | None:
+    model = _voice_model_path(lang)
     if not model or not os.path.exists(model):
         return None
     try:
@@ -365,8 +476,8 @@ def _synth_narrations(tmpdir: str) -> list[str] | None:
         return None
     voice = PiperVoice.load(model)
     paths = []
-    for i, (_, _, text) in enumerate(SCENES):
-        path = os.path.join(tmpdir, f"nar_{i}.wav")
+    for i, text in enumerate(NARRATIONS[lang]):
+        path = os.path.join(tmpdir, f"nar_{lang}_{i}.wav")
         with wave.open(path, "wb") as w:
             voice.synthesize_wav(text, w)
         paths.append(path)
@@ -380,7 +491,7 @@ def _wav_duration(path: str) -> float:
 
 def _scene_seconds(narrations: list[str] | None) -> list[float]:
     secs = []
-    for i, (_, min_secs, _) in enumerate(SCENES):
+    for i, (_, min_secs) in enumerate(SCENES):
         if narrations:
             secs.append(max(min_secs, VOICE_LEAD + _wav_duration(narrations[i]) + VOICE_TAIL))
         else:
@@ -407,18 +518,23 @@ def _mix_audio_track(narrations: list[str], secs: list[float], out_wav: str) -> 
         w.writeframes(total.tobytes())
 
 
-def build() -> str:
-    tmpdir = tempfile.mkdtemp(prefix="mvpm_video_")
-    narrations = _synth_narrations(tmpdir)
+def build(lang: str) -> str:
+    """Genera el demo de un idioma. La duración de cada escena depende de lo
+    que dure SU narración, así que el video se renderiza entero por idioma —
+    no se puede reusar el mismo video mudo entre idiomas porque el largo de
+    "the AI auto-fills the areas" no dura lo mismo que su traducción."""
+    out, landing_copy = _out_path(lang), _landing_path(lang)
+    tmpdir = tempfile.mkdtemp(prefix=f"mvpm_video_{lang}_")
+    narrations = _synth_narrations(lang, tmpdir)
     secs_list = _scene_seconds(narrations)
 
-    os.makedirs(os.path.dirname(OUT), exist_ok=True)
-    video_only = os.path.join(tmpdir, "video_sin_audio.mp4") if narrations else OUT
+    os.makedirs(os.path.dirname(out), exist_ok=True)
+    video_only = os.path.join(tmpdir, "video_sin_audio.mp4") if narrations else out
     writer = imageio.get_writer(video_only, fps=FPS, codec="libx264",
                                 quality=7, macro_block_size=16,
                                 ffmpeg_params=["-pix_fmt", "yuv420p"])
     black = Image.new("RGB", (W, H), (0, 0, 0))
-    for (scene, _, _), secs in zip(SCENES, secs_list):
+    for (scene, _), secs in zip(SCENES, secs_list):
         n = int(round(secs * FPS))
         for f_i in range(n):
             p = f_i / max(1, n - 1)
@@ -438,17 +554,26 @@ def build() -> str:
         from imageio_ffmpeg import get_ffmpeg_exe
         subprocess.run([get_ffmpeg_exe(), "-y", "-i", video_only, "-i", track,
                         "-c:v", "copy", "-c:a", "aac", "-b:a", "128k",
-                        "-shortest", OUT],
+                        "-shortest", out],
                        check=True, capture_output=True)
 
-    os.makedirs(os.path.dirname(LANDING_COPY), exist_ok=True)
-    shutil.copyfile(OUT, LANDING_COPY)
+    os.makedirs(os.path.dirname(landing_copy), exist_ok=True)
+    shutil.copyfile(out, landing_copy)
     shutil.rmtree(tmpdir, ignore_errors=True)
-    return OUT
+    return out
+
+
+def build_all() -> dict[str, str]:
+    """Genera los 3 idiomas. El idioma sin voz configurada sale silencioso
+    (no se salta) — mejor un video mudo que no producirlo."""
+    return {lang: build(lang) for lang in ("es", "en", "pt")}
 
 
 if __name__ == "__main__":
-    path = build()
-    size_mb = os.path.getsize(path) / 1e6
-    voz = "con voz es_AR" if os.environ.get("MVPM_VOICE_ONNX") else "sin voz"
-    print(f"Video generado ({voz}): {path} ({size_mb:.1f} MB) · copiado a landing/video/")
+    LANG_NOMBRE = {"es": "es_AR", "en": "en_US", "pt": "pt_BR"}
+    paths = build_all()
+    for lang, path in paths.items():
+        size_mb = os.path.getsize(path) / 1e6
+        voz = f"con voz {LANG_NOMBRE[lang]}" if _voice_model_path(lang) else "SIN VOZ"
+        print(f"[{lang}] {voz}: {path} ({size_mb:.1f} MB)")
+    print("Copiados a landing/video/ (demo.mp4, demo_en.mp4, demo_pt.mp4)")
