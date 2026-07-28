@@ -598,6 +598,10 @@ const I18N = {
   },
 };
 
+// El demo tiene narración en los 3 idiomas del producto (demo.mp4 = es,
+// demo_en.mp4, demo_pt.mp4) — no sólo texto en pantalla traducido.
+const VIDEO_SRC = { es: 'video/demo.mp4', en: 'video/demo_en.mp4', pt: 'video/demo_pt.mp4' };
+
 function setLang(lang){
   localStorage.setItem('mvpm_lang', lang);
   document.getElementById('langSel').value = lang;
@@ -612,6 +616,14 @@ function setLang(lang){
     const key = el.getAttribute('data-i-ph');
     if(dict[key]) el.setAttribute('placeholder', dict[key]);
   });
+  const video = document.getElementById('demoVideo');
+  const src = VIDEO_SRC[lang];
+  if(video && src){
+    const wasPlaying = !video.paused;
+    video.querySelector('source').src = src;
+    video.load();
+    if(wasPlaying) video.play().catch(() => {});
+  }
 }
 
 (function(){
