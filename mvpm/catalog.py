@@ -7,6 +7,14 @@ from . import demo_data
 
 def catalog(projects: pd.DataFrame | None = None) -> pd.DataFrame:
     df = (projects if projects is not None else demo_data.projects()).copy()
+    # db.projects() sobre una base recién instalada, sin proyectos, devuelve un
+    # DataFrame de 0 filas — y pandas infiere dtype "object" para columnas
+    # vacías (no tiene datos de dónde sacar que son numéricas). Sin esta
+    # conversión, la división de más abajo revienta con "Expected numeric
+    # dtype, got object instead." apenas alguien abre el Portafolio en un
+    # servidor nuevo — que es el primer clic de cualquier instalación nueva.
+    df["presupuesto"] = pd.to_numeric(df["presupuesto"], errors="coerce")
+    df["ejecutado"] = pd.to_numeric(df["ejecutado"], errors="coerce")
     ejecucion = (df["ejecutado"] / df["presupuesto"] * 100).round(1)
     # presupuesto=0 (proyecto recién creado, sin cifra cargada todavía) da
     # división por cero — 0/0 y N/0 devuelven NaN/inf, no un % real. Se deja
