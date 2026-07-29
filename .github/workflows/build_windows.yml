@@ -51,3 +51,18 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: packaging/Output/*.exe
+
+      # El repo es privado a propósito: un asset de GitHub Release no es
+      # descargable por un visitante anónimo de la landing sin loguearse. Se
+      # publica el .exe en Vercel Blob (URL pública estable) para que
+      # api/download-installer.js pueda redirigir ahí sin exponer el repo.
+      # Sin el secret configurado, este paso se salta solo — no rompe el
+      # build ni bloquea el resto del workflow.
+      - name: Publicar el instalador en Vercel Blob (descarga pública)
+        if: env.BLOB_READ_WRITE_TOKEN != ''
+        env:
+          BLOB_READ_WRITE_TOKEN: ${{ secrets.BLOB_READ_WRITE_TOKEN }}
+        shell: bash
+        run: |
+          npm install @vercel/blob --no-save --silent
+          node packaging/publish_blob.js

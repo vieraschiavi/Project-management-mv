@@ -1,0 +1,8 @@
+{
+  "name": "mv-project-management",
+  "private": true,
+  "description": "Dependencias de las funciones serverless (api/) y del paso de publicación del instalador en Vercel Blob (CI). El producto en sí es Python — esto no es una app Node.",
+  "dependencies": {
+    "@vercel/blob": "^2.6.1"
+  }
+}
