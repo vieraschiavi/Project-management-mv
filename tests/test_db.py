@@ -9,8 +9,8 @@ import pandas as pd
 import pytest
 
 from mvpm import (
-    auth, catalog, db, dependencies as dep_mod, exporters, governance, health,
-    organigrama, pmbok, prioritizer,
+    advisor, auth, catalog, db, dependencies as dep_mod, exporters, governance,
+    health, organigrama, pmbok, policies, prioritizer, reports,
 )
 
 
@@ -150,6 +150,45 @@ def test_engine_funciona_con_proyecto_recien_creado_sin_tareas(tmp_db):
     assert prioritizer.prioritized_backlog(proj, tasks).empty
     assert len(health.project_health(proj, tasks, team)) == 1
     assert dep_mod.orphan_dependencies(tasks).empty
+    assert dep_mod.bloqueos_activos(tasks).empty
+
+
+def test_engine_funciona_con_servidor_recien_instalado_sin_proyectos(tmp_db):
+    """La primera pantalla de verdad de cualquier instalación nueva — Windows,
+    portable o Vercel — antes de que nadie cargue un solo proyecto.
+
+    Regresión: db.projects()/tasks() sobre una base sin filas devuelve un
+    DataFrame de 0×N donde pandas infiere dtype "object" en TODAS las
+    columnas (no hay datos de los que inferir que "presupuesto" es numérico).
+    Un DataFrame armado a mano o recortado de datos reales con .iloc[0:0]
+    conserva el dtype original y NO reproduce esto — por eso el bug se coló:
+    el test viejo de "portafolio vacío" usaba ese atajo y no la forma real
+    que entrega SQLite. catalog() dividía esas columnas directo y explotaba
+    con "TypeError: Expected numeric dtype, got object instead." apenas
+    alguien — literalmente cualquiera que instala el programa hoy — abría
+    Portafolio, Asistente IA o Reportes."""
+    auth.registrar("admin@test.com", "Admin", "password123")
+    proj, tasks, team = tmp_db.projects(), tmp_db.tasks(), tmp_db.team()
+    assert proj.empty and tasks.empty
+    # Confirma que este test reproduce el caso real: dtype "object", no
+    # numérico — es justo lo que .iloc[0:0] sobre datos reales NO reproduce.
+    assert str(proj["presupuesto"].dtype) == "object"
+
+    # Las tres pantallas que reventaban en producción, ahora sin excepción.
+    assert catalog.kpis(proj) == {
+        "proyectos_activos": 0, "presupuesto_total": 0.0, "ejecutado_total": 0.0,
+        "ejecucion_pct_promedio": 0.0, "sin_dueno": 0, "sobre_presupuesto": 0,
+    }
+    assert advisor.detectar_problemas(proj, tasks, team) is not None
+    texto = reports.as_text(proj, tasks, team)
+    assert "Proyectos activos: 0" in texto
+
+    # El resto del motor, sobre la misma base vacía.
+    assert catalog.por_portafolio(proj).empty
+    assert health.overall_index(proj, tasks, team) == 0.0
+    assert health.matriz_por_dimension(proj, tasks, team).empty
+    assert len(policies.evaluate(proj, tasks, team)) > 0
+    assert prioritizer.prioritized_backlog(proj, tasks).empty
     assert dep_mod.bloqueos_activos(tasks).empty
 
 
