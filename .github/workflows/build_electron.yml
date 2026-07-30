@@ -20,7 +20,17 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
-          pip install pyinstaller
+          pip install pyinstaller Cython setuptools
+
+      # Mismo endurecimiento que build_windows.yml: mvpm/*.py se compila a
+      # .pyd nativo y el .py original se borra antes de que PyInstaller arme
+      # el motor que después Electron empaqueta — el .asar de Electron no
+      # cifra nada por sí solo, así que sin este paso el código fuente
+      # también quedaría a la vista en el instalador de escritorio.
+      - name: Compilar mvpm/ a binario nativo (Cython)
+        run: |
+          python packaging/setup_cython.py build_ext --inplace
+          python packaging/strip_py_sources.py
 
       - name: Compilar el motor (PyInstaller) — sin Node ni Python en la PC del usuario
         run: pyinstaller packaging/mvpm.spec --distpath dist --workpath build --noconfirm

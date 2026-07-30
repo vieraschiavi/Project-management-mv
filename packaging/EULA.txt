@@ -1,0 +1,123 @@
+ACUERDO DE LICENCIA DE USUARIO FINAL (EULA)
+MV PROJECT MANAGEMENT
+
+Este Acuerdo de Licencia de Usuario Final ("EULA") es un contrato entre
+usted (persona física o jurídica que instala o usa el software, "el
+Titular") y MV ("el Licenciante", contacto: vieraschiavi@gmail.com) para el
+uso del software "MV Project Management", incluyendo el programa ejecutable,
+sus módulos, plantillas, conectores, documentación y contenidos asociados
+("el Software").
+
+AL HACER CLIC EN "ACEPTO" DURANTE LA INSTALACIÓN, O AL DESCARGAR, INSTALAR
+O USAR EL SOFTWARE DE CUALQUIER OTRA FORMA (INCLUYENDO LA VERSIÓN DE
+EVALUACIÓN GRATUITA), USTED DECLARA HABER LEÍDO, ENTENDIDO Y ACEPTADO ESTE
+EULA EN SU TOTALIDAD. SI NO ESTÁ DE ACUERDO, NO INSTALE NI USE EL SOFTWARE.
+
+1. OBJETO Y PLANES DE LICENCIA
+
+El Software se distribuye bajo distintos planes, cuyo alcance funcional y
+condiciones comerciales pueden actualizarse por el Licenciante:
+
+  a) Demo de evaluación: acceso gratuito, sin vencimiento, con un cupo
+     mensual reducido de consultas al copiloto de IA. No apto para uso en
+     producción con datos reales de la organización.
+  b) Prueba completa (trial): al primer uso, el programa se desbloquea por
+     completo durante 7 (siete) días corridos, incluyendo el copiloto de
+     IA. Vencido ese plazo sin una licencia paga vigente, el acceso se
+     bloquea hasta activar una licencia — los datos cargados NUNCA se
+     eliminan.
+  c) Professional / Professional Anual: licencia paga, por usuario,
+     mensual o anual, con cupo ampliado de IA, reportes automáticos e
+     integraciones. Su vigencia y precio son los publicados en la landing
+     del producto y/o informados al momento de la contratación.
+  d) Enterprise: licencia paga a medida, cotizada por proyecto, con cupo
+     de IA ilimitado y funcionalidades adicionales (SSO, auditoría, white
+     label) según lo acordado por escrito con el Licenciante.
+
+La licencia se identifica y valida mediante un token firmado digitalmente
+que el Software verifica localmente. El Licenciante puede actualizar el
+mecanismo técnico de validación sin que ello modifique los derechos de uso
+aquí otorgados a una licencia vigente.
+
+2. CONCESIÓN DE LICENCIA
+
+Sujeto al cumplimiento de este EULA y, cuando corresponda, al pago vigente
+del plan contratado, el Licenciante le concede una licencia limitada, no
+exclusiva, intransferible y revocable para instalar y usar el Software
+únicamente para sus fines internos de gestión de proyectos.
+
+Esta licencia NO incluye la transferencia de ningún derecho de propiedad
+intelectual sobre el Software. Todos los derechos no otorgados
+expresamente aquí quedan reservados al Licenciante.
+
+3. RESTRICCIONES
+
+El Titular NO podrá, salvo autorización escrita previa del Licenciante o
+en la medida en que una norma imperativa lo permita de forma
+irrenunciable:
+
+  a) Copiar, redistribuir, revender, alquilar, sublicenciar, prestar o
+     publicar el Software (demo o pago) a terceros, en el todo o en parte.
+  b) Descompilar, desensamblar, aplicar ingeniería inversa, descifrar o
+     de cualquier otro modo intentar derivar el código fuente, algoritmos
+     o estructura interna de los componentes distribuidos en forma
+     compilada.
+  c) Eludir, deshabilitar, manipular o intentar sortear el período de
+     prueba de 7 días, el mecanismo de validación de licencias, el conteo
+     de uso del copiloto de IA, o cualquier otra medida técnica de
+     protección del Software.
+  d) Quitar, ocultar o alterar avisos de copyright, marcas o menciones de
+     titularidad presentes en el Software.
+  e) Usar el Software para desarrollar un producto competidor, o para
+     ofrecerlo como servicio a terceros no autorizados (multi-tenant
+     reventa) sin acuerdo Enterprise específico.
+
+4. PROPIEDAD DE LOS DATOS
+
+Los datos que el Titular carga en el Software (proyectos, tareas,
+presupuestos, organigramas, archivos importados) son y seguirán siendo de
+su exclusiva propiedad. El Software los almacena localmente en el equipo
+del Titular. El vencimiento de una prueba o licencia bloquea el acceso a
+la aplicación pero nunca elimina esos datos.
+
+5. GARANTÍA LIMITADA Y EXCLUSIÓN DE RESPONSABILIDAD
+
+EL SOFTWARE SE PROVEE "TAL CUAL" ("AS IS"), SIN GARANTÍAS DE NINGÚN TIPO,
+EXPRESAS O IMPLÍCITAS, INCLUYENDO SIN LIMITACIÓN GARANTÍAS DE
+COMERCIABILIDAD, IDONEIDAD PARA UN FIN DETERMINADO O NO INFRACCIÓN. EL
+LICENCIANTE NO GARANTIZA QUE EL SOFTWARE SEA ININTERRUMPIDO O ESTÉ LIBRE
+DE ERRORES.
+
+EN LA MÁXIMA MEDIDA PERMITIDA POR LA LEY APLICABLE, EL LICENCIANTE NO
+SERÁ RESPONSABLE POR DAÑOS INDIRECTOS, INCIDENTALES, ESPECIALES,
+EMERGENTES O LUCRO CESANTE DERIVADOS DEL USO O IMPOSIBILIDAD DE USO DEL
+SOFTWARE, INCLUSO SI SE LE HUBIERA ADVERTIDO DE SU POSIBILIDAD. LA
+RESPONSABILIDAD TOTAL DEL LICENCIANTE, POR CUALQUIER CAUSA, NO EXCEDERÁ
+EL MONTO EFECTIVAMENTE PAGADO POR EL TITULAR POR LA LICENCIA EN LOS 12
+MESES PREVIOS AL RECLAMO.
+
+6. VIGENCIA Y TERMINACIÓN
+
+Este EULA rige mientras el Titular use el Software. El Licenciante puede
+revocar la licencia en caso de incumplimiento de cualquiera de sus
+términos, en particular las restricciones de la Sección 3. Al terminar la
+licencia, el Titular debe desinstalar el Software; los datos locales del
+Titular no se ven afectados por la terminación.
+
+7. ACTUALIZACIONES
+
+El Licenciante puede publicar nuevas versiones del Software. El uso de
+versiones actualizadas queda sujeto a los términos vigentes de este EULA
+o de la versión que lo reemplace.
+
+8. LEY APLICABLE
+
+[Este apartado queda pendiente de confirmación por el Licenciante: indicar
+la jurisdicción y ley aplicable elegida (por ejemplo, la del domicilio del
+Licenciante) antes de la primera distribución comercial formal. Hasta
+tanto se confirme, se entiende regido por la ley del domicilio del
+Licenciante y sometido a sus tribunales competentes.]
+
+9. CONTACTO
+
+Consultas sobre este EULA, licencias o soporte: vieraschiavi@gmail.com

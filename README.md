@@ -245,6 +245,14 @@ automáticamente.
 - [ ] Integraciones (Slack, Google Calendar, GitHub/Jira issues)
 - [ ] Reseñas verificadas de clientes piloto reales
 
+## Licencia
+
+Software propietario — ver [`LICENSE.txt`](LICENSE.txt). El instalador de
+Windows muestra y requiere aceptar el [EULA](packaging/EULA.txt) antes de
+instalar. El paquete `mvpm/` que corre dentro de los instaladores (Windows
+y Electron) se compila a binario nativo con Cython en CI para no
+distribuir el código fuente en texto plano.
+
 [MV Kobra AI]: https://github.com/vieraschiavi
 [MV Data Governance]: https://github.com/vieraschiavi
 

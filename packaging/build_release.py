@@ -14,7 +14,10 @@ ROOT = Path(__file__).resolve().parent.parent
 DIST_DIR = ROOT / "dist"
 
 INCLUDE_DIRS = ["mvpm", "app", "api", "tests"]
-INCLUDE_FILES = ["MV_ProjectManagement.bat", "requirements.txt", "README.md", "run.sh"]
+INCLUDE_FILES = [
+    "MV_ProjectManagement.bat", "requirements.txt", "README.md", "run.sh",
+    "LICENSE.txt", "packaging/EULA.txt",
+]
 
 EXCLUDE_NAMES = {"__pycache__", ".venv", ".pytest_cache", ".git"}
 

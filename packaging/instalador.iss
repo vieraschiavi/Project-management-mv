@@ -55,6 +55,10 @@ VersionInfoProductName={#MyAppName}
 VersionInfoCopyright=© {#MyAppPublisher}
 ; No instala nada raro si algún día se firma el binario, pero no lo asumimos.
 AllowNoIcons=yes
+; Página obligatoria de aceptación del EULA — sin marcar "Acepto" no se
+; puede avanzar. El texto se compila DENTRO del instalador (no requiere
+; un archivo aparte junto al .exe final).
+LicenseFile=EULA.txt
 
 [Languages]
 Name: "spanish"; MessagesFile: "compiler:Languages\Spanish.isl"
