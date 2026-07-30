@@ -28,7 +28,20 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
-          pip install pyinstaller
+          pip install pyinstaller Cython setuptools
+
+      # Protección del código fuente: mvpm/*.py se compila a .pyd nativo
+      # (ver packaging/setup_cython.py) y el .py original se borra ANTES de
+      # que PyInstaller arme el .exe — así quien descomprima el instalador
+      # (demo o pago) nunca se lleva el código fuente en texto plano. No es
+      # irrompible ante alguien decidido con un desensamblador, pero saca el
+      # escenario de "extraer y copiar" de la ecuación. app/app.py queda
+      # afuera a propósito: Streamlit lo necesita como .py real para poder
+      # correr `streamlit run <script>`.
+      - name: Compilar mvpm/ a binario nativo (Cython)
+        run: |
+          python packaging/setup_cython.py build_ext --inplace
+          python packaging/strip_py_sources.py
 
       - name: Compilar ejecutable (PyInstaller)
         run: pyinstaller packaging/mvpm.spec --distpath dist --workpath build --noconfirm

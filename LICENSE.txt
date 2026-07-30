@@ -1,0 +1,37 @@
+MV Project Management — Licencia de software propietario
+Copyright (c) MV. Todos los derechos reservados.
+
+Este repositorio y el software que contiene ("MV Project Management") son
+propiedad de MV y están protegidos por las leyes de propiedad intelectual
+aplicables. NO es software libre ni de código abierto.
+
+El acceso a este repositorio, o la descarga y ejecución del programa (en
+su modalidad de evaluación gratuita o bajo una licencia paga: Professional,
+Professional Anual o Enterprise — ver mvpm/licensing.py para el detalle de
+cada plan), no transfiere ninguna titularidad sobre el código fuente, los
+binarios compilados, la marca ni los contenidos (plantillas, guías,
+conectores, video institucional).
+
+El uso del programa se rige por el Acuerdo de Licencia de Usuario Final
+(EULA) que se muestra y debe aceptarse durante la instalación —
+ver packaging/EULA.txt para el texto completo. En caso de conflicto entre
+este archivo y el EULA, prevalece el EULA.
+
+Queda expresamente prohibido, salvo autorización escrita previa de MV:
+  - Redistribuir, revender, sublicenciar o publicar el software, en el
+    todo o en parte, a terceros.
+  - Descompilar, desensamblar, aplicar ingeniería inversa o intentar
+    derivar el código fuente de los componentes distribuidos en forma
+    compilada, excepto en la medida en que la ley aplicable lo permita
+    de forma expresa e irrenunciable.
+  - Eludir, deshabilitar o manipular el mecanismo de licencias (prueba de
+    7 días, validación de tokens de licencia) o el conteo de uso del
+    copiloto de IA.
+  - Usar el nombre "MV Project Management", su marca o sus assets fuera
+    del uso normal del producto licenciado.
+
+El software se entrega "TAL CUAL", sin garantías de ningún tipo, expresas
+o implícitas. Ver el EULA para el alcance completo de la garantía limitada,
+la exclusión de responsabilidad y la ley aplicable.
+
+Contacto: vieraschiavi@gmail.com

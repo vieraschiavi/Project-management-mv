@@ -17,6 +17,11 @@ block_cipher = None
 ROOT = Path(SPECPATH).resolve().parent
 ICON = str(ROOT / 'packaging' / 'assets' / 'icon.ico')
 
+# mvpm/ llega a este punto ya compilado a .pyd (ver el paso "Compilar mvpm/
+# a binario nativo (Cython)" en build_windows.yml / build_electron.yml,
+# corrido ANTES de este spec) — el .py original se borra ahí mismo. Este
+# datas= copia el contenido del directorio tal cual esté en ese momento, sea
+# .py (build local sin ese paso) o .pyd (build real de CI), sin distinguir.
 datas = [
     (str(ROOT / 'app'), 'app'),
     (str(ROOT / 'mvpm'), 'mvpm'),
