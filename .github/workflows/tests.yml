@@ -37,7 +37,10 @@ jobs:
         run: pytest tests/ -q
 
       # Las funciones serverless de pago son JavaScript, así que sus tests no
-      # los levanta pytest. Sin este paso, la validación del plan al emitir
-      # una licencia quedaría sin cubrir en CI.
+      # los levanta pytest. Sin este paso, toda la ruta del dinero —emitir la
+      # licencia, firmarla y cobrar— quedaría sin cubrir en CI.
       - name: Tests de las funciones de pago (Node)
-        run: node tests/test_verify_payment.js
+        run: |
+          node tests/test_verify_payment.js
+          node tests/test_licencias.js
+          node tests/test_checkout.js

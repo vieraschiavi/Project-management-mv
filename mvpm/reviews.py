@@ -12,7 +12,7 @@ usuarios de producción.
 
 import json
 from dataclasses import asdict, dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 
 _STORE_DIR = Path.home() / ".mv_project_management"
@@ -27,7 +27,12 @@ class Review:
     calificacion: int  # 1-5
     comentario: str
     verificado: bool = False
-    creado_en: str = field(default_factory=lambda: datetime.utcnow().isoformat())
+    # datetime.utcnow() quedó deprecado en Python 3.12: devolvía un datetime
+    # "naive" (sin zona) que en realidad era UTC, y eso se prestaba a comparar
+    # contra horas locales sin darse cuenta. now(timezone.utc) es explícito y
+    # el ISO que genera incluye el offset (+00:00).
+    creado_en: str = field(
+        default_factory=lambda: datetime.now(timezone.utc).isoformat())
 
     def __post_init__(self):
         if not (1 <= self.calificacion <= 5):

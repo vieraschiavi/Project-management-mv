@@ -6,22 +6,34 @@
 <title>MV Project Management — Gestión de proyectos con IA</title>
 <meta name="description" content="Portafolio de proyectos con salud medible, copiloto de IA y reportes automáticos. Trilingüe ES/EN/PT, 100% web y PC.">
 
-<!-- Tarjeta al compartir el link (WhatsApp, LinkedIn, Slack, X). og-image.jpg
-     es la placa de título del propio video demo, así que la vista previa
-     muestra el producto real y no un mockup inventado. -->
+<!-- Tarjeta al compartir el link (WhatsApp, LinkedIn, Slack, X).
+     og-image.jpg es la placa de título del propio video demo, así que la vista
+     previa muestra el producto real y no un mockup inventado.
+
+     ⚠️ og:image y og:url tienen que ser ABSOLUTAS: los scrapers de las redes
+     no resuelven rutas relativas y la tarjeta sale sin imagen. El dominio de
+     abajo es el de Vercel; si se compra un dominio propio hay que cambiarlo en
+     las 3 etiquetas que lo llevan (og:url, og:image, twitter:image). Anotado
+     también en el README, sección "Al desplegar con dominio propio". -->
+<link rel="canonical" href="https://mv-project-management.vercel.app/">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="MV Project Management">
 <meta property="og:locale" content="es_ES">
+<meta property="og:locale:alternate" content="en_US">
+<meta property="og:locale:alternate" content="pt_BR">
+<meta property="og:url" content="https://mv-project-management.vercel.app/">
 <meta property="og:title" content="MV Project Management — Gestión de proyectos con IA">
 <meta property="og:description" content="Portafolio de proyectos con salud medible, copiloto de IA y reportes automáticos. Trilingüe ES/EN/PT, 100% web y PC.">
-<meta property="og:image" content="/og-image.jpg">
+<meta property="og:image" content="https://mv-project-management.vercel.app/og-image.jpg">
+<meta property="og:image:secure_url" content="https://mv-project-management.vercel.app/og-image.jpg">
+<meta property="og:image:type" content="image/jpeg">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta property="og:image:alt" content="MV Project Management — plataforma de gestión de portafolio de proyectos">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="MV Project Management — Gestión de proyectos con IA">
 <meta name="twitter:description" content="Portafolio de proyectos con salud medible, copiloto de IA y reportes automáticos. Trilingüe ES/EN/PT, 100% web y PC.">
-<meta name="twitter:image" content="/og-image.jpg">
+<meta name="twitter:image" content="https://mv-project-management.vercel.app/og-image.jpg">
 <meta name="twitter:image:alt" content="MV Project Management — plataforma de gestión de portafolio de proyectos">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><rect width=%22100%22 height=%22100%22 rx=%2220%22 fill=%22%23081527%22/><text x=%2250%22 y=%2266%22 font-size=%2258%22 text-anchor=%22middle%22 fill=%22%23f2b441%22 font-family=%22sans-serif%22>M</text></svg>">
 <style>
