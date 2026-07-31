@@ -51,6 +51,14 @@ def main() -> None:
 
     sys.path.insert(0, str(base_dir))
 
+    # El build "Owner Edition" (packaging/mvpm_owner.spec, nunca el que baja
+    # un cliente) empaqueta este archivo marcador junto al .exe. Si está
+    # presente, activa MVPM_OWNER_BYPASS solo — no toca licensing.py ni el
+    # esquema de tokens, así que el candado de 7 días sigue intacto para
+    # cualquier build sin el marcador (todo lo que se distribuye a clientes).
+    if (base_dir / "OWNER_EDITION").exists():
+        os.environ.setdefault("MVPM_OWNER_BYPASS", "1")
+
     # Electron elige el puerto y lo pasa por env var, para poder apuntar su
     # ventana ahí sin tener que adivinarlo ni parsear stdout.
     puerto = int(os.environ.get("MVPM_PORT") or _puerto_libre())

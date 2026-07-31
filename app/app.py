@@ -6,6 +6,7 @@ viven en una base SQLite real (mvpm/db.py) en el equipo del cliente, detrás
 de un login con usuario y contraseña (mvpm/auth.py).
 """
 
+import os
 import sys
 from datetime import date
 from pathlib import Path
@@ -142,8 +143,20 @@ if st.sidebar.button("Cerrar sesión"):
 # Candado de la prueba de 7 días. El programa se descarga completo y funciona
 # 100% durante una semana; al vencer se bloquea hasta cargar una licencia paga
 # vigente. Bloquear NO borra datos: al pagar, se sigue con todo lo cargado.
-_acceso = licensing.estado_acceso(LICENSE_TOKEN)
-if _acceso["modo"] == "trial":
+#
+# Bypass del owner: MVPM_OWNER_BYPASS sólo existe en la máquina del dueño del
+# producto (nunca en el instalador/ZIP que recibe un cliente, ni en el build
+# de CI), así que no afloja la licencia para nadie más — ver owner/panel.py
+# para emitir licencias reales de venta.
+_es_owner = os.environ.get("MVPM_OWNER_BYPASS") == "1"
+_acceso = (
+    {"acceso": True, "modo": "owner", "plan": None, "dias_restantes": None,
+     "mensaje": "Modo owner — sin restricciones de licencia."}
+    if _es_owner else licensing.estado_acceso(LICENSE_TOKEN)
+)
+if _acceso["modo"] == "owner":
+    st.sidebar.success(f"🔐 {_acceso['mensaje']}")
+elif _acceso["modo"] == "trial":
     st.sidebar.info(f"⏳ Prueba: quedan {_acceso['dias_restantes']} día(s)")
 elif _acceso["modo"] == "licencia":
     st.sidebar.success(f"✓ {_acceso['mensaje']}")
@@ -567,7 +580,7 @@ elif section == T("nav_backlog"):
 elif section == T("nav_copilot"):
     st.subheader(T("nav_copilot"))
     st.caption("El motor de reglas responde siempre. Si hay ANTHROPIC_API_KEY configurada y todavía hay cupo de IA en tu plan, Claude pule el lenguaje sin inventar cifras nuevas.")
-    puede_ia, detalle_cupo = licensing.puede_usar_ia(LICENSE_TOKEN)
+    puede_ia, detalle_cupo = (True, "ilimitado (owner)") if _es_owner else licensing.puede_usar_ia(LICENSE_TOKEN)
     st.caption(f"Cupo de IA: {detalle_cupo}")
     q = st.text_input("Preguntá sobre el portafolio", "¿Qué está bloqueando los proyectos?")
     if st.button("Preguntar"):

@@ -1,0 +1,4 @@
+Este archivo solo existe en el build "Owner Edition" (packaging/mvpm_owner.spec).
+Su sola presencia junto al .exe le dice a mvpm_launcher.py que active
+MVPM_OWNER_BYPASS=1 automáticamente. Nunca se empaqueta en el build para
+clientes (packaging/mvpm.spec) ni en el ZIP portable.
