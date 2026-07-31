@@ -36,6 +36,7 @@ from mvpm import (
     help_center,
     i18n,
     importer,
+    invitado,
     licensing,
     organigrama,
     plantillas,
@@ -76,8 +77,35 @@ LANG_ES_DEFAULT = "es"  # se reasigna abajo una vez que hay sesión iniciada, T(
 if "user" not in st.session_state:
     st.session_state["user"] = None
 
+# Modo invitado: se puede usar el producto sin crear cuenta. Los datos viven en
+# la sesión (mvpm/invitado.py), no en la base — ver ese módulo para el porqué.
+INVITADO = st.session_state.get("invitado", False)
+
+
+def _entrar_como_invitado(almacen) -> None:
+    st.session_state["invitado"] = True
+    st.session_state["invitado_almacen"] = almacen
+    st.session_state["user"] = {"nombre": "Invitado", "rol": "invitado", "id": None}
+    st.rerun()
+
+
 if st.session_state["user"] is None:
     st.title("📋 MV Project Management")
+
+    # Primero lo que no pide nada a cambio: probar el producto. La cuenta se
+    # ofrece abajo, para quien ya decidió que quiere guardar su trabajo.
+    st.markdown("#### Probalo ahora, sin crear cuenta")
+    _c1, _c2 = st.columns(2)
+    if _c1.button("📂 Subir mi Excel de proyectos", type="primary",
+                  use_container_width=True):
+        _entrar_como_invitado(invitado.almacen_vacio())
+    if _c2.button("🇬🇧 Probar con datos reales (132 proyectos)",
+                  use_container_width=True):
+        _entrar_como_invitado(invitado.con_portafolio_real())
+    st.caption("Sin registro y sin tarjeta. En modo invitado los datos quedan en "
+               "esta sesión del navegador y no se guardan — cuando quieras "
+               "conservarlos, creás la cuenta y los volvés a subir.")
+    st.divider()
 
     if db.contar_usuarios() == 0:
         st.subheader("Creá la cuenta de administrador")
@@ -152,10 +180,18 @@ _es_owner = os.environ.get("MVPM_OWNER_BYPASS") == "1"
 _acceso = (
     {"acceso": True, "modo": "owner", "plan": None, "dias_restantes": None,
      "mensaje": "Modo owner — sin restricciones de licencia."}
-    if _es_owner else licensing.estado_acceso(LICENSE_TOKEN)
+    if _es_owner else
+    # El invitado no pasa por el candado: todavía no es cliente, está viendo si
+    # el producto le sirve. Cobrarle una prueba a alguien que ni siquiera dejó
+    # un email es el orden inverso.
+    {"acceso": True, "modo": "invitado", "plan": None, "dias_restantes": None,
+     "mensaje": "Modo invitado — los datos no se guardan."}
+    if INVITADO else licensing.estado_acceso(LICENSE_TOKEN)
 )
 if _acceso["modo"] == "owner":
     st.sidebar.success(f"🔐 {_acceso['mensaje']}")
+elif _acceso["modo"] == "invitado":
+    st.sidebar.info("👋 Modo invitado — nada se guarda")
 elif _acceso["modo"] == "trial":
     st.sidebar.info(f"⏳ Prueba: quedan {_acceso['dias_restantes']} día(s)")
 elif _acceso["modo"] == "licencia":
@@ -179,42 +215,104 @@ if not _acceso["acceso"]:
 
 # Empresa activa — alcance de todo lo versionado (definiciones, organigrama,
 # responsables, notas PMBOK). Cada empresa guarda su propia historia.
-db.obtener_o_crear_empresa("Mi empresa")
-_empresas = db.listar_empresas()
-_empresa_nombres = _empresas["nombre"].tolist()
-with st.sidebar.expander("🏢 Empresa"):
-    empresa_sel = st.selectbox("Empresa activa", _empresa_nombres,
-                               index=0, key="empresa_sel")
-    _nueva = st.text_input("➕ Nueva empresa", key="empresa_nueva")
-    if st.button("Crear empresa", key="crear_empresa_btn") and _nueva.strip():
-        db.crear_empresa(_nueva.strip())
-        st.rerun()
-EMPRESA_ID = int(_empresas[_empresas["nombre"] == empresa_sel]["id"].iloc[0])
+#
+# El invitado no crea ni elige empresa: crear una escribiría en la base
+# compartida a nombre de alguien que no tiene cuenta. Las secciones que usan
+# EMPRESA_ID quedan fuera de su menú, así que no hace falta un id real.
+if INVITADO:
+    EMPRESA_ID = None
+else:
+    db.obtener_o_crear_empresa("Mi empresa")
+    _empresas = db.listar_empresas()
+    _empresa_nombres = _empresas["nombre"].tolist()
+    with st.sidebar.expander("🏢 Empresa"):
+        empresa_sel = st.selectbox("Empresa activa", _empresa_nombres,
+                                   index=0, key="empresa_sel")
+        _nueva = st.text_input("➕ Nueva empresa", key="empresa_nueva")
+        if st.button("Crear empresa", key="crear_empresa_btn") and _nueva.strip():
+            db.crear_empresa(_nueva.strip())
+            st.rerun()
+    EMPRESA_ID = int(_empresas[_empresas["nombre"] == empresa_sel]["id"].iloc[0])
 
 st.sidebar.title(T("app_title"))
 
-nav_options = [
-    T("nav_tutorial"), T("nav_case_study"), T("nav_real_demo"), T("nav_pharma"),
-    T("nav_portfolio"), T("nav_tasks"), T("nav_health"), T("nav_dependencies"),
-    T("nav_backlog"), T("nav_copilot"), T("nav_advisor"), T("nav_reports"),
-    T("nav_governance"), T("nav_organigrama"), T("nav_pmbok"), T("nav_plantillas"),
-    T("nav_reviews"), T("nav_glossary"), T("nav_policies"),
-    T("nav_import"), T("nav_conectores"), T("nav_capacitacion"),
-]
-if user["rol"] == "admin":
-    nav_options.append(T("nav_users"))
+if INVITADO:
+    # Se ofrece sólo lo que funciona sin cuenta: subir el archivo y analizar el
+    # portafolio. Lo que queda afuera (gobernanza, organigrama, plantillas,
+    # PMBOK) no se esconde por capricho: guarda versiones por empresa en la
+    # base, y sin cuenta no hay empresa a la cual atribuirlas.
+    nav_options = [
+        T("nav_import"), T("nav_portfolio"), T("nav_health"),
+        T("nav_dependencies"), T("nav_backlog"), T("nav_tasks"),
+        T("nav_copilot"), T("nav_reports"), T("nav_glossary"),
+        T("nav_policies"), T("nav_tutorial"),
+    ]
+else:
+    nav_options = [
+        T("nav_tutorial"), T("nav_case_study"), T("nav_real_demo"), T("nav_pharma"),
+        T("nav_portfolio"), T("nav_tasks"), T("nav_health"), T("nav_dependencies"),
+        T("nav_backlog"), T("nav_copilot"), T("nav_advisor"), T("nav_reports"),
+        T("nav_governance"), T("nav_organigrama"), T("nav_pmbok"), T("nav_plantillas"),
+        T("nav_reviews"), T("nav_glossary"), T("nav_policies"),
+        T("nav_import"), T("nav_conectores"), T("nav_capacitacion"),
+    ]
+    if user["rol"] == "admin":
+        nav_options.append(T("nav_users"))
 
-section = st.sidebar.radio("Sección", nav_options)
+# Un invitado que entró con el botón de "subir mi Excel" cae directo en
+# Importar: es el único paso que tiene sentido con el portafolio vacío.
+_indice_inicial = 0
+if INVITADO and st.session_state["invitado_almacen"].vacio:
+    _indice_inicial = nav_options.index(T("nav_import"))
+
+section = st.sidebar.radio("Sección", nav_options, index=_indice_inicial)
 
 st.title(T("app_title"))
 
 
 def load_data():
+    # El invitado lee de su almacén de sesión; el usuario registrado, de la base.
+    # Ambos devuelven las mismas columnas, así que de acá para abajo el
+    # dashboard no distingue entre uno y otro.
+    if INVITADO:
+        a = st.session_state["invitado_almacen"]
+        return a.proyectos(), a.tareas(), a.equipo()
     return db.projects(), db.tasks(), db.team()
 
 
 proj_df, task_df, team_df = load_data()
-equipo_df = db.listar_usuarios()
+equipo_df = (pd.DataFrame(columns=["id", "nombre", "email", "rol"])
+             if INVITADO else db.listar_usuarios())
+
+
+# Escritura: el invitado escribe en su almacén de sesión y el usuario
+# registrado en la base. Se despacha acá una sola vez para que los formularios
+# de más abajo no tengan que preguntar quién es en cada uno.
+def _crear_proyecto(**campos):
+    if INVITADO:
+        return st.session_state["invitado_almacen"].crear_proyecto(**campos)
+    return db.crear_proyecto(**campos)
+
+
+def _crear_tarea(**campos):
+    if INVITADO:
+        return st.session_state["invitado_almacen"].crear_tarea(**campos)
+    return db.crear_tarea(**campos)
+
+
+def _solo_con_cuenta(accion: str) -> bool:
+    """True (y avisa) si la acción pide cuenta y estamos en modo invitado.
+
+    Editar y archivar necesitan un registro estable al cual volver; el almacén
+    de invitado se borra al cerrar la pestaña, así que ofrecerlo sería prometer
+    algo que no se cumple. Importar y crear sí funcionan.
+    """
+    if not INVITADO:
+        return False
+    st.info(f"{accion} necesita una cuenta. En modo invitado podés importar tu "
+            f"Excel, crear proyectos y analizar todo el portafolio — lo que no "
+            f"se puede es guardar cambios de forma permanente.")
+    return True
 
 
 _GRADIENTE_ROJO = (215, 48, 39)
@@ -420,7 +518,7 @@ elif section == T("nav_portfolio"):
                 if not nombre.strip():
                     st.error("El nombre es obligatorio.")
                 else:
-                    db.crear_proyecto(
+                    _crear_proyecto(
                         nombre=nombre.strip(), portafolio=portafolio.strip() or "Sin portafolio",
                         sponsor=sponsor.strip() or None, dueno_id=dueno_id, segmento=segmento,
                         fecha_inicio=str(fecha_inicio), fecha_fin=str(fecha_fin),
@@ -433,46 +531,52 @@ elif section == T("nav_portfolio"):
         st.subheader(T("nav_portfolio"))
         st.dataframe(catalog.catalog(proj_df).drop(columns=["_id"]), use_container_width=True)
 
-        with st.expander("✏️ Ficha de proyecto (editar / archivar / eliminar)"):
-            opciones = (proj_df["nombre"] + " — " + proj_df["proyecto_id"]).tolist()
-            elegido = st.selectbox("Elegí un proyecto", opciones, key="ficha_proyecto_selector")
-            fila = proj_df.iloc[opciones.index(elegido)]
-            with st.form("editar_proyecto"):
-                nombre_e = st.text_input("Nombre", value=fila["nombre"])
-                col1, col2 = st.columns(2)
-                portafolio_e = col1.text_input("Portafolio", value=fila["portafolio"])
-                sponsor_e = col2.text_input("Sponsor", value=fila["sponsor"] or "")
-                dueno_id_e = _selector_usuario(
-                    "Dueño", "editar_proy_dueno",
-                    actual_id=equipo_df[equipo_df["nombre"] == fila["dueno"]]["id"].iloc[0]
-                    if fila["dueno"] and (equipo_df["nombre"] == fila["dueno"]).any() else None,
-                )
-                segmento_e = st.selectbox("Segmento", ["Interno", "Cliente externo", "Regulatorio"],
-                                           index=["Interno", "Cliente externo", "Regulatorio"].index(fila["segmento"])
-                                           if fila["segmento"] in ["Interno", "Cliente externo", "Regulatorio"] else 0)
-                col3, col4 = st.columns(2)
-                presupuesto_e = col3.number_input("Presupuesto", min_value=0.0, step=100.0, value=float(fila["presupuesto"]))
-                ejecutado_e = col4.number_input("Ejecutado", min_value=0.0, step=100.0, value=float(fila["ejecutado"]))
-                criticidad_e = st.selectbox("Criticidad", ["Alta", "Media", "Baja"],
-                                             index=["Alta", "Media", "Baja"].index(fila["criticidad"]))
-                guardar = st.form_submit_button("💾 Guardar cambios")
-                if guardar:
-                    db.actualizar_proyecto(
-                        int(fila["_id"]), nombre=nombre_e.strip(), portafolio=portafolio_e.strip(),
-                        sponsor=sponsor_e.strip() or None, dueno_id=dueno_id_e, segmento=segmento_e,
-                        presupuesto=presupuesto_e, ejecutado=ejecutado_e, criticidad=criticidad_e,
+        # Editar y archivar necesitan un registro estable al cual volver; el
+        # almacén del invitado se borra al cerrar la pestaña, así que se le
+        # ofrece la cuenta en vez de un botón que promete algo que no cumple.
+        if INVITADO:
+            _solo_con_cuenta("Editar o archivar un proyecto")
+        else:
+            with st.expander("✏️ Ficha de proyecto (editar / archivar / eliminar)"):
+                opciones = (proj_df["nombre"] + " — " + proj_df["proyecto_id"]).tolist()
+                elegido = st.selectbox("Elegí un proyecto", opciones, key="ficha_proyecto_selector")
+                fila = proj_df.iloc[opciones.index(elegido)]
+                with st.form("editar_proyecto"):
+                    nombre_e = st.text_input("Nombre", value=fila["nombre"])
+                    col1, col2 = st.columns(2)
+                    portafolio_e = col1.text_input("Portafolio", value=fila["portafolio"])
+                    sponsor_e = col2.text_input("Sponsor", value=fila["sponsor"] or "")
+                    dueno_id_e = _selector_usuario(
+                        "Dueño", "editar_proy_dueno",
+                        actual_id=equipo_df[equipo_df["nombre"] == fila["dueno"]]["id"].iloc[0]
+                        if fila["dueno"] and (equipo_df["nombre"] == fila["dueno"]).any() else None,
                     )
-                    st.success("Cambios guardados.")
+                    segmento_e = st.selectbox("Segmento", ["Interno", "Cliente externo", "Regulatorio"],
+                                               index=["Interno", "Cliente externo", "Regulatorio"].index(fila["segmento"])
+                                               if fila["segmento"] in ["Interno", "Cliente externo", "Regulatorio"] else 0)
+                    col3, col4 = st.columns(2)
+                    presupuesto_e = col3.number_input("Presupuesto", min_value=0.0, step=100.0, value=float(fila["presupuesto"]))
+                    ejecutado_e = col4.number_input("Ejecutado", min_value=0.0, step=100.0, value=float(fila["ejecutado"]))
+                    criticidad_e = st.selectbox("Criticidad", ["Alta", "Media", "Baja"],
+                                                 index=["Alta", "Media", "Baja"].index(fila["criticidad"]))
+                    guardar = st.form_submit_button("💾 Guardar cambios")
+                    if guardar:
+                        db.actualizar_proyecto(
+                            int(fila["_id"]), nombre=nombre_e.strip(), portafolio=portafolio_e.strip(),
+                            sponsor=sponsor_e.strip() or None, dueno_id=dueno_id_e, segmento=segmento_e,
+                            presupuesto=presupuesto_e, ejecutado=ejecutado_e, criticidad=criticidad_e,
+                        )
+                        st.success("Cambios guardados.")
+                        st.rerun()
+                col_a, col_b = st.columns(2)
+                if col_a.button("🗄️ Archivar proyecto", key="archivar_proy"):
+                    db.archivar_proyecto(int(fila["_id"]))
+                    st.success("Proyecto archivado.")
                     st.rerun()
-            col_a, col_b = st.columns(2)
-            if col_a.button("🗄️ Archivar proyecto", key="archivar_proy"):
-                db.archivar_proyecto(int(fila["_id"]))
-                st.success("Proyecto archivado.")
-                st.rerun()
-            if col_b.button("🗑️ Eliminar definitivamente", key="eliminar_proy"):
-                db.eliminar_proyecto(int(fila["_id"]))
-                st.success("Proyecto eliminado.")
-                st.rerun()
+                if col_b.button("🗑️ Eliminar definitivamente", key="eliminar_proy"):
+                    db.eliminar_proyecto(int(fila["_id"]))
+                    st.success("Proyecto eliminado.")
+                    st.rerun()
 
         st.subheader("Por portafolio")
         st.bar_chart(catalog.por_portafolio(proj_df).set_index("portafolio")[["presupuesto", "ejecutado"]])
@@ -504,7 +608,7 @@ elif section == T("nav_tasks"):
                         depende_de_id = None
                         if dependencia != "(ninguna)":
                             depende_de_id = int(task_df.iloc[dep_opciones.index(dependencia) - 1]["_id"])
-                        db.crear_tarea(
+                        _crear_tarea(
                             proyecto_id=proyecto_real_id, titulo=titulo.strip(),
                             responsable_id=responsable_id, estado=estado,
                             vencimiento=str(vencimiento), prioridad=prioridad, depende_de=depende_de_id,
@@ -515,30 +619,33 @@ elif section == T("nav_tasks"):
     if not task_df.empty:
         st.dataframe(task_df.drop(columns=["_id"]), use_container_width=True)
 
-        with st.expander("✏️ Ficha de tarea (editar / eliminar)"):
-            t_opciones = (task_df["titulo"] + " — " + task_df["tarea_id"]).tolist()
-            t_elegida = st.selectbox("Elegí una tarea", t_opciones, key="ficha_tarea_selector")
-            t_fila = task_df.iloc[t_opciones.index(t_elegida)]
-            with st.form("editar_tarea"):
-                titulo_e = st.text_input("Título", value=t_fila["titulo"])
-                responsable_actual = equipo_df[equipo_df["nombre"] == t_fila["responsable"]]["id"].iloc[0] \
-                    if t_fila["responsable"] and (equipo_df["nombre"] == t_fila["responsable"]).any() else None
-                responsable_id_e = _selector_usuario("Responsable", "editar_tarea_resp", actual_id=responsable_actual)
-                col1, col2 = st.columns(2)
-                estado_e = col1.selectbox("Estado", ["todo", "in_progress", "blocked", "done"],
-                                           index=["todo", "in_progress", "blocked", "done"].index(t_fila["estado"]))
-                prioridad_e = col2.selectbox("Prioridad", ["Alta", "Media", "Baja"],
-                                              index=["Alta", "Media", "Baja"].index(t_fila["prioridad"]))
-                guardar_t = st.form_submit_button("💾 Guardar cambios")
-                if guardar_t:
-                    db.actualizar_tarea(int(t_fila["_id"]), titulo=titulo_e.strip(),
-                                         responsable_id=responsable_id_e, estado=estado_e, prioridad=prioridad_e)
-                    st.success("Cambios guardados.")
+        if INVITADO:
+            _solo_con_cuenta("Editar o eliminar una tarea")
+        else:
+            with st.expander("✏️ Ficha de tarea (editar / eliminar)"):
+                t_opciones = (task_df["titulo"] + " — " + task_df["tarea_id"]).tolist()
+                t_elegida = st.selectbox("Elegí una tarea", t_opciones, key="ficha_tarea_selector")
+                t_fila = task_df.iloc[t_opciones.index(t_elegida)]
+                with st.form("editar_tarea"):
+                    titulo_e = st.text_input("Título", value=t_fila["titulo"])
+                    responsable_actual = equipo_df[equipo_df["nombre"] == t_fila["responsable"]]["id"].iloc[0] \
+                        if t_fila["responsable"] and (equipo_df["nombre"] == t_fila["responsable"]).any() else None
+                    responsable_id_e = _selector_usuario("Responsable", "editar_tarea_resp", actual_id=responsable_actual)
+                    col1, col2 = st.columns(2)
+                    estado_e = col1.selectbox("Estado", ["todo", "in_progress", "blocked", "done"],
+                                               index=["todo", "in_progress", "blocked", "done"].index(t_fila["estado"]))
+                    prioridad_e = col2.selectbox("Prioridad", ["Alta", "Media", "Baja"],
+                                                  index=["Alta", "Media", "Baja"].index(t_fila["prioridad"]))
+                    guardar_t = st.form_submit_button("💾 Guardar cambios")
+                    if guardar_t:
+                        db.actualizar_tarea(int(t_fila["_id"]), titulo=titulo_e.strip(),
+                                             responsable_id=responsable_id_e, estado=estado_e, prioridad=prioridad_e)
+                        st.success("Cambios guardados.")
+                        st.rerun()
+                if st.button("🗑️ Eliminar tarea", key="eliminar_tarea"):
+                    db.eliminar_tarea(int(t_fila["_id"]))
+                    st.success("Tarea eliminada.")
                     st.rerun()
-            if st.button("🗑️ Eliminar tarea", key="eliminar_tarea"):
-                db.eliminar_tarea(int(t_fila["_id"]))
-                st.success("Tarea eliminada.")
-                st.rerun()
 
 elif section == T("nav_health"):
     h = health.project_health(proj_df, task_df, team_df)
@@ -798,7 +905,13 @@ elif section == T("nav_organigrama"):
         if fuente_tipo == "Excel/CSV":
             up = st.file_uploader("Subí el organigrama (CSV/Excel)", type=["csv", "xlsx"], key="org_upl")
             if up is not None:
-                df_org = pd.read_csv(up) if up.name.endswith("csv") else pd.read_excel(up)
+                # dtype=str, igual que en el importador de proyectos: un legajo
+                # "00123" leído como número pierde los ceros de adelante y pasa
+                # a ser 123 — deja de coincidir con el legajo del ERP y la
+                # persona no se puede cruzar contra ningún otro sistema. Lo
+                # mismo con cédulas, códigos de centro de costo y teléfonos.
+                df_org = (pd.read_csv(up, dtype=str) if up.name.endswith("csv")
+                          else pd.read_excel(up, dtype=str))
                 personas = organigrama.parsear(df_org)
                 st.write(f"{len(personas)} persona(s) detectada(s):")
                 st.dataframe(pd.DataFrame(personas), use_container_width=True)
@@ -810,7 +923,9 @@ elif section == T("nav_organigrama"):
             up = st.file_uploader("Subí una base SQLite (.db)", type=["db", "sqlite", "sqlite3"], key="org_db")
             tabla = st.text_input("Nombre de la tabla con el organigrama", value="empleados")
             if up is not None and tabla.strip():
-                import sqlite3 as _sqlite3, tempfile as _tmp, os as _os
+                import sqlite3 as _sqlite3
+                import tempfile as _tmp
+                import os as _os
                 _p = _os.path.join(_tmp.gettempdir(), "org_upload.db")
                 with open(_p, "wb") as _f:
                     _f.write(up.getbuffer())
@@ -899,8 +1014,16 @@ elif section == T("nav_import"):
 
     if uploaded is not None:
         try:
-            df_import = (pd.read_csv(uploaded) if uploaded.name.lower().endswith("csv")
-                         else pd.read_excel(uploaded))
+            # dtype=str a propósito: si se deja que pandas adivine el tipo,
+            # convierte "320.000" (trescientos veinte mil, formato de acá) en el
+            # float 320.0 ANTES de que lo vea parsear_numero() — y el
+            # presupuesto entra mil veces más chico, en silencio, con lo cual
+            # "sobre_presupuesto" queda mal. Leyendo todo como texto, el que
+            # decide es el parser del importador, que para eso distingue
+            # separador de miles de separador decimal y avisa cuando es ambiguo.
+            df_import = (pd.read_csv(uploaded, dtype=str)
+                         if uploaded.name.lower().endswith("csv")
+                         else pd.read_excel(uploaded, dtype=str))
         except Exception as exc:                                  # archivo ilegible
             st.error(f"No pude leer el archivo: {exc}")
             df_import = None
@@ -960,12 +1083,19 @@ elif section == T("nav_import"):
 
             # --- paso 3: informe previo ----------------------------------------
             st.markdown("#### 3. Qué va a pasar")
+            # Para el invitado, "lo que ya existe" es lo que subió en esta misma
+            # sesión: no se puede consultar la base porque sus datos no están
+            # ahí (y los del servidor no son suyos).
+            _existentes = (
+                (proj_df if tipo == "proyectos" else task_df) if INVITADO else
+                (db.projects(incluir_archivados=True) if tipo == "proyectos"
+                 else db.tasks()))
             reporte = importer.validar(
                 df_import, tipo, mapeo,
                 proyectos=proj_df if tipo == "tareas" else None,
-                usuarios=db.listar_usuarios() if tipo == "tareas" else None,
-                existentes=(db.projects(incluir_archivados=True) if tipo == "proyectos"
-                            else db.tasks()),
+                usuarios=(None if INVITADO else
+                          (db.listar_usuarios() if tipo == "tareas" else None)),
+                existentes=_existentes,
                 proyecto_default_id=proyecto_default_id,
                 omitir_duplicados=omitir_dup)
 
@@ -997,7 +1127,13 @@ elif section == T("nav_import"):
                     st.info("No queda ninguna fila para importar con estas opciones.")
                 elif st.button(f"✅ Importar {reporte.filas_validas} {tipo}",
                                type="primary"):
-                    creadas = importer.aplicar(reporte, db.crear_proyecto, db.crear_tarea)
+                    # El importador recibe las funciones de escritura, así que
+                    # el invitado usa las de su almacén de sesión y el usuario
+                    # registrado las de la base — sin ramificar el importador.
+                    _almacen = st.session_state.get("invitado_almacen")
+                    _crear_p = _almacen.crear_proyecto if INVITADO else db.crear_proyecto
+                    _crear_t = _almacen.crear_tarea if INVITADO else db.crear_tarea
+                    creadas = importer.aplicar(reporte, _crear_p, _crear_t)
                     st.session_state["import_resultado"] = (
                         f"Listo: se importaron {creadas} {tipo}. Ya podés verlos en "
                         f"{'Portafolio' if tipo == 'proyectos' else 'Tareas'}.")

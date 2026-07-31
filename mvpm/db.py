@@ -298,7 +298,13 @@ def team() -> pd.DataFrame:
             GROUP BY responsable_id
         """, conn)
     usuarios = usuarios.merge(carga, left_on="id", right_on="responsable_id", how="left")
-    usuarios["tareas_activas"] = usuarios["tareas_activas"].fillna(0)
+    # El merge deja NaN para los usuarios sin tareas activas, y en esa columna
+    # pandas infiere dtype object. Un .fillna(0) a secas lo "downcastea" en
+    # silencio a numérico — comportamiento que pandas ya marcó como deprecado y
+    # que va a cambiar. Se hace explícito: primero el relleno, después la
+    # conversión a número.
+    usuarios["tareas_activas"] = pd.to_numeric(
+        usuarios["tareas_activas"], errors="coerce").fillna(0)
     usuarios["carga_actual_hs"] = (usuarios["tareas_activas"] * _HORAS_POR_TAREA_ACTIVA).astype(int)
     return usuarios[["nombre", "rol", "capacidad_semanal_hs", "carga_actual_hs"]]
 

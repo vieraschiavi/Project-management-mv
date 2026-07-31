@@ -213,7 +213,7 @@ def _ejecutor_falso(tablas: dict[str, pd.DataFrame]):
         for nombre, df in tablas.items():
             if nombre.lower() in sql.lower():
                 return df.head(1)
-        raise RuntimeError(f'table or view does not exist')
+        raise RuntimeError('table or view does not exist')
     return ejecutar
 
 

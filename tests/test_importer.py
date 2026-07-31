@@ -397,3 +397,94 @@ def test_end_to_end_contra_la_base(tmp_path, monkeypatch):
     assert rep2.duplicados_base == 2
     assert imp.aplicar(rep2, db.crear_proyecto, db.crear_tarea) == 0
     assert len(db.projects()) == 2
+
+
+# --------------------------------------------------- lectura del archivo real
+
+def test_un_excel_con_miles_en_punto_no_se_lee_mil_veces_mas_chico(tmp_path):
+    """Regresión: el presupuesto entraba dividido por mil, sin aviso.
+
+    Un Excel de acá trae la plata escrita "320.000". Si se deja que pandas
+    infiera el tipo al leerlo, convierte ese texto en el float 320.0 ANTES de
+    que parsear_numero() lo vea — y el proyecto queda cargado con 320 pesos en
+    vez de 320.000, con lo cual "sobre_presupuesto" da mal. La app lee con
+    dtype=str justamente para que decida el parser del importador.
+    """
+    archivo = tmp_path / "portafolio.xlsx"
+    pd.DataFrame([
+        {"Proyecto": "Migración", "Presupuesto": "1.500.000", "Ejecutado": "320.000"},
+        {"Proyecto": "Portal", "Presupuesto": "800.000", "Ejecutado": "910.000"},
+    ]).to_excel(archivo, index=False)
+
+    # Cómo lo lee la app (y por qué): todo como texto.
+    df = pd.read_excel(archivo, dtype=str)
+    assert imp.parsear_numero(df["Ejecutado"][0]).valor == 320_000.0
+    assert imp.parsear_numero(df["Ejecutado"][1]).valor == 910_000.0
+
+    # Y el camino contrario, que es el que fallaba: dejando adivinar a pandas.
+    adivinado = pd.read_excel(archivo)
+    assert imp.parsear_numero(adivinado["Ejecutado"][0]).valor == 320.0, (
+        "si esto cambia, pandas dejó de convertir y el comentario de app.py "
+        "sobre dtype=str hay que revisarlo")
+
+
+def test_el_portafolio_importado_detecta_el_sobregasto(tmp_path):
+    """El efecto de la regresión anterior sobre una decisión real: si el
+    ejecutado entra mil veces más chico, nadie se entera de que se pasó."""
+    from mvpm import catalog, invitado
+
+    archivo = tmp_path / "p.xlsx"
+    pd.DataFrame([
+        {"Proyecto": "Portal", "Presupuesto": "800.000", "Ejecutado": "910.000"},
+    ]).to_excel(archivo, index=False)
+    df = pd.read_excel(archivo, dtype=str)
+
+    almacen = invitado.almacen_vacio()
+    sug = imp.detectar_columnas(df, "proyectos")
+    rep = imp.validar(df, "proyectos", {k: v.columna for k, v in sug.items() if v.columna},
+                      existentes=almacen.proyectos())
+    imp.aplicar(rep, almacen.crear_proyecto, almacen.crear_tarea)
+
+    fila = catalog.catalog(almacen.proyectos()).iloc[0]
+    assert fila["ejecutado"] == 910_000
+    assert bool(fila["sobre_presupuesto"]) is True
+
+
+def test_un_legajo_con_ceros_adelante_no_pierde_los_ceros(tmp_path):
+    """Regresión: "00123" se leía como el número 123.
+
+    Los legajos, cédulas, códigos de centro de costo y teléfonos vienen con
+    ceros a la izquierda que son parte del identificador. Si se leen como
+    número, esos ceros se pierden y el dato deja de cruzar contra el ERP o el
+    sistema de RRHH del cliente — que es justo para lo que se importa.
+    """
+    archivo = tmp_path / "organigrama.xlsx"
+    pd.DataFrame([
+        {"Legajo": "00123", "Nombre": "Ana Pérez", "Cargo": "Jefa de Obra"},
+        {"Legajo": "00007", "Nombre": "Luis Gómez", "Cargo": "Gerente"},
+    ]).to_excel(archivo, index=False)
+
+    # Cómo lo lee la app: todo como texto.
+    assert list(pd.read_excel(archivo, dtype=str)["Legajo"]) == ["00123", "00007"]
+
+    # Y lo que pasaba antes, dejando que pandas infiriera el tipo.
+    assert list(pd.read_excel(archivo)["Legajo"]) == [123, 7], (
+        "si esto cambia, pandas dejó de convertir y hay que revisar los "
+        "comentarios de app.py sobre dtype=str")
+
+
+def test_el_organigrama_se_parsea_bien_leido_como_texto(tmp_path):
+    """dtype=str deja las celdas vacías como NaN, no como el texto 'nan':
+    quien no le reporta a nadie tiene que quedar en None, no en un jefe
+    llamado "nan"."""
+    from mvpm import organigrama
+
+    archivo = tmp_path / "org.xlsx"
+    pd.DataFrame([
+        {"Nombre": "Ana Pérez", "Cargo": "Jefa", "Área": "Obra", "Reporta a": "Luis Gómez"},
+        {"Nombre": "Luis Gómez", "Cargo": "Gerente", "Área": "Obra", "Reporta a": ""},
+    ]).to_excel(archivo, index=False)
+
+    personas = organigrama.parsear(pd.read_excel(archivo, dtype=str))
+    assert personas[0]["reporta_a"] == "Luis Gómez"
+    assert personas[1]["reporta_a"] is None

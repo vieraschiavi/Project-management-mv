@@ -80,8 +80,10 @@ def test_crear_tarea_y_dependencia(tmp_db):
                                  presupuesto=0, ejecutado=0, criticidad="Media")
     t1 = tmp_db.crear_tarea(proyecto_id=pid, titulo="Primero", responsable_id=None, estado="done",
                              vencimiento="2026-01-01", prioridad="Alta", depende_de=None)
-    t2 = tmp_db.crear_tarea(proyecto_id=pid, titulo="Segundo", responsable_id=None, estado="todo",
-                             vencimiento="2026-02-01", prioridad="Media", depende_de=t1)
+    # El id que devuelve no se usa: la tarea se busca después por título, y lo
+    # que importa acá es el efecto en la base (que quede creada y con depende_de).
+    tmp_db.crear_tarea(proyecto_id=pid, titulo="Segundo", responsable_id=None, estado="todo",
+                       vencimiento="2026-02-01", prioridad="Media", depende_de=t1)
     df = tmp_db.tasks()
     fila2 = df[df["titulo"] == "Segundo"].iloc[0]
     fila1 = df[df["titulo"] == "Primero"].iloc[0]
