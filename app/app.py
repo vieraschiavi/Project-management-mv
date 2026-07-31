@@ -905,7 +905,13 @@ elif section == T("nav_organigrama"):
         if fuente_tipo == "Excel/CSV":
             up = st.file_uploader("Subí el organigrama (CSV/Excel)", type=["csv", "xlsx"], key="org_upl")
             if up is not None:
-                df_org = pd.read_csv(up) if up.name.endswith("csv") else pd.read_excel(up)
+                # dtype=str, igual que en el importador de proyectos: un legajo
+                # "00123" leído como número pierde los ceros de adelante y pasa
+                # a ser 123 — deja de coincidir con el legajo del ERP y la
+                # persona no se puede cruzar contra ningún otro sistema. Lo
+                # mismo con cédulas, códigos de centro de costo y teléfonos.
+                df_org = (pd.read_csv(up, dtype=str) if up.name.endswith("csv")
+                          else pd.read_excel(up, dtype=str))
                 personas = organigrama.parsear(df_org)
                 st.write(f"{len(personas)} persona(s) detectada(s):")
                 st.dataframe(pd.DataFrame(personas), use_container_width=True)

@@ -448,3 +448,43 @@ def test_el_portafolio_importado_detecta_el_sobregasto(tmp_path):
     fila = catalog.catalog(almacen.proyectos()).iloc[0]
     assert fila["ejecutado"] == 910_000
     assert bool(fila["sobre_presupuesto"]) is True
+
+
+def test_un_legajo_con_ceros_adelante_no_pierde_los_ceros(tmp_path):
+    """Regresión: "00123" se leía como el número 123.
+
+    Los legajos, cédulas, códigos de centro de costo y teléfonos vienen con
+    ceros a la izquierda que son parte del identificador. Si se leen como
+    número, esos ceros se pierden y el dato deja de cruzar contra el ERP o el
+    sistema de RRHH del cliente — que es justo para lo que se importa.
+    """
+    archivo = tmp_path / "organigrama.xlsx"
+    pd.DataFrame([
+        {"Legajo": "00123", "Nombre": "Ana Pérez", "Cargo": "Jefa de Obra"},
+        {"Legajo": "00007", "Nombre": "Luis Gómez", "Cargo": "Gerente"},
+    ]).to_excel(archivo, index=False)
+
+    # Cómo lo lee la app: todo como texto.
+    assert list(pd.read_excel(archivo, dtype=str)["Legajo"]) == ["00123", "00007"]
+
+    # Y lo que pasaba antes, dejando que pandas infiriera el tipo.
+    assert list(pd.read_excel(archivo)["Legajo"]) == [123, 7], (
+        "si esto cambia, pandas dejó de convertir y hay que revisar los "
+        "comentarios de app.py sobre dtype=str")
+
+
+def test_el_organigrama_se_parsea_bien_leido_como_texto(tmp_path):
+    """dtype=str deja las celdas vacías como NaN, no como el texto 'nan':
+    quien no le reporta a nadie tiene que quedar en None, no en un jefe
+    llamado "nan"."""
+    from mvpm import organigrama
+
+    archivo = tmp_path / "org.xlsx"
+    pd.DataFrame([
+        {"Nombre": "Ana Pérez", "Cargo": "Jefa", "Área": "Obra", "Reporta a": "Luis Gómez"},
+        {"Nombre": "Luis Gómez", "Cargo": "Gerente", "Área": "Obra", "Reporta a": ""},
+    ]).to_excel(archivo, index=False)
+
+    personas = organigrama.parsear(pd.read_excel(archivo, dtype=str))
+    assert personas[0]["reporta_a"] == "Luis Gómez"
+    assert personas[1]["reporta_a"] is None
