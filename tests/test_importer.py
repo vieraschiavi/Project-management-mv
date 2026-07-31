@@ -397,3 +397,54 @@ def test_end_to_end_contra_la_base(tmp_path, monkeypatch):
     assert rep2.duplicados_base == 2
     assert imp.aplicar(rep2, db.crear_proyecto, db.crear_tarea) == 0
     assert len(db.projects()) == 2
+
+
+# --------------------------------------------------- lectura del archivo real
+
+def test_un_excel_con_miles_en_punto_no_se_lee_mil_veces_mas_chico(tmp_path):
+    """Regresión: el presupuesto entraba dividido por mil, sin aviso.
+
+    Un Excel de acá trae la plata escrita "320.000". Si se deja que pandas
+    infiera el tipo al leerlo, convierte ese texto en el float 320.0 ANTES de
+    que parsear_numero() lo vea — y el proyecto queda cargado con 320 pesos en
+    vez de 320.000, con lo cual "sobre_presupuesto" da mal. La app lee con
+    dtype=str justamente para que decida el parser del importador.
+    """
+    archivo = tmp_path / "portafolio.xlsx"
+    pd.DataFrame([
+        {"Proyecto": "Migración", "Presupuesto": "1.500.000", "Ejecutado": "320.000"},
+        {"Proyecto": "Portal", "Presupuesto": "800.000", "Ejecutado": "910.000"},
+    ]).to_excel(archivo, index=False)
+
+    # Cómo lo lee la app (y por qué): todo como texto.
+    df = pd.read_excel(archivo, dtype=str)
+    assert imp.parsear_numero(df["Ejecutado"][0]).valor == 320_000.0
+    assert imp.parsear_numero(df["Ejecutado"][1]).valor == 910_000.0
+
+    # Y el camino contrario, que es el que fallaba: dejando adivinar a pandas.
+    adivinado = pd.read_excel(archivo)
+    assert imp.parsear_numero(adivinado["Ejecutado"][0]).valor == 320.0, (
+        "si esto cambia, pandas dejó de convertir y el comentario de app.py "
+        "sobre dtype=str hay que revisarlo")
+
+
+def test_el_portafolio_importado_detecta_el_sobregasto(tmp_path):
+    """El efecto de la regresión anterior sobre una decisión real: si el
+    ejecutado entra mil veces más chico, nadie se entera de que se pasó."""
+    from mvpm import catalog, invitado
+
+    archivo = tmp_path / "p.xlsx"
+    pd.DataFrame([
+        {"Proyecto": "Portal", "Presupuesto": "800.000", "Ejecutado": "910.000"},
+    ]).to_excel(archivo, index=False)
+    df = pd.read_excel(archivo, dtype=str)
+
+    almacen = invitado.almacen_vacio()
+    sug = imp.detectar_columnas(df, "proyectos")
+    rep = imp.validar(df, "proyectos", {k: v.columna for k, v in sug.items() if v.columna},
+                      existentes=almacen.proyectos())
+    imp.aplicar(rep, almacen.crear_proyecto, almacen.crear_tarea)
+
+    fila = catalog.catalog(almacen.proyectos()).iloc[0]
+    assert fila["ejecutado"] == 910_000
+    assert bool(fila["sobre_presupuesto"]) is True
