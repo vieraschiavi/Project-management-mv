@@ -5,12 +5,36 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>MV Project Management — Gestión de proyectos con IA</title>
 <meta name="description" content="Portafolio de proyectos con salud medible, copiloto de IA y reportes automáticos. Trilingüe ES/EN/PT, 100% web y PC.">
+
+<!-- Tarjeta al compartir el link (WhatsApp, LinkedIn, Slack, X). og-image.jpg
+     es la placa de título del propio video demo, así que la vista previa
+     muestra el producto real y no un mockup inventado. -->
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="MV Project Management">
+<meta property="og:locale" content="es_ES">
+<meta property="og:title" content="MV Project Management — Gestión de proyectos con IA">
+<meta property="og:description" content="Portafolio de proyectos con salud medible, copiloto de IA y reportes automáticos. Trilingüe ES/EN/PT, 100% web y PC.">
+<meta property="og:image" content="/og-image.jpg">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="MV Project Management — plataforma de gestión de portafolio de proyectos">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="MV Project Management — Gestión de proyectos con IA">
+<meta name="twitter:description" content="Portafolio de proyectos con salud medible, copiloto de IA y reportes automáticos. Trilingüe ES/EN/PT, 100% web y PC.">
+<meta name="twitter:image" content="/og-image.jpg">
+<meta name="twitter:image:alt" content="MV Project Management — plataforma de gestión de portafolio de proyectos">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><rect width=%22100%22 height=%22100%22 rx=%2220%22 fill=%22%23081527%22/><text x=%2250%22 y=%2266%22 font-size=%2258%22 text-anchor=%22middle%22 fill=%22%23f2b441%22 font-family=%22sans-serif%22>M</text></svg>">
 <style>
   :root{
     --navy:#081527; --navy2:#0c2137;
     --amber:#f2b441; --amber2:#e39a2e;
-    --ink:#eaf1fb; --muted:#9db0c8; --faint:#6c7f99;
+    /* --faint se usa sólo sobre fondo oscuro (navy y navy2). Está aclarado
+       respecto del gris original para llegar a 4.5:1 (WCAG AA) en ambos:
+       5.26 sobre navy, 4.68 sobre navy2. */
+    --ink:#eaf1fb; --muted:#9db0c8; --faint:#798ba2;
+    /* Ámbar de marca oscurecido para usar como TEXTO sobre fondo claro: el
+       ámbar normal da 2.35:1 sobre blanco, ilegible. Mismo tono, 4.6:1. */
+    --amber-on-light:#a26916;
     --paper:#ffffff; --ink-d:#122238; --tint:#f4f7fb;
     --green:#00c896; --red:#e05c5c; --blue:#2f74c0;
     font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
@@ -36,8 +60,11 @@
   .brand{display:flex; align-items:center; gap:10px; font-weight:700; font-size:15.5px;}
   .brand .mark{width:28px; height:28px; border-radius:8px; background:var(--amber); color:#1a1305; display:flex; align-items:center; justify-content:center; font-weight:800;}
   .nav-links{display:flex; gap:22px; align-items:center;}
-  .nav-links a{font-size:13.5px; color:var(--muted);}
-  .nav-links a:hover{color:var(--ink);}
+  /* :not(.btn) es necesario: sin él, este selector (0,1,1) le gana por
+     especificidad a .btn-primary (0,1,0) y pintaba el CTA del nav de gris
+     sobre fondo ámbar — 1.2:1 de contraste, prácticamente ilegible. */
+  .nav-links a:not(.btn){font-size:13.5px; color:var(--muted);}
+  .nav-links a:not(.btn):hover{color:var(--ink);}
   #langSel{background:rgba(255,255,255,.06); color:var(--ink); border:1px solid rgba(255,255,255,.14); border-radius:8px; padding:6px 8px; font-size:12.5px;}
   @media (max-width:760px){ .nav-links a:not(.btn){display:none;} }
 
@@ -77,7 +104,9 @@
 
   section{padding:64px 0; border-bottom:1px solid rgba(255,255,255,.06);}
   section.light{background:var(--paper); color:var(--ink-d); border-bottom:1px solid #e4e9f2;}
-  section.light .eyebrow{color:var(--amber2);}
+  /* El ámbar de marca sobre fondo blanco da 2.35:1. En las secciones claras
+     se usa una versión más oscura del MISMO tono para llegar a 4.6:1. */
+  section.light .eyebrow{color:#a26916;}
   .sec-head{max-width:66ch; margin-bottom:34px;}
   .sec-head h2{font-size:clamp(24px,3vw,32px); margin-top:8px;}
   .sec-head p{color:var(--muted); margin-top:10px; font-size:15.5px;}
@@ -104,6 +133,10 @@
   .stat-card b{display:block; font-family:ui-monospace,monospace; font-size:30px; color:var(--amber);}
   .stat-card span{font-size:13px; color:var(--muted);}
   .demo-note{margin-top:22px; font-size:13px; color:var(--faint);}
+  /* El <code> tiene fondo ámbar translúcido, que sobre el navy2 de esta banda
+     aclara el fondo lo suficiente como para que el gris --faint quede en
+     3.56:1. Se fuerza el texto claro de marca, que da contraste de sobra. */
+  .demo-note code{color:var(--ink);}
 
   table{border-collapse:collapse; width:100%; font-size:14px;}
   th,td{text-align:left; padding:11px 14px; border-bottom:1px solid rgba(255,255,255,.08);}
@@ -121,7 +154,10 @@
   .price-card p{color:#4d5f78; font-size:14px;}
   .price-card .amount{font-family:ui-monospace,monospace; font-size:28px; font-weight:700; color:var(--ink-d);}
   .price-card .amount span{font-size:12.5px; color:#4d5f78; font-weight:400;}
-  .price-card .amount-uyu{font-family:ui-monospace,monospace; font-size:13px; color:#7d8ba0; margin-top:-6px;}
+  /* #60728b en vez de #7d8ba0: mismo gris azulado, oscurecido para dar 4.5:1
+     tanto sobre la tarjeta blanca como sobre el tint (#f4f7fb), que es el
+     fondo de la tarjeta destacada. */
+  .price-card .amount-uyu{font-family:ui-monospace,monospace; font-size:13px; color:#60728b; margin-top:-6px;}
   .price-card ul{margin:0; padding-left:18px; font-size:13.5px; color:#4d5f78; display:flex; flex-direction:column; gap:6px;}
   .price-card .btn{margin-top:6px; text-align:center; justify-content:center;}
   .price-card .btn-ghost{background:rgba(18,34,56,.05); border-color:rgba(18,34,56,.16); color:var(--ink-d);}
@@ -178,7 +214,7 @@
       <a href="#precios" data-i="nav_pricing">Precios</a>
       <a href="#resenas" data-i="nav_reviews">Reseñas</a>
       <a href="#faq" data-i="nav_faq">FAQ</a>
-      <select id="langSel" onchange="setLang(this.value)">
+      <select id="langSel" aria-label="Idioma del sitio / Site language / Idioma do site" onchange="setLang(this.value)">
         <option value="es">ES</option><option value="en">EN</option><option value="pt">PT</option>
       </select>
       <a class="btn btn-primary" href="#descargas" data-i="nav_cta">Probar gratis</a>
@@ -186,6 +222,10 @@
   </div>
 </nav>
 
+<!-- Landmark <main>: marca dónde empieza el contenido principal para que un
+     lector de pantalla pueda saltar el nav directamente. Es un wrapper
+     semántico, sin estilos propios: no cambia nada visualmente. -->
+<main>
 <header class="hero">
   <div class="wrap hero-grid">
     <div>
@@ -228,7 +268,13 @@
       <h2 data-i="video_h2">El producto de punta a punta, escena por escena, con voz</h2>
     </div>
     <div class="video-frame">
-      <video id="demoVideo" controls playsinline preload="metadata" poster="">
+      <!-- preload="none" + poster real: antes el navegador se bajaba los 2,8 MB
+           del demo en la carga inicial (con poster="" vacío, que además dispara
+           una petición fallida). Ahora sólo se descarga cuando la persona le da
+           play; hasta entonces se ve la placa de título del propio video. -->
+      <video id="demoVideo" controls playsinline preload="none"
+             poster="video/poster.jpg"
+             aria-label="Video demo de MV Project Management">
         <source src="video/demo.mp4" type="video/mp4">
       </video>
     </div>
@@ -390,7 +436,7 @@
       <a class="btn btn-primary" href="/downloads/MV_Project_Management.zip" download
          style="font-size:16px; padding:15px 32px;" data-i="dl_btn">⬇ Descargar MV Project Management</a>
       <p style="margin-top:14px; color:#4d5f78; font-size:13.5px;" data-i="dl_req">Descomprimí el ZIP y ejecutá el lanzador incluido — en Windows, doble clic; en Mac o Linux, <code>run.sh</code>. La primera vez prepara todo solo. Requiere Python 3.11+ (el lanzador lo verifica y te guía si falta).</p>
-      <p style="margin-top:16px; color:#4d5f78; font-size:13.5px;" data-i="dl_installer">🪟 <strong>¿Preferís un instalador de Windows?</strong> Elegís vos dónde instalarlo, con acceso directo en el <strong>escritorio</strong> (si lo elegís) y en el <strong>menú Inicio</strong> — sin depender de Python. <a href="/api/download-installer" style="text-decoration:underline; color:var(--amber2);">Descargar el instalador (.exe)</a>.</p>
+      <p style="margin-top:16px; color:#4d5f78; font-size:13.5px;" data-i="dl_installer">🪟 <strong>¿Preferís un instalador de Windows?</strong> Elegís vos dónde instalarlo, con acceso directo en el <strong>escritorio</strong> (si lo elegís) y en el <strong>menú Inicio</strong> — sin depender de Python. <a href="/api/download-installer" style="text-decoration:underline; color:var(--amber-on-light);">Descargar el instalador (.exe)</a>.</p>
     </div>
     <div class="grid-3" style="margin-top:30px;">
       <div class="card">
@@ -423,6 +469,7 @@
     </form>
   </div>
 </section>
+</main>
 
 <footer>
   <div class="wrap">
@@ -528,7 +575,7 @@ const I18N = {
     downloads_lead:"It runs 100% unlocked for 7 days from first use — every feature, no cuts. When it expires, you continue with your Professional license and keep everything you entered; nothing is deleted.",
     dl_btn:"⬇ Download MV Project Management",
     dl_req:"Unzip and run the included launcher — on Windows, double-click; on Mac or Linux, <code>run.sh</code>. It sets everything up the first time. Requires Python 3.11+ (the launcher checks and guides you if it's missing).",
-    dl_installer:"🪟 <strong>Prefer a Windows installer?</strong> You choose where to install it, with a shortcut on your <strong>desktop</strong> (if you choose) and in the <strong>Start menu</strong> — no Python needed. <a href=\"/api/download-installer\" style=\"text-decoration:underline; color:var(--amber2);\">Download the installer (.exe)</a>.",
+    dl_installer:"🪟 <strong>Prefer a Windows installer?</strong> You choose where to install it, with a shortcut on your <strong>desktop</strong> (if you choose) and in the <strong>Start menu</strong> — no Python needed. <a href=\"/api/download-installer\" style=\"text-decoration:underline; color:var(--amber-on-light);\">Download the installer (.exe)</a>.",
     dl1_t:"Full dashboard", dl1_d:"Portfolio, health, dependencies, backlog, copilot and reports — all in the browser, from minute one.",
     dl3_t:"API for your BI tool", dl3_d:"Includes the local API to connect Power BI, Tableau or Excel to the same data.",
     dl2_t:"Verifiable", dl2_d:"Ships with its test suite so you can check for yourself that the engine does exactly what we claim.",
@@ -589,7 +636,7 @@ const I18N = {
     downloads_lead:"Roda 100% desbloqueado por 7 dias desde o primeiro uso — todas as funções, sem cortes. Ao vencer, você continua com sua licença Professional e conserva tudo o que carregou; nada é apagado.",
     dl_btn:"⬇ Baixar MV Project Management",
     dl_req:"Descompacte e execute o lançador incluído — no Windows, duplo clique; no Mac ou Linux, <code>run.sh</code>. Ele prepara tudo na primeira vez. Requer Python 3.11+ (o lançador verifica e te orienta se faltar).",
-    dl_installer:"🪟 <strong>Prefere um instalador do Windows?</strong> Você escolhe onde instalar, com atalho na <strong>área de trabalho</strong> (se você quiser) e no <strong>menu Iniciar</strong> — sem depender de Python. <a href=\"/api/download-installer\" style=\"text-decoration:underline; color:var(--amber2);\">Baixar o instalador (.exe)</a>.",
+    dl_installer:"🪟 <strong>Prefere um instalador do Windows?</strong> Você escolhe onde instalar, com atalho na <strong>área de trabalho</strong> (se você quiser) e no <strong>menu Iniciar</strong> — sem depender de Python. <a href=\"/api/download-installer\" style=\"text-decoration:underline; color:var(--amber-on-light);\">Baixar o instalador (.exe)</a>.",
     dl1_t:"Dashboard completo", dl1_d:"Portfólio, saúde, dependências, backlog, copiloto e relatórios — tudo no navegador, desde o primeiro minuto.",
     dl3_t:"API para o seu BI", dl3_d:"Inclui a API local para conectar Power BI, Tableau ou Excel aos mesmos dados.",
     dl2_t:"Verificável", dl2_d:"Vem com sua suíte de testes para você comprovar que o motor faz exatamente o que dizemos.",
