@@ -45,10 +45,17 @@ def test_endpoints_publicos_no_exponen_datos_del_cliente(monkeypatch):
 
 
 @pytest.mark.parametrize("ruta", ENDPOINTS_CON_DATOS)
-def test_desde_la_misma_maquina_funciona_sin_clave(monkeypatch, ruta):
-    """El caso normal —Power BI y el dashboard en la misma PC— no se rompe."""
+def test_desde_la_misma_maquina_no_pide_credenciales(monkeypatch, ruta):
+    """El caso normal —Power BI y el dashboard en la misma PC— no se rompe.
+
+    Se afirma que el pedido NO lo frena la autorización (401/403), no que
+    devuelva 200: si la base está vacía o el nombre de tabla no existe, la
+    respuesta legítima puede ser 404, y eso no dice nada sobre el gate. Atar
+    este test al contenido de la base lo hacía fallar según qué datos hubiera
+    quedado de otros tests.
+    """
     _, client = _cliente(monkeypatch)
-    assert client.get(ruta).status_code == 200
+    assert client.get(ruta).status_code not in (401, 403)
 
 
 def test_desde_otra_maquina_sin_api_key_configurada_se_niega(monkeypatch):

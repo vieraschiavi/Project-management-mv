@@ -13,6 +13,7 @@ presupuestos, equipo), así que por defecto es de uso local:
   Avanzadas → encabezado).
 """
 
+import math
 import os
 import secrets
 import sys
@@ -86,6 +87,30 @@ def _tables():
     return exporters.portfolio_tables(db.projects(), db.tasks(), db.team())
 
 
+def _registros(df):
+    """DataFrame -> lista de dicts serializable a JSON.
+
+    NaN e infinito no son JSON válido: `json.dumps` los rechaza y el endpoint
+    respondía 500. Y no es un caso raro — un proyecto recién creado, sin
+    presupuesto cargado todavía, da ejecucion_pct = NaN (catalog.py lo deja
+    así a propósito, para no mostrar "inf%"). O sea que al primer proyecto que
+    cargaba el cliente se le caía la conexión de Power BI.
+
+    Se convierten a null, que es como se representa "sin dato" en JSON y lo
+    que las herramientas de BI esperan para una celda vacía.
+
+    Se recorre el resultado en vez de usar `df.where(notna, None)`: sobre una
+    columna float, pandas mantiene el dtype y vuelve a convertir ese None en
+    NaN, así que el reemplazo por DataFrame no sirve para este caso.
+    """
+    registros = df.to_dict("records")
+    for fila in registros:
+        for clave, valor in fila.items():
+            if isinstance(valor, float) and not math.isfinite(valor):
+                fila[clave] = None
+    return registros
+
+
 @app.get("/")
 def root():
     return {"app": "MV Project Management API", "status": "ok"}
@@ -104,7 +129,7 @@ def get_table(table: str, format: str = "json"):
     df = tables[table]
     if format == "csv":
         return JSONResponse(content=df.to_csv(index=False), media_type="text/csv")
-    return df.to_dict("records")
+    return _registros(df)
 
 
 @app.get("/api/demo/pharma", dependencies=[Depends(requiere_acceso)])
@@ -116,7 +141,7 @@ def demo_pharma_bi(format: str = "json"):
     df = demo_pharma.tabla_para_bi()
     if format == "csv":
         return JSONResponse(content=df.to_csv(index=False), media_type="text/csv")
-    return df.to_dict("records")
+    return _registros(df)
 
 
 @app.get("/api/reviews/summary", dependencies=[Depends(requiere_acceso)])
