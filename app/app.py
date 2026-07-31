@@ -810,7 +810,9 @@ elif section == T("nav_organigrama"):
             up = st.file_uploader("Subí una base SQLite (.db)", type=["db", "sqlite", "sqlite3"], key="org_db")
             tabla = st.text_input("Nombre de la tabla con el organigrama", value="empleados")
             if up is not None and tabla.strip():
-                import sqlite3 as _sqlite3, tempfile as _tmp, os as _os
+                import sqlite3 as _sqlite3
+                import tempfile as _tmp
+                import os as _os
                 _p = _os.path.join(_tmp.gettempdir(), "org_upload.db")
                 with open(_p, "wb") as _f:
                     _f.write(up.getbuffer())

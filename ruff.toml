@@ -1,0 +1,36 @@
+# Configuración de Ruff — linter del proyecto.
+#
+# Se usa un ruff.toml dedicado en vez de pyproject.toml a propósito: este repo
+# no se instala como paquete Python (se distribuye como .exe/ZIP, ver
+# packaging/), así que agregar un pyproject.toml sólo para el linter haría que
+# herramientas de build lo confundan con un paquete instalable.
+#
+# Reglas: el set por defecto de Ruff (E4/E7/E9 de pycodestyle + F de Pyflakes).
+# Es el que atrapa errores reales — imports sin usar, variables muertas,
+# nombres indefinidos, f-strings mal escritos — sin imponer un estilo de
+# formato que obligaría a reescribir el repo entero. E501 (línea larga) queda
+# fuera adrede: el código tiene comentarios explicativos largos que son
+# deliberados y no vale la pena romperlos.
+
+line-length = 100
+target-version = "py311"
+
+exclude = [
+    ".venv",
+    "build",
+    "dist",
+    "node_modules",
+    "__pycache__",
+    # Generado por Cython durante el build del instalador, no es código fuente.
+    "build/cython",
+]
+
+[lint]
+# Set por defecto explícito, para que no cambie si Ruff cambia sus defaults.
+select = ["E4", "E7", "E9", "F"]
+
+[lint.per-file-ignores]
+# Los .spec de PyInstaller no son módulos normales: PyInstaller inyecta
+# SPECPATH, Analysis, PYZ y EXE como globales en tiempo de ejecución, así que
+# Pyflakes los ve como nombres indefinidos. No se lintean.
+"packaging/*.spec" = ["F821"]

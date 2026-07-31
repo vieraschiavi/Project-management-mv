@@ -180,7 +180,6 @@ def scene_pharma(p: float) -> Image.Image:
     center_text(d, 40, "Dataset real de laboratorio → Power BI", font(32), INK)
     center_text(d, 86, "474 ensayos clínicos reales · ClinicalTrials.gov (NIH) · dominio público",
                 font(17, False), MUTED)
-    a = ease(p * 1.6)
     labs = [("AstraZeneca", 163), ("Novartis", 156), ("Pfizer", 155)]
     y = 150
     maxv = 170

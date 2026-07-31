@@ -1211,9 +1211,9 @@ def como_texto(clave: str) -> str:
     p = obtener(clave)
     lineas = [f"# Gobernanza de proyectos — {p.rubro}", "", p.resumen, "", "## Etapas"]
     for i, e in enumerate(p.etapas, 1):
-        lineas += [f"", f"### {i}. {e.nombre}", f"*{e.objetivo}*", "", "Entregables:"]
+        lineas += ["", f"### {i}. {e.nombre}", f"*{e.objetivo}*", "", "Entregables:"]
         lineas += [f"- {x}" for x in e.entregables]
-        lineas += [f"", f"**Puerta de salida:** {e.criterio_salida}",
+        lineas += ["", f"**Puerta de salida:** {e.criterio_salida}",
                    f"**Aprueba:** {e.aprueba}"]
     lineas += ["", "## Roles"] + [f"- **{r}**: {q}" for r, q in p.roles]
     lineas += ["", "## Riesgos típicos"]

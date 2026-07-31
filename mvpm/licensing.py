@@ -15,7 +15,6 @@ import hashlib
 import hmac
 import json
 import time
-from dataclasses import dataclass, field
 from pathlib import Path
 
 _STORE_DIR = Path.home() / ".mv_project_management"

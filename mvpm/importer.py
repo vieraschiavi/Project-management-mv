@@ -483,6 +483,113 @@ def _indice_por_nombre(df: pd.DataFrame, col_nombre: str, col_id: str) -> dict[s
             if normalizar(r[col_nombre])}
 
 
+@dataclass
+class _Ctx:
+    """Estado compartido por todas las filas de una misma validación.
+
+    Los índices se arman una sola vez (no por fila) y los sets de ambigüedad
+    se acumulan a lo largo del recorrido para emitir UN aviso por columna al
+    final, en vez de uno por celda — que es lo que hace legible el informe.
+    """
+    idx_proyectos: dict[str, int]
+    idx_usuarios: dict[str, int]
+    proyecto_default_id: int | None
+    numeros_ambiguos: set[str]
+    fechas_ambiguas: set[str]
+
+
+def _convertir_campo(campo: Campo, crudo, pos: int, rep: Reporte,
+                     ctx: _Ctx) -> tuple[dict, bool]:
+    """Convierte el valor crudo de UNA celda al valor que va a la base.
+
+    Devuelve `(updates, invalida_fila)`: lo que hay que volcar en la fila y si
+    el problema encontrado es lo bastante grave como para descartarla entera.
+    Los problemas se anexan a `rep` con su severidad ("error" o "aviso").
+    """
+    if campo.tipo == "texto":
+        return {campo.clave: str(crudo).strip()}, False
+
+    if campo.tipo == "numero":
+        r = parsear_numero(crudo)
+        if r.valor is None:
+            rep.problemas.append(Problema(
+                pos, campo.etiqueta, str(crudo), "no se entiende como número", "aviso"))
+            return {}, False
+        if r.ambiguo:
+            ctx.numeros_ambiguos.add(campo.etiqueta)
+        return {campo.clave: r.valor}, False
+
+    if campo.tipo == "fecha":
+        r = parsear_fecha(crudo)
+        if r.valor is None:
+            rep.problemas.append(Problema(
+                pos, campo.etiqueta, str(crudo), "no se entiende como fecha", "aviso"))
+            return {}, False
+        if r.ambiguo:
+            ctx.fechas_ambiguas.add(campo.etiqueta)
+        return {campo.clave: r.valor}, False
+
+    if campo.tipo == "estado":
+        v = normalizar_estado(crudo)
+        if v is None:
+            rep.problemas.append(Problema(
+                pos, campo.etiqueta, str(crudo),
+                "estado no reconocido, queda como pendiente", "aviso"))
+            return {}, False
+        return {campo.clave: v}, False
+
+    if campo.tipo == "nivel":
+        v = normalizar_nivel(crudo)
+        if v is None:
+            rep.problemas.append(Problema(
+                pos, campo.etiqueta, str(crudo),
+                "nivel no reconocido, queda como Media", "aviso"))
+            return {}, False
+        return {campo.clave: v}, False
+
+    if campo.tipo == "proyecto":
+        pid = ctx.idx_proyectos.get(normalizar(crudo))
+        if pid is not None:
+            return {"proyecto_id": pid}, False
+        if ctx.proyecto_default_id is None:
+            rep.problemas.append(Problema(
+                pos, campo.etiqueta, str(crudo),
+                "no existe un proyecto con ese nombre", "error"))
+            return {}, True
+        rep.problemas.append(Problema(
+            pos, campo.etiqueta, str(crudo),
+            "no existe ese proyecto, va al proyecto por defecto", "aviso"))
+        return {"proyecto_id": ctx.proyecto_default_id}, False
+
+    if campo.tipo == "persona":
+        uid = ctx.idx_usuarios.get(normalizar(crudo))
+        if uid is None:
+            rep.problemas.append(Problema(
+                pos, campo.etiqueta, str(crudo),
+                "no hay un usuario con ese nombre o email, queda sin asignar", "aviso"))
+            return {}, False
+        return {"responsable_id": uid}, False
+
+    return {}, False
+
+
+def _avisos_de_columna(rep: Reporte, ctx: _Ctx, niveles_numericos: list[str]) -> None:
+    """Agrega los avisos que aplican a una columna entera, no a una celda."""
+    for etiqueta in sorted(ctx.numeros_ambiguos):
+        rep.avisos_columna.append(
+            f"«{etiqueta}»: se interpretó el punto como separador de miles "
+            f"(1.500 = mil quinientos). Si en tu archivo es decimal, corregilo antes de importar.")
+    for etiqueta in sorted(ctx.fechas_ambiguas):
+        rep.avisos_columna.append(
+            f"«{etiqueta}»: hay fechas donde día y mes son ambos ≤ 12 (ej. 03/04). "
+            f"Se leyeron como día/mes.")
+    for etiqueta in niveles_numericos:
+        rep.avisos_columna.append(
+            f"«{etiqueta}»: la columna viene con números. Se leyó 1 = Alta, 2 = Media, "
+            f"3 = Baja. Si en tu escala 3 es lo más grave, está al revés — conviene "
+            f"reemplazar los números por Alta/Media/Baja antes de importar.")
+
+
 def validar(df: pd.DataFrame, tipo: str, mapeo: dict[str, str], *,
             proyectos: pd.DataFrame | None = None,
             usuarios: pd.DataFrame | None = None,
@@ -519,8 +626,9 @@ def validar(df: pd.DataFrame, tipo: str, mapeo: dict[str, str], *,
                          if c in mapeo and columna_es_numerica(df[mapeo[c]])]
 
     vistas: set[str] = set()
-    numeros_ambiguos: set[str] = set()
-    fechas_ambiguas: set[str] = set()
+    ctx = _Ctx(idx_proyectos=idx_proyectos, idx_usuarios=idx_usuarios,
+               proyecto_default_id=proyecto_default_id,
+               numeros_ambiguos=set(), fechas_ambiguas=set())
 
     for pos, (_, row) in enumerate(df.iterrows(), start=1):
         fila: dict = {}
@@ -538,71 +646,10 @@ def validar(df: pd.DataFrame, tipo: str, mapeo: dict[str, str], *,
                     errores_fila = True
                 continue
 
-            if campo.tipo == "texto":
-                fila[clave] = str(crudo).strip()
-
-            elif campo.tipo == "numero":
-                r = parsear_numero(crudo)
-                if r.valor is None:
-                    rep.problemas.append(Problema(
-                        pos, campo.etiqueta, str(crudo), "no se entiende como número", "aviso"))
-                else:
-                    fila[clave] = r.valor
-                    if r.ambiguo:
-                        numeros_ambiguos.add(campo.etiqueta)
-
-            elif campo.tipo == "fecha":
-                r = parsear_fecha(crudo)
-                if r.valor is None:
-                    rep.problemas.append(Problema(
-                        pos, campo.etiqueta, str(crudo), "no se entiende como fecha", "aviso"))
-                else:
-                    fila[clave] = r.valor
-                    if r.ambiguo:
-                        fechas_ambiguas.add(campo.etiqueta)
-
-            elif campo.tipo == "estado":
-                v = normalizar_estado(crudo)
-                if v is None:
-                    rep.problemas.append(Problema(
-                        pos, campo.etiqueta, str(crudo),
-                        "estado no reconocido, queda como pendiente", "aviso"))
-                else:
-                    fila[clave] = v
-
-            elif campo.tipo == "nivel":
-                v = normalizar_nivel(crudo)
-                if v is None:
-                    rep.problemas.append(Problema(
-                        pos, campo.etiqueta, str(crudo),
-                        "nivel no reconocido, queda como Media", "aviso"))
-                else:
-                    fila[clave] = v
-
-            elif campo.tipo == "proyecto":
-                pid = idx_proyectos.get(normalizar(crudo))
-                if pid is None:
-                    if proyecto_default_id is None:
-                        rep.problemas.append(Problema(
-                            pos, campo.etiqueta, str(crudo),
-                            "no existe un proyecto con ese nombre", "error"))
-                        errores_fila = True
-                    else:
-                        rep.problemas.append(Problema(
-                            pos, campo.etiqueta, str(crudo),
-                            "no existe ese proyecto, va al proyecto por defecto", "aviso"))
-                        fila["proyecto_id"] = proyecto_default_id
-                else:
-                    fila["proyecto_id"] = pid
-
-            elif campo.tipo == "persona":
-                uid = idx_usuarios.get(normalizar(crudo))
-                if uid is None:
-                    rep.problemas.append(Problema(
-                        pos, campo.etiqueta, str(crudo),
-                        "no hay un usuario con ese nombre o email, queda sin asignar", "aviso"))
-                else:
-                    fila["responsable_id"] = uid
+            updates, invalida = _convertir_campo(campo, crudo, pos, rep, ctx)
+            fila.update(updates)
+            if invalida:
+                errores_fila = True
 
         if errores_fila:
             continue
@@ -629,19 +676,7 @@ def validar(df: pd.DataFrame, tipo: str, mapeo: dict[str, str], *,
         fila["_fila_origen"] = pos
         rep.filas.append(fila)
 
-    for etiqueta in sorted(numeros_ambiguos):
-        rep.avisos_columna.append(
-            f"«{etiqueta}»: se interpretó el punto como separador de miles "
-            f"(1.500 = mil quinientos). Si en tu archivo es decimal, corregilo antes de importar.")
-    for etiqueta in sorted(fechas_ambiguas):
-        rep.avisos_columna.append(
-            f"«{etiqueta}»: hay fechas donde día y mes son ambos ≤ 12 (ej. 03/04). "
-            f"Se leyeron como día/mes.")
-    for etiqueta in niveles_numericos:
-        rep.avisos_columna.append(
-            f"«{etiqueta}»: la columna viene con números. Se leyó 1 = Alta, 2 = Media, "
-            f"3 = Baja. Si en tu escala 3 es lo más grave, está al revés — conviene "
-            f"reemplazar los números por Alta/Media/Baja antes de importar.")
+    _avisos_de_columna(rep, ctx, niveles_numericos)
     return rep
 
 
