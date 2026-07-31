@@ -25,28 +25,21 @@
 let checkBotId = null;
 try { ({ checkBotId } = require("botid/server")); } catch (_) { /* opcional */ }
 
-// La cuenta de cobro (collector) de MercadoPago es de Uruguay (site MLU), que
-// SOLO acepta UYU: mandar "USD" hace que la API rechace la operación. Los
-// precios se muestran de referencia en USD pero se cobran en pesos uruguayos
-// al tipo de cambio del día — por eso acá se convierte antes de cobrar.
-const CURRENCY = process.env.MP_CURRENCY || "UYU";
-const TASA_UYU = Number(process.env.MP_TASA_UYU) || 40; // US$1 ≈ $U 40 (referencia)
+// El catálogo de planes, la moneda y la tasa viven en ./_planes.js, compartido
+// con verify-payment.js: quien COBRA y quien EMITE la licencia tienen que
+// estar mirando exactamente los mismos precios, o se abre un hueco entre los
+// dos (pagar un plan y reclamar otro).
+const { CURRENCY, TASA_UYU, PLANS } = require("./_planes");
 
-const PLANS = {
-  professional: {
-    title: "MV Project Management · Professional",
-    priceUsd: 9.0,
-    recurring: true,          // suscripción mensual automática
-  },
-  professional_anual: {
-    title: "MV Project Management · Professional (12 meses)",
-    priceUsd: 90.0,           // 12 meses al precio de 10: 2 meses bonificados
-    recurring: false,         // pago único
-  },
-};
+const { limitar } = require("./_ratelimit");
 
 module.exports = async (req, res) => {
   if (req.method !== "POST") { res.status(405).json({ error: "method" }); return; }
+
+  // Complementa a BotID (que es opcional y puede no estar configurado): crear
+  // preferencias de pago contra MercadoPago en bucle es caro y ensucia la
+  // cuenta. 10/min por IP no molesta a nadie que esté comprando de verdad.
+  if (limitar(req, res, "checkout", { max: 10, ventanaMs: 60_000 })) return;
 
   if (checkBotId) {
     try {
