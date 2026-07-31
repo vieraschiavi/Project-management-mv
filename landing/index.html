@@ -656,6 +656,12 @@ function setLang(lang){
   const dict = I18N[lang];
   if(!dict) return;
   document.querySelectorAll('[data-i]').forEach(el => {
+    // innerHTML deliberado y seguro: `dict` es I18N, un objeto literal
+    // definido más arriba en ESTE mismo archivo. Son cadenas nuestras, con
+    // <strong>/<a> propios que tienen que renderizar como HTML. No entra
+    // nada del usuario, ni de una API, ni de la base — si alguna vez estas
+    // traducciones pasan a venir de afuera, hay que cambiarlo por
+    // textContent o sanitizar antes.
     const key = el.getAttribute('data-i');
     if(dict[key]) el.innerHTML = dict[key];
   });
@@ -726,6 +732,9 @@ function setLang(lang){
         return;
       }
       title.textContent = '¡Pago aprobado! Ya tenés tu licencia Professional';
+      // innerHTML con una cadena literal escrita acá (sólo un <a> nuestro),
+      // sin interpolar nada. El token que SÍ viene de la API se asigna abajo
+      // con textContent justamente para que no se interprete como HTML.
       msg.innerHTML = 'Pegá este token en el campo "Token de licencia" de la barra lateral del programa (sección <a href="#descargas" style="text-decoration:underline;">Empezar ahora</a> más abajo si todavía no lo descargaste):';
       tokenSpan.textContent = body.license_token;
       tokenBox.style.display = 'flex';
