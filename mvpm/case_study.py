@@ -29,7 +29,6 @@ def narrar_caso(projects: pd.DataFrame | None = None, tasks: pd.DataFrame | None
 
     pid = _elegir_proyecto(proj_df, task_df, team_df, proyecto_id)
     p = proj_df[proj_df["proyecto_id"] == pid].iloc[0]
-    pt = task_df[task_df["proyecto_id"] == pid]
 
     cat = catalog.catalog(proj_df)
     c = cat[cat["proyecto_id"] == pid].iloc[0]

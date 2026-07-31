@@ -1,0 +1,37 @@
+name: Tests
+
+# Corre en CADA push y en cada pull request. Si los tests o el linter fallan,
+# el job falla y el PR queda en rojo — no hay forma de mergear algo roto sin
+# verlo. Los otros workflows del repo compilan instaladores (Windows/Electron)
+# y sólo corren en tags o a mano; este es el único que actúa como red de
+# seguridad en cada cambio, así que corre en Linux, que es rápido y barato.
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      # Se instalan las dos listas por separado a propósito: si algún día una
+      # dependencia de runtime se cuela sólo en requirements-dev.txt, el paso
+      # de tests de abajo la va a encontrar igual, pero el build del instalador
+      # (que sólo instala requirements.txt) rompería. Mantenerlas separadas
+      # hace visible esa diferencia.
+      - name: Instalar dependencias
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt -r requirements-dev.txt
+
+      - name: Linter (ruff)
+        run: ruff check .
+
+      - name: Tests (pytest)
+        run: pytest tests/ -q

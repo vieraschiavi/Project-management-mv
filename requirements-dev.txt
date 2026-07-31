@@ -1,0 +1,13 @@
+# Dependencias de desarrollo: linter y herramientas de build que NO hacen falta
+# para correr el producto. Las de runtime (incluido pytest, que se usa para
+# verificar una instalación) viven en requirements.txt.
+#
+# Uso:  pip install -r requirements.txt -r requirements-dev.txt
+
+# Linter del proyecto — configuración en ruff.toml.
+ruff>=0.15
+
+# Compilación de mvpm/ a binario nativo para los instaladores
+# (packaging/setup_cython.py). Sólo se usa en los workflows de build.
+Cython>=3.0
+setuptools>=68
