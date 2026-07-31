@@ -245,6 +245,32 @@ automáticamente.
 - [ ] Integraciones (Slack, Google Calendar, GitHub/Jira issues)
 - [ ] Reseñas verificadas de clientes piloto reales
 
+## Al desplegar con dominio propio
+
+Las etiquetas Open Graph de `landing/index.html` llevan la URL **absoluta** del
+sitio: los scrapers de WhatsApp, LinkedIn y X no resuelven rutas relativas, así
+que con una ruta relativa la tarjeta al compartir sale sin imagen.
+
+Hoy apuntan a `https://mv-project-management.vercel.app`. Si se compra un
+dominio propio, hay que cambiarlo en estas 4 etiquetas del `<head>`:
+
+| Etiqueta | Qué es |
+|---|---|
+| `<link rel="canonical">` | URL preferida de la página |
+| `og:url` | la que muestran las redes al compartir |
+| `og:image` + `og:image:secure_url` | la tarjeta (1200×630) |
+| `twitter:image` | la misma tarjeta para X |
+
+Para comprobar que quedó bien, después de desplegar:
+
+```bash
+curl -sI https://TU-DOMINIO/og-image.jpg | head -1   # tiene que dar 200, no 404
+```
+
+y pegar la URL del sitio en el
+[validador de LinkedIn](https://www.linkedin.com/post-inspector/) o el de
+Facebook, que además fuerzan a que refresquen su caché.
+
 ## Licencia
 
 Software propietario — ver [`LICENSE.txt`](LICENSE.txt). El instalador de

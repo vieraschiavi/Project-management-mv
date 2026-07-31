@@ -68,8 +68,11 @@
 
   /* nav */
   nav{position:sticky; top:0; z-index:20; background:rgba(8,21,39,.82); backdrop-filter:blur(10px); border-bottom:1px solid rgba(255,255,255,.07);}
-  nav .wrap{display:flex; align-items:center; justify-content:space-between; padding:14px 24px;}
-  .brand{display:flex; align-items:center; gap:10px; font-weight:700; font-size:15.5px;}
+  /* gap además de space-between: con un ítem más en el menú, a 1280px el
+     bloque de links crecía hasta pegarse al nombre de la marca. El gap
+     garantiza aire aunque el menú siga creciendo. */
+  nav .wrap{display:flex; align-items:center; justify-content:space-between; padding:14px 24px; gap:28px;}
+  .brand{display:flex; align-items:center; gap:10px; font-weight:700; font-size:15.5px; white-space:nowrap;}
   .brand .mark{width:28px; height:28px; border-radius:8px; background:var(--amber); color:#1a1305; display:flex; align-items:center; justify-content:center; font-weight:800;}
   .nav-links{display:flex; gap:22px; align-items:center;}
   /* :not(.btn) es necesario: sin él, este selector (0,1,1) le gana por
@@ -90,6 +93,15 @@
   h1.h1 em{font-style:normal; color:var(--amber);}
   .lead{margin-top:16px; font-size:17px; color:var(--muted); max-width:52ch;}
   .hero-ctas{display:flex; gap:12px; margin-top:26px; flex-wrap:wrap;}
+  .hero-nota{margin-top:14px; font-size:13.5px; color:var(--muted); max-width:56ch; line-height:1.55;}
+  .hero-nota strong{color:var(--ink);}
+  .mock-fuente{margin-top:14px; font-size:11.5px; color:var(--faint); line-height:1.5;}
+  .pbi-cierre{margin-top:34px; background:var(--tint); border:1px solid #e4e9f2; border-radius:16px; padding:26px 28px;}
+  .pbi-cierre h3{font-size:17px; margin-bottom:14px;}
+  .pbi-lista{list-style:none; display:grid; gap:12px; margin-bottom:18px;}
+  .pbi-lista li{padding-left:22px; position:relative; font-size:14.5px; line-height:1.6;}
+  .pbi-lista li::before{content:"→"; position:absolute; left:0; color:var(--amber-on-light); font-weight:700;}
+  .pbi-nota{font-size:13.5px; color:#4d5f78; margin-bottom:18px; line-height:1.6; max-width:70ch;}
   .hero-stats{display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-top:32px;}
   .hero-stats .s{background:rgba(255,255,255,.04); border:1px solid rgba(255,255,255,.08); border-radius:12px; padding:12px 14px;}
   .hero-stats .s b{display:block; font-family:ui-monospace,monospace; font-size:19px; color:var(--amber);}
@@ -223,7 +235,8 @@
       <a href="#plataforma" data-i="nav_platform">Plataforma</a>
       <a href="#metodo" data-i="nav_method">Gobernanza</a>
       <a href="#diferenciales" data-i="nav_compare">Diferenciales</a>
-      <a href="#precios" data-i="nav_pricing">Precios</a>
+      <a href="#powerbi" data-i="nav_powerbi">Power BI</a>
+        <a href="#precios" data-i="nav_pricing">Precios</a>
       <a href="#resenas" data-i="nav_reviews">Reseñas</a>
       <a href="#faq" data-i="nav_faq">FAQ</a>
       <select id="langSel" aria-label="Idioma del sitio / Site language / Idioma do site" onchange="setLang(this.value)">
@@ -245,9 +258,10 @@
       <h1 class="h1" data-i="hero_h1">Tu portafolio de proyectos, con <em>salud medible</em> en vez de reuniones de estado.</h1>
       <p class="lead" data-i="hero_lead">MV Project Management prioriza tu backlog por valor esperado, detecta bloqueos antes de que exploten y arma el reporte ejecutivo solo — con un copiloto de IA que nunca inventa un número que el motor no calculó primero.</p>
       <div class="hero-ctas">
-        <a class="btn btn-primary" href="#descargas" data-i="cta_primary">Probar gratis</a>
+        <a class="btn btn-primary" href="#descargas" data-i="cta_primary">Probar con datos reales</a>
         <a class="btn btn-ghost" href="#plataforma" data-i="cta_secondary">Ver la plataforma</a>
       </div>
+      <p class="hero-nota" data-i="hero_nota">Al abrirlo elegís <strong>«Probar con datos reales»</strong> y ya estás mirando los <strong>132 proyectos del portafolio del gobierno británico</strong> — o subís tu propio Excel. Sin crear cuenta y sin tarjeta.</p>
       <div class="hero-stats">
         <div class="s"><b>6</b><span data-i="stat_dims">dimensiones de salud</span></div>
         <div class="s"><b>3</b><span data-i="stat_langs">idiomas</span></div>
@@ -255,20 +269,26 @@
         <div class="s"><b>0</b><span data-i="stat_free">costo para empezar</span></div>
       </div>
     </div>
+    <!-- Estos números NO son de adorno: salen de correr el motor sobre el
+         Government Major Projects Portfolio 2021-22 (IPA / Cabinet Office,
+         dominio público). Son los mismos que ve cualquiera que abra el
+         producto y elija "Probar con datos reales". Si el dataset se
+         actualiza, hay que actualizarlos acá. -->
     <div class="mock">
       <div class="mock-head">
-        <span class="title" data-i="mock_title">Portafolio — demo en vivo</span>
-        <span class="mock-badge">● live</span>
+        <span class="title" data-i="mock_title">Portafolio real del gobierno británico</span>
+        <span class="mock-badge">● datos públicos</span>
       </div>
       <div class="mock-kpis">
-        <div class="k"><b style="color:var(--amber)">20</b><span data-i="mock_k1">proyectos</span></div>
-        <div class="k"><b style="color:#3be0b8">76.8</b><span data-i="mock_k2">índice salud</span></div>
-        <div class="k"><b style="color:#ff8b8b">1</b><span data-i="mock_k3">en riesgo</span></div>
+        <div class="k"><b style="color:var(--amber)">132</b><span data-i="mock_k1">proyectos reales</span></div>
+        <div class="k"><b style="color:#3be0b8">89.4</b><span data-i="mock_k2">índice salud</span></div>
+        <div class="k"><b style="color:#ff8b8b">21</b><span data-i="mock_k3">sobre presupuesto</span></div>
       </div>
-      <div class="mock-row"><span data-i="mock_r1">Migración de facturación</span><div class="bar"><i style="width:88%"></i></div></div>
-      <div class="mock-row warn"><span data-i="mock_r2">Expansión Paraguay</span><div class="bar"><i style="width:64%"></i></div></div>
-      <div class="mock-row risk"><span data-i="mock_r3">Migración de CRM</span><div class="bar"><i style="width:41%"></i></div></div>
-      <div class="mock-row"><span data-i="mock_r4">22 de 211 tareas bloqueadas</span><div class="bar"><i style="width:10%"></i></div></div>
+      <div class="mock-row risk"><span data-i="mock_r1">Chinook Capability Sustainment</span><div class="bar"><i style="width:100%"></i></div></div>
+      <div class="mock-row risk"><span data-i="mock_r2">Integrated Single Financial Env.</span><div class="bar"><i style="width:95%"></i></div></div>
+      <div class="mock-row warn"><span data-i="mock_r3">Universal Credit Programme</span><div class="bar"><i style="width:72%"></i></div></div>
+      <div class="mock-row"><span data-i="mock_r4">£39.484 M de presupuesto analizado</span><div class="bar"><i style="width:92%"></i></div></div>
+      <p class="mock-fuente" data-i="mock_fuente">Fuente: IPA / Cabinet Office — Annual Report on Major Projects 2021-22. Dominio público.</p>
     </div>
   </div>
 </header>
@@ -373,6 +393,50 @@
       <div class="card"><div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M15 9.3c0-1.4-1.3-2.4-3-2.4s-3 1-3 2.3c0 3.2 6 1.6 6 4.7 0 1.4-1.3 2.4-3 2.4s-3-1-3-2.4M12 5.3v1.4M12 17v1.4"/></svg></div><h3 data-i="diff4_t">Precio pensado para equipos chicos</h3><p data-i="diff4_d">Sin mínimos de asientos ni escalones agresivos por sumar una persona más.</p></div>
       <div class="card"><div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 5 6v5c0 4.5 3 7.7 7 9 4-1.3 7-4.5 7-9V6l-7-3Z"/><path d="m9 12 2 2 4-4"/></svg></div><h3 data-i="diff5_t">Tus datos en tu servidor</h3><p data-i="diff5_d">No es obligatorio mandar todo a la nube de un tercero para usarlo.</p></div>
       <div class="card"><div class="ico"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M13 2 4 14h6l-1 8 9-12h-6l1-8Z"/></svg></div><h3 data-i="diff6_t">Sin semanas de configuración</h3><p data-i="diff6_d">Resultados el día 1, con datos propios o con la demo.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- Sección para consultores de Power BI. El perfil está definido en
+     comercial/socios-de-canal.md como el socio de canal más fácil de cerrar:
+     ya le venden tableros a empresas y el dato de proyectos hoy lo piden a
+     mano. Los detalles técnicos de acá son reales, no promesas: la API y el
+     .pbids existen (api/main.py, distribucion/powerbi/). -->
+<section id="powerbi" class="light">
+  <div class="wrap">
+    <div class="sec-head">
+      <span class="eyebrow" data-i="pbi_eyebrow">Para consultores de Power BI</span>
+      <h2 class="h2" data-i="pbi_h2">El dato de proyectos, sin pedirlo por mail todos los meses.</h2>
+      <p class="sec-sub" data-i="pbi_sub">Si armás tableros para empresas, el cuello de botella no es el tablero: es que alguien te pase el Excel actualizado. Acá la fuente se alimenta sola.</p>
+    </div>
+
+    <div class="grid-3">
+      <div class="card">
+        <div class="ico">🔌</div>
+        <h3 data-i="pbi_c1_t">Conector de un clic</h3>
+        <p data-i="pbi_c1_p">Un archivo <code>.pbids</code>: doble clic y Power BI queda apuntado a la API. Sin ODBC, sin driver, sin scripts de carga.</p>
+      </div>
+      <div class="card">
+        <div class="ico">🔄</div>
+        <h3 data-i="pbi_c2_t">Seis tablas listas</h3>
+        <p data-i="pbi_c2_p">proyectos, tareas, equipo, salud, backlog priorizado y políticas. Ya modeladas — el índice de salud llega calculado, no lo tenés que armar en DAX.</p>
+      </div>
+      <div class="card">
+        <div class="ico">🏠</div>
+        <h3 data-i="pbi_c3_t">Corre en el server del cliente</h3>
+        <p data-i="pbi_c3_p">La API es local (<code>127.0.0.1:8600</code>). Los datos del cliente no salen de su red, que es lo que te van a preguntar en la primera reunión.</p>
+      </div>
+    </div>
+
+    <div class="pbi-cierre">
+      <h3 data-i="pbi_gana_t">Qué ganás vos</h3>
+      <ul class="pbi-lista">
+        <li data-i="pbi_gana_1"><strong>Un tablero que no se cae.</strong> Se actualiza solo contra la API en vez de contra el Excel que alguien movió de carpeta.</li>
+        <li data-i="pbi_gana_2"><strong>Más horas facturables, no menos.</strong> El dato deja de ser el problema y podés vender el análisis, que es lo que sabés hacer.</li>
+        <li data-i="pbi_gana_3"><strong>Comisión por cliente referido.</strong> Vos ponés la relación; la implementación y el soporte los hacemos nosotros.</li>
+      </ul>
+      <p class="pbi-nota" data-i="pbi_nota">Estamos armando el canal ahora: buscamos 2 o 3 consultores para los primeros clientes en conjunto. Se puede probar todo antes de recomendar nada — se descarga y funciona sin cuenta.</p>
+      <a class="btn btn-primary" href="#contacto" data-i="pbi_cta">Hablemos del canal</a>
     </div>
   </div>
 </section>
@@ -534,6 +598,24 @@ function enviarContacto(e){
 
 const I18N = {
   en: {
+    hero_nota:"When you open it you pick <strong>\"Try it with real data\"</strong> and you are already looking at the <strong>132 projects of the UK government portfolio</strong> — or you upload your own spreadsheet. No account, no card.",
+    mock_fuente:"Source: IPA / Cabinet Office — Annual Report on Major Projects 2021-22. Public domain.",
+    nav_powerbi:"Power BI",
+    pbi_eyebrow:"For Power BI consultants",
+    pbi_h2:"Project data, without chasing it by email every month.",
+    pbi_sub:"If you build dashboards for companies, the bottleneck is not the dashboard: it is getting someone to send you the updated spreadsheet. Here the source feeds itself.",
+    pbi_c1_t:"One-click connector",
+    pbi_c1_p:"A <code>.pbids</code> file: double-click and Power BI is pointed at the API. No ODBC, no driver, no load scripts.",
+    pbi_c2_t:"Six tables, ready",
+    pbi_c2_p:"projects, tasks, team, health, prioritised backlog and policies. Already modelled — the health index arrives calculated, you do not have to build it in DAX.",
+    pbi_c3_t:"Runs on the client's server",
+    pbi_c3_p:"The API is local (<code>127.0.0.1:8600</code>). The client's data never leaves their network, which is what they will ask you in the first meeting.",
+    pbi_gana_t:"What you get",
+    pbi_gana_1:"<strong>A dashboard that does not break.</strong> It refreshes against the API instead of against the spreadsheet somebody moved to another folder.",
+    pbi_gana_2:"<strong>More billable hours, not fewer.</strong> Data stops being the problem and you get to sell the analysis, which is what you are good at.",
+    pbi_gana_3:"<strong>Commission per referred client.</strong> You bring the relationship; we handle the rollout and the support.",
+    pbi_nota:"We are building the channel right now: we are looking for 2 or 3 consultants for the first joint clients. You can try everything before recommending anything — it downloads and runs with no account.",
+    pbi_cta:"Let's talk about the channel",
     nav_platform:"Platform", nav_method:"Governance", nav_compare:"Why us", nav_pricing:"Pricing", nav_reviews:"Reviews", nav_faq:"FAQ", nav_cta:"Try it free",
     method_kicker:"New · Governance & method", method_h2:"AI proposes, the owner validates, and every version is saved",
     method_lead:"Every manual field — definitions, owners, method notes — shows up AI-recommended and gets validated or corrected with the data owner/steward. Nothing is overwritten: the full history is kept per company (who recommended it, who validated it, name, role and date).",
@@ -543,12 +625,12 @@ const I18N = {
     m4_t:"PMBOK: technical & plain-spoken", m4_d:"The 10 knowledge areas and 5 process groups, each with its technical definition and a plain-language explanation. Every stage can be annotated by hand and saved.",
     hero_kicker:"100% Web + PC · ES/EN/PT · additive AI", hero_h1:"Your project portfolio, with <em>measurable health</em> instead of status meetings.",
     hero_lead:"MV Project Management prioritizes your backlog by expected value, catches blockers before they explode, and writes the executive report on its own — with an AI copilot that never invents a number the engine didn't calculate first.",
-    cta_primary:"Try it free", cta_secondary:"See the platform",
+    cta_primary:"Try it with real data", cta_secondary:"See the platform",
     stat_dims:"health dimensions", stat_langs:"languages", stat_local:"data on your server", stat_free:"cost to start",
     video_kicker:"A 90-second tour", video_h2:"The product end to end, scene by scene, with voice-over",
     video_caption:"Portfolio & health → real pharma dataset to Power BI → governance (AI proposes, the owner validates, everything versioned) → org chart → PMBOK in plain language → 7-day full trial. An animated product tour, with voice-over.",
-    mock_title:"Portfolio — live demo", mock_k1:"projects", mock_k2:"health index", mock_k3:"at risk",
-    mock_r1:"Billing migration", mock_r2:"Paraguay expansion", mock_r3:"CRM migration", mock_r4:"22 of 211 tasks blocked",
+    mock_title:"UK government's real portfolio", mock_k1:"real projects", mock_k2:"health index", mock_k3:"over budget",
+    mock_r1:"Chinook Capability Sustainment", mock_r2:"Integrated Single Financial Env.", mock_r3:"Universal Credit Programme", mock_r4:"£39,484M of budget analysed",
     platform_kicker:"Platform", platform_h2:"Everything you need to govern a portfolio, not just Kanban boards",
     platform_lead:"A rules engine that works without depending on any LLM, with an AI copilot added as an optional layer.",
     f1_t:"Portfolio catalog", f1_d:"Owner, sponsor, criticality and budget for every project in one place.",
@@ -595,6 +677,24 @@ const I18N = {
     footer_tag:"Built with the same DNA as MV Kobra AI and MV Data Governance",
   },
   pt: {
+    hero_nota:"Ao abrir você escolhe <strong>\"Testar com dados reais\"</strong> e já está olhando os <strong>132 projetos do portfólio do governo britânico</strong> — ou sobe sua própria planilha. Sem criar conta e sem cartão.",
+    mock_fuente:"Fonte: IPA / Cabinet Office — Annual Report on Major Projects 2021-22. Domínio público.",
+    nav_powerbi:"Power BI",
+    pbi_eyebrow:"Para consultores de Power BI",
+    pbi_h2:"O dado de projetos, sem pedir por e-mail todo mês.",
+    pbi_sub:"Se você monta painéis para empresas, o gargalo não é o painel: é alguém te mandar a planilha atualizada. Aqui a fonte se alimenta sozinha.",
+    pbi_c1_t:"Conector de um clique",
+    pbi_c1_p:"Um arquivo <code>.pbids</code>: clique duplo e o Power BI fica apontado para a API. Sem ODBC, sem driver, sem scripts de carga.",
+    pbi_c2_t:"Seis tabelas prontas",
+    pbi_c2_p:"projetos, tarefas, equipe, saúde, backlog priorizado e políticas. Já modeladas — o índice de saúde chega calculado, você não precisa montá-lo em DAX.",
+    pbi_c3_t:"Roda no servidor do cliente",
+    pbi_c3_p:"A API é local (<code>127.0.0.1:8600</code>). Os dados do cliente não saem da rede dele, que é o que vão te perguntar na primeira reunião.",
+    pbi_gana_t:"O que você ganha",
+    pbi_gana_1:"<strong>Um painel que não cai.</strong> Atualiza sozinho contra a API em vez da planilha que alguém mudou de pasta.",
+    pbi_gana_2:"<strong>Mais horas faturáveis, não menos.</strong> O dado deixa de ser o problema e você vende a análise, que é o que sabe fazer.",
+    pbi_gana_3:"<strong>Comissão por cliente indicado.</strong> Você põe a relação; a implementação e o suporte são nossos.",
+    pbi_nota:"Estamos montando o canal agora: buscamos 2 ou 3 consultores para os primeiros clientes em conjunto. Dá para testar tudo antes de indicar qualquer coisa — baixa e funciona sem conta.",
+    pbi_cta:"Vamos falar do canal",
     nav_platform:"Plataforma", nav_method:"Governança", nav_compare:"Diferenciais", nav_pricing:"Preços", nav_reviews:"Avaliações", nav_faq:"Perguntas", nav_cta:"Testar grátis",
     method_kicker:"Novo · Governança e método", method_h2:"A IA propõe, o responsável valida, e cada versão fica salva",
     method_lead:"Todo dado manual — definições, responsáveis, notas de método — aparece recomendado por IA e é validado ou corrigido com o data owner/steward. Nada é sobrescrito: fica o histórico completo por empresa (quem recomendou, quem validou, nome, cargo e data).",
@@ -604,12 +704,12 @@ const I18N = {
     m4_t:"PMBOK técnico e \"no popular\"", m4_d:"As 10 áreas de conhecimento e os 5 grupos de processo, com sua definição técnica e sua explicação simples. Cada etapa pode ser anotada à mão e salva.",
     hero_kicker:"100% Web + PC · ES/EN/PT · IA aditiva", hero_h1:"Seu portfólio de projetos, com <em>saúde mensurável</em> em vez de reuniões de status.",
     hero_lead:"MV Project Management prioriza seu backlog por valor esperado, detecta bloqueios antes que explodam e gera o relatório executivo sozinho — com um copiloto de IA que nunca inventa um número que o motor não calculou antes.",
-    cta_primary:"Testar grátis", cta_secondary:"Ver a plataforma",
+    cta_primary:"Testar com dados reais", cta_secondary:"Ver a plataforma",
     stat_dims:"dimensões de saúde", stat_langs:"idiomas", stat_local:"dados no seu servidor", stat_free:"custo para começar",
     video_kicker:"Um tour em 90 segundos", video_h2:"O produto de ponta a ponta, cena a cena, com narração",
     video_caption:"Portfólio e saúde → dataset pharma real até o Power BI → governança (a IA propõe, o responsável valida, tudo versionado) → organograma → PMBOK em linguagem simples → teste completo de 7 dias. Um tour animado do produto, com narração.",
-    mock_title:"Portfólio — demo ao vivo", mock_k1:"projetos", mock_k2:"índice de saúde", mock_k3:"em risco",
-    mock_r1:"Migração de faturamento", mock_r2:"Expansão Paraguai", mock_r3:"Migração de CRM", mock_r4:"22 de 211 tarefas bloqueadas",
+    mock_title:"Portfólio real do governo britânico", mock_k1:"projetos reais", mock_k2:"índice de saúde", mock_k3:"acima do orçamento",
+    mock_r1:"Chinook Capability Sustainment", mock_r2:"Integrated Single Financial Env.", mock_r3:"Universal Credit Programme", mock_r4:"£39.484M de orçamento analisado",
     platform_kicker:"Plataforma", platform_h2:"Tudo que você precisa para governar um portfólio, não só quadros Kanban",
     platform_lead:"Um motor de regras que funciona sem depender de nenhum LLM, com um copiloto de IA somado como camada opcional.",
     f1_t:"Catálogo de portfólio", f1_d:"Dono, patrocinador, criticidade e orçamento de cada projeto em um só lugar.",
