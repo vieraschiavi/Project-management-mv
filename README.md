@@ -182,8 +182,23 @@ Más detalle en [`distribucion/README.md`](distribucion/README.md).
 ./run.sh install   # crea .venv e instala dependencias
 ./run.sh app        # dashboard en http://localhost:8501
 ./run.sh api         # API REST en http://localhost:8600
-./run.sh test         # corre la suite de tests
+./run.sh test         # corre la suite de tests del motor (Python/pytest)
 ```
+
+`./run.sh test` corre solo la suite de Python. La ruta del dinero (emitir
+licencia, firmarla, cobrar) vive en funciones serverless **JavaScript**
+(`api/checkout.js`, `api/verify-payment.js`, `api/_license.js`) que pytest no
+levanta — sus tests son Node puro, sin dependencias que instalar:
+
+```bash
+node tests/test_licencias.js
+node tests/test_checkout.js
+node tests/test_verify_payment.js
+```
+
+Es exactamente lo que corre `.github/workflows/tests.yml` en cada push — una
+máquina nueva con Python 3.11+ y Node instalados (nada más) puede reproducir
+la suite completa con estos cuatro comandos, sin preguntarle nada a nadie.
 
 El copiloto funciona sin configuración (motor de reglas). Para sumar la capa
 de IA opcional, exportá `ANTHROPIC_API_KEY` antes de correr `./run.sh app` —
