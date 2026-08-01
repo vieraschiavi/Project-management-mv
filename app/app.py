@@ -45,6 +45,7 @@ from mvpm import (
     prioritizer,
     reports,
     reviews,
+    seguro,
     tutorial,
 )
 from mvpm import copilot as copilot_mod
@@ -758,8 +759,9 @@ elif section == T("nav_reviews"):
     else:
         st.metric("Calificación promedio", f"{s['promedio']} / 5 ({s['total']} reseñas)")
         for r in reviews.list_reviews():
-            st.markdown(f"**{'⭐' * r['calificacion']}** — *{r['autor']}, {r['rol']} en {r['empresa']}*")
-            st.write(r["comentario"])
+            autor, rol, empresa = (seguro.escapar(r[k]) for k in ("autor", "rol", "empresa"))
+            st.markdown(f"**{'⭐' * r['calificacion']}** — *{autor}, {rol} en {empresa}*")
+            st.write(seguro.escapar(r["comentario"]))
             st.divider()
     with st.expander("Dejar una reseña"):
         with st.form("nueva_resena"):
@@ -817,8 +819,10 @@ elif section == T("nav_pmbok"):
                     st.caption(f"Lo que falta: {a['lo_que_falta']}")
                 _nota = pmbok.nota_empresa(EMPRESA_ID, a["clave"])
                 if _nota:
-                    st.success(f"📝 Nota de la empresa (validada por {_nota['validado_por_nombre']}, "
-                               f"{_nota['validado_por_cargo']}): {_nota['texto']}")
+                    st.success(f"📝 Nota de la empresa (validada por "
+                               f"{seguro.escapar(_nota['validado_por_nombre'])}, "
+                               f"{seguro.escapar(_nota['validado_por_cargo'])}): "
+                               f"{seguro.escapar(_nota['texto'])}")
                 with st.form(f"nota_pmbok_{a['clave']}"):
                     st.caption("Nota interna de tu empresa (algo que no se automatiza) — se guarda "
                                "versionada para esta empresa.")
@@ -867,9 +871,10 @@ elif section == T("nav_governance"):
         estado_icon = "✅" if vig["estado"] == "validado" else "📋"
         with st.expander(f"{estado_icon} {c['termino']}  ·  {c['categoria']}"):
             st.markdown(f"**Definición vigente** ({vig['origen']}):")
-            st.write(vig["texto"])
+            st.write(seguro.escapar(vig["texto"]))
             if vig["validado_por_nombre"]:
-                st.caption(f"Validada por {vig['validado_por_nombre']} ({vig['validado_por_cargo']}) "
+                st.caption(f"Validada por {seguro.escapar(vig['validado_por_nombre'])} "
+                           f"({seguro.escapar(vig['validado_por_cargo'])}) "
                            f"· recomendada por {vig['recomendado_por']}")
             rec = governance.recomendar_definicion(c["clave"], _prov)
             with st.form(f"gov_{c['clave']}"):
@@ -960,12 +965,14 @@ elif section == T("nav_organigrama"):
             with st.expander(f"🔹 {s['etapa_nombre']}"):
                 st.caption(s["etapa_desc"])
                 if _resp:
-                    st.success(f"Asignado: {_resp['persona'].get('nombre')} "
-                               f"({_resp['persona'].get('cargo') or 's/d'}) — validado por "
-                               f"{_resp['validado_por_nombre']}, {_resp['validado_por_cargo']}")
+                    st.success(f"Asignado: {seguro.escapar(_resp['persona'].get('nombre'))} "
+                               f"({seguro.escapar(_resp['persona'].get('cargo') or 's/d')}) — "
+                               f"validado por {seguro.escapar(_resp['validado_por_nombre'])}, "
+                               f"{seguro.escapar(_resp['validado_por_cargo'])}")
                 if per:
-                    st.markdown(f"**Recomendado ({s['recomendado_por']}):** {per['nombre']} — "
-                                f"{per.get('cargo') or 's/d'}")
+                    st.markdown(f"**Recomendado ({s['recomendado_por']}):** "
+                                f"{seguro.escapar(per['nombre'])} — "
+                                f"{seguro.escapar(per.get('cargo') or 's/d')}")
                     if s["justificacion"]:
                         st.caption(s["justificacion"])
                 else:
