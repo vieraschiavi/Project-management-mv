@@ -201,3 +201,64 @@ def test_cliente_y_owner_no_se_pisan_en_la_misma_pc():
         vistos = [v[i] for v in valores.values()]
         assert len(set(vistos)) == len(vistos), (
             f"{campo} repetido entre ediciones: {vistos}")
+
+
+# ------------------------------- el Pascal de [Code], que sólo compila Inno
+
+#: Funciones de la API de Inno Setup 6 que usa la validación. Se listan a
+#: propósito: un typo en cualquiera de estas (`GetSpaceOnDisk` en vez de
+#: `GetSpaceOnDisk64`, por ejemplo) rompe la compilación entera en CI, y desde
+#: Linux no hay compilador para descubrirlo.
+API_INNO = {
+    "AddBackslash", "CustomMessage", "Copy", "DeleteFile", "DirExists",
+    "ExtractFileDir", "ExtractFileDrive", "FmtMessage", "ForceDirectories",
+    "GetSpaceOnDisk64", "IntToStr", "MsgBox", "RemoveBackslashUnlessRoot",
+    "RemoveDir", "SaveStringToFile",
+}
+
+
+@pytest.mark.parametrize("iss", ISS, ids=lambda p: p.name)
+def test_el_pascal_tiene_los_begin_end_balanceados(iss):
+    """Un `end` de más o de menos es el error de compilación más común y el
+    más difícil de ver leyendo."""
+    codigo = _seccion(_texto(iss), "Code")
+    sin_comentarios = re.sub(r"\{[^}]*\}", "", codigo, flags=re.DOTALL)
+    palabras = re.findall(r"\b(begin|end)\b", sin_comentarios, re.IGNORECASE)
+    saldo = 0
+    for palabra in palabras:
+        saldo += 1 if palabra.lower() == "begin" else -1
+        assert saldo >= 0, "aparece un 'end' antes de su 'begin'"
+    assert saldo == 0, f"quedan {saldo} 'begin' sin cerrar"
+
+
+@pytest.mark.parametrize("iss", ISS, ids=lambda p: p.name)
+def test_toda_funcion_llamada_existe(iss):
+    """Cada llamada tiene que resolver: o es una función definida en el mismo
+    archivo, o es de la API de Inno. Si aparece una que no está en ninguna de
+    las dos listas, o es un typo o hay que agregarla a API_INNO a conciencia."""
+    codigo = _seccion(_texto(iss), "Code")
+    sin_comentarios = re.sub(r"\{[^}]*\}", "", codigo, flags=re.DOTALL)
+
+    definidas = set(re.findall(r"^\s*(?:function|procedure)\s+(\w+)",
+                               sin_comentarios, re.MULTILINE | re.IGNORECASE))
+    llamadas = set(re.findall(r"\b([A-Za-z_]\w*)\s*\(", sin_comentarios))
+
+    # Palabras del lenguaje que también van seguidas de paréntesis.
+    lenguaje = {"if", "while", "for", "and", "or", "not", "div", "mod",
+                "function", "procedure", "then", "do", "begin", "case"}
+    desconocidas = {f for f in llamadas
+                    if f not in definidas
+                    and f not in API_INNO
+                    and f.lower() not in lenguaje}
+    assert not desconocidas, (
+        f"funciones que no se definen acá ni están declaradas como API de Inno: "
+        f"{sorted(desconocidas)}")
+
+
+@pytest.mark.parametrize("iss", ISS, ids=lambda p: p.name)
+def test_la_validacion_no_deja_carpetas_vacias_tiradas(iss):
+    """`SePuedeEscribir` crea la carpeta para probar si escribe. Si el usuario
+    después cancela, no puede quedar una carpeta vacía en su disco."""
+    codigo = _seccion(_texto(iss), "Code")
+    assert "RemoveDir" in codigo, (
+        "se crea la carpeta para probar pero no se borra si no se instala")
