@@ -19,17 +19,12 @@ import time
 import webbrowser
 from pathlib import Path
 
-PUERTOS_PREFERIDOS = [8731, 8742, 8753, 8764]
-
-
-def _puerto_libre() -> int:
-    for puerto in PUERTOS_PREFERIDOS:
-        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-            if s.connect_ex(("127.0.0.1", puerto)) != 0:
-                return puerto
-    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-        s.bind(("127.0.0.1", 0))
-        return s.getsockname()[1]
+# La elección del puerto vive en mvpm/puertos.py, que consultan las cuatro
+# formas de abrir el programa. Acá había una copia propia que buscaba con
+# connect_ex(): eso da falsos negativos —un puerto reservado por otra app que
+# todavía no acepta conexiones parecía libre— y Streamlit moría después con
+# "Address already in use". Se importa adentro de main() porque recién ahí
+# está sys.path armado para el .exe congelado.
 
 
 def _esperar_y_abrir(url: str, timeout_s: int = 25) -> None:
@@ -61,9 +56,12 @@ def main() -> None:
     if (base_dir / "OWNER_EDITION").exists():
         os.environ.setdefault("MVPM_OWNER_BYPASS", "1")
 
+    from mvpm import puertos
+
     # Electron elige el puerto y lo pasa por env var, para poder apuntar su
-    # ventana ahí sin tener que adivinarlo ni parsear stdout.
-    puerto = int(os.environ.get("MVPM_PORT") or _puerto_libre())
+    # ventana ahí sin tener que adivinarlo ni parsear stdout. `desde_entorno`
+    # lo respeta si sigue libre y, si no, elige otro en vez de morir.
+    puerto = puertos.desde_entorno(os.environ.get("MVPM_PORT"))
     url = f"http://127.0.0.1:{puerto}"
 
     if not os.environ.get("MVPM_ELECTRON"):

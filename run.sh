@@ -11,7 +11,12 @@ case "$cmd" in
     pip install -r requirements.txt
     ;;
   app)
-    streamlit run app/app.py --server.port "${PORT:-8501}"
+    # Sin PORT explícito se elige uno libre en vez de asumir 8501 (el default
+    # de Streamlit, y por eso el más disputado: cualquier otra app de Streamlit
+    # abierta lo tiene). mvpm/puertos.py decide, igual que el .exe y el .bat.
+    PUERTO="${PORT:-$(python3 -m mvpm.puertos)}"
+    echo "Abriendo el dashboard en http://localhost:${PUERTO}"
+    streamlit run app/app.py --server.port "${PUERTO}"
     ;;
   api)
     # 127.0.0.1 por defecto: esta API sirve el portafolio completo del cliente
