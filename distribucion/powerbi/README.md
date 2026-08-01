@@ -4,6 +4,19 @@ El mismo motor que calcula la salud del portafolio en el dashboard sirve los
 datos por una **API REST local** (`api/main.py`), así que Power BI (o Tableau,
 Looker, Excel) se conecta al dato en vivo sin exportar planillas a mano.
 
+> **¿Sos consultor de BI y querés ver el recorrido completo con números
+> reales?** [`CASO_DE_USO.md`](CASO_DE_USO.md) tiene el caso entero —modelo de
+> datos, medidas DAX y la lectura que se lleva a la reunión— con la salida real
+> de cada paso.
+>
+> **Antes de abrir Power BI**, corré el verificador: hace el mismo pedido HTTP
+> que el conector Web sobre cada URL de los `.pbids`, en JSON y en CSV, y te
+> dice qué falta arreglar.
+>
+> ```bash
+> python distribucion/powerbi/verificar_conexion.py
+> ```
+
 ## Flujo completo (ensayos clínicos reales de laboratorios multinacionales)
 
 ```
@@ -27,7 +40,14 @@ ClinicalTrials.gov ──► mvpm/demo_pharma.py ──► motor (salud/criticid
 2. **Verificá que responde** (opcional): abrí en el navegador
    `http://127.0.0.1:8600/api/demo/pharma` — tenés que ver los 474 ensayos en JSON.
 
-3. **Conectá Power BI con un clic**: doble clic en
+3. **Conectá Power BI con un clic**. Hay dos archivos según qué quieras cargar:
+
+   | Archivo | Qué carga |
+   |---|---|
+   | [`MV_ProjectManagement_Portafolio.pbids`](MV_ProjectManagement_Portafolio.pbids) | las **6 tablas** del portafolio real del cliente |
+   | [`MV_ProjectManagement_Pharma.pbids`](MV_ProjectManagement_Pharma.pbids) | los 474 ensayos clínicos, para demostrar sin datos del cliente |
+
+   Para la demo con ensayos: doble clic en
    [`MV_ProjectManagement_Pharma.pbids`](MV_ProjectManagement_Pharma.pbids).
    Power BI Desktop abre y ya trae la conexión apuntada a
    `http://127.0.0.1:8600/api/demo/pharma`. Elegí **Cargar** y listo — la tabla
