@@ -49,8 +49,17 @@ if errorlevel 1 (
     echo [ADVERTENCIA] Algunos tests fallaron, pero se intenta igual iniciar el programa.
 )
 
+rem Puerto: se elige uno libre en vez de dejar que Streamlit tome su 8501 por
+rem defecto. Ese es el puerto mas disputado (cualquier otra app de Streamlit
+rem abierta lo tiene), y el programa moria con "Address already in use" o se
+rem quedaba pegado a la app ajena. mvpm\puertos.py decide, igual que el .exe.
+for /f "delims=" %%p in ('".venv\Scripts\python.exe" -m mvpm.puertos') do set "MVPM_PUERTO=%%p"
+if not defined MVPM_PUERTO set "MVPM_PUERTO=8731"
+
 echo.
 echo Abriendo MV Project Management en tu navegador...
-".venv\Scripts\python.exe" -m streamlit run app\app.py --server.headless true
+echo   http://localhost:%MVPM_PUERTO%
+start "" "http://localhost:%MVPM_PUERTO%"
+".venv\Scripts\python.exe" -m streamlit run app\app.py --server.headless true --server.port %MVPM_PUERTO%
 
 pause

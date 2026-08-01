@@ -61,15 +61,26 @@ function esperarServidor(puerto, timeoutMs = 30000) {
 }
 
 async function iniciarStreamlit() {
-  const puerto = await puertoLibre();
-  const { comando, args } = comandoStreamlit(puerto);
+  const puertoPedido = await puertoLibre();
+  const { comando, args } = comandoStreamlit(puertoPedido);
 
   procesoStreamlit = spawn(comando, args, {
-    env: { ...process.env, MVPM_PORT: String(puerto), MVPM_ELECTRON: "1" },
+    env: { ...process.env, MVPM_PORT: String(puertoPedido), MVPM_ELECTRON: "1" },
     windowsHide: true,
   });
 
-  procesoStreamlit.stdout?.on("data", (chunk) => process.stdout.write(chunk));
+  // El launcher respeta MVPM_PORT si sigue libre, pero elige otro si otra
+  // aplicación se lo ganó en el medio (ver mvpm/puertos.py). Por eso el puerto
+  // real se toma de lo que anuncia el propio launcher y no del que pedimos:
+  // si no, la ventana se quedaba esperando en un puerto donde no había nadie.
+  let resolverPuertoReal;
+  const puertoReal = new Promise((resolve) => { resolverPuertoReal = resolve; });
+
+  procesoStreamlit.stdout?.on("data", (chunk) => {
+    process.stdout.write(chunk);
+    const m = /MVPM_READY_PORT:(\d+)/.exec(String(chunk));
+    if (m) resolverPuertoReal(Number(m[1]));
+  });
   procesoStreamlit.stderr?.on("data", (chunk) => process.stderr.write(chunk));
 
   procesoStreamlit.on("error", (err) => {
@@ -79,6 +90,13 @@ async function iniciarStreamlit() {
     );
     app.quit();
   });
+
+  // Si el launcher no llega a anunciar el puerto (versión vieja del .exe, o
+  // murió antes), se sigue con el que se pidió en vez de colgarse esperando.
+  const puerto = await Promise.race([
+    puertoReal,
+    new Promise((resolve) => setTimeout(() => resolve(puertoPedido), 5000)),
+  ]);
 
   await esperarServidor(puerto);
   return puerto;

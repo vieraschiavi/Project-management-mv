@@ -11,7 +11,12 @@ case "$cmd" in
     pip install -r requirements.txt
     ;;
   app)
-    streamlit run app/app.py --server.port "${PORT:-8501}"
+    # Sin PORT explícito se elige uno libre en vez de asumir 8501 (el default
+    # de Streamlit, y por eso el más disputado: cualquier otra app de Streamlit
+    # abierta lo tiene). mvpm/puertos.py decide, igual que el .exe y el .bat.
+    PUERTO="${PORT:-$(python3 -m mvpm.puertos)}"
+    echo "Abriendo el dashboard en http://localhost:${PUERTO}"
+    streamlit run app/app.py --server.port "${PUERTO}"
     ;;
   api)
     # 127.0.0.1 por defecto: esta API sirve el portafolio completo del cliente
@@ -27,8 +32,23 @@ case "$cmd" in
   portable)
     python3 packaging/build_release.py
     ;;
+  owner)
+    # Marca ESTA máquina como la del dueño: el programa corre sin el candado de
+    # la prueba de 7 días, se abra como se abra (run.sh, .bat, .exe, streamlit
+    # directo). Escribe un archivo en los datos del usuario, no en el repo, así
+    # que no hay forma de que se cuele en un ZIP o instalador de cliente.
+    python3 -c "from mvpm import owner; print('Modo owner activado:', owner.activar())"
+    ;;
+  owner-off)
+    python3 -c "
+from mvpm import owner
+borrados = owner.desactivar()
+print('Modo owner desactivado. Marcadores borrados:', borrados or 'ninguno')
+print('Esta instalación vuelve a comportarse como la de un cliente (prueba + licencia).')
+"
+    ;;
   *)
-    echo "Uso: ./run.sh [install|app|api|test|portable]"
+    echo "Uso: ./run.sh [install|app|api|test|portable|owner|owner-off]"
     exit 1
     ;;
 esac

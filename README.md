@@ -90,6 +90,33 @@ firmado (HMAC-SHA256, mismo esquema en Python y en JS, ver
 el checkout cae a un link de pago fijo por plan (`MP_LINK_PROFESSIONAL`) en
 vez de romper.
 
+### Edición Owner (la instalación del dueño, sin candado)
+
+El dueño del producto usa su propia herramienta todos los días y no tiene
+sentido que la prueba de 7 días lo deje afuera. Para marcar **esta** máquina:
+
+```bash
+./run.sh owner       # activa el modo owner en esta máquina, para siempre
+./run.sh owner-off    # vuelve al comportamiento de cliente (prueba + licencia)
+```
+
+En Windows, doble clic en `MV_ProjectManagement_OWNER.bat` (una sola vez).
+
+Vale para **toda** forma de arrancar el programa —`run.sh app`, el `.bat`
+portable, el `.exe`, `streamlit run` directo—: la decisión vive en
+`mvpm/owner.py`, no en el launcher. Antes estaba sólo en
+`packaging/mvpm_launcher.py`, así que el mismo dueño abriendo su programa con
+`./run.sh app` caía igual en la pantalla de "la prueba venció".
+
+**Esto no afloja la licencia de ningún cliente.** El modo se activa con un
+archivo que se escribe en los datos del usuario (`~/.mv_project_management/`),
+nunca en la carpeta del programa: no puede colarse en el ZIP portable ni en el
+instalador. `mvpm/owner.py` no importa ni modifica `licensing.py` — el candado
+de 7 días y la verificación de firma quedan intactos. `tests/test_owner.py`
+fija las tres cosas: que el build de cliente no lleve el marcador, que el ZIP
+portable no lo arrastre, y que `licensing.estado_acceso()` responda lo mismo
+esté o no activo el modo owner.
+
 ## Asistente IA (multi-proveedor)
 
 La pestaña **Asistente IA** (`mvpm/advisor.py`) detecta problemas reales del
