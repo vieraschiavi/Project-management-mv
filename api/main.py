@@ -23,7 +23,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import PlainTextResponse
 
 from mvpm import db, demo_pharma, exporters, licensing, reviews
 
@@ -111,6 +111,21 @@ def _registros(df):
     return registros
 
 
+def _csv(df):
+    """DataFrame -> CSV crudo (`?format=csv`).
+
+    Iba por JSONResponse, que serializa el texto COMO JSON: la respuesta salía
+    entre comillas y con los saltos de línea escapados (`\\n` literal), pero
+    rotulada `text/csv`. O sea que Tableau/Excel/pandas leían una sola columna
+    gigante y cero filas — el formato que el README ofrece para "si tu
+    herramienta prefiere CSV" no servía para ninguna herramienta.
+
+    PlainTextResponse manda el texto tal cual, que es lo que un parser de CSV
+    espera.
+    """
+    return PlainTextResponse(content=df.to_csv(index=False), media_type="text/csv")
+
+
 @app.get("/")
 def root():
     return {"app": "MV Project Management API", "status": "ok"}
@@ -128,7 +143,7 @@ def get_table(table: str, format: str = "json"):
         raise HTTPException(status_code=404, detail=f"Tabla '{table}' no encontrada. Disponibles: {list(tables)}")
     df = tables[table]
     if format == "csv":
-        return JSONResponse(content=df.to_csv(index=False), media_type="text/csv")
+        return _csv(df)
     return _registros(df)
 
 
@@ -140,7 +155,7 @@ def demo_pharma_bi(format: str = "json"):
     y criticidad derivada. Dominio público (U.S. NLM / NIH)."""
     df = demo_pharma.tabla_para_bi()
     if format == "csv":
-        return JSONResponse(content=df.to_csv(index=False), media_type="text/csv")
+        return _csv(df)
     return _registros(df)
 
 
