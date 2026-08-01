@@ -6,7 +6,6 @@ viven en una base SQLite real (mvpm/db.py) en el equipo del cliente, detrás
 de un login con usuario y contraseña (mvpm/auth.py).
 """
 
-import os
 import sys
 from datetime import date
 from pathlib import Path
@@ -39,6 +38,7 @@ from mvpm import (
     invitado,
     licensing,
     organigrama,
+    owner,
     plantillas,
     pmbok,
     policies,
@@ -173,14 +173,15 @@ if st.sidebar.button("Cerrar sesión"):
 # 100% durante una semana; al vencer se bloquea hasta cargar una licencia paga
 # vigente. Bloquear NO borra datos: al pagar, se sigue con todo lo cargado.
 #
-# Bypass del owner: MVPM_OWNER_BYPASS sólo existe en la máquina del dueño del
-# producto (nunca en el instalador/ZIP que recibe un cliente, ni en el build
-# de CI), así que no afloja la licencia para nadie más — ver owner/panel.py
-# para emitir licencias reales de venta.
-_es_owner = os.environ.get("MVPM_OWNER_BYPASS") == "1"
+# Edición Owner: la instalación del dueño del producto corre sin candado. La
+# decisión vive en mvpm/owner.py y no acá, porque antes dependía de una env var
+# que sólo seteaba el launcher del .exe: el mismo dueño abriendo su programa con
+# ./run.sh app o con el .bat portable caía igual en "la prueba venció". Nada de
+# esto viaja en lo que recibe un cliente (tests/test_owner.py lo fija) ni toca
+# licensing.py — ver owner/panel.py para emitir licencias reales de venta.
+_es_owner = owner.es_owner()
 _acceso = (
-    {"acceso": True, "modo": "owner", "plan": None, "dias_restantes": None,
-     "mensaje": "Modo owner — sin restricciones de licencia."}
+    owner.estado_acceso()
     if _es_owner else
     # El invitado no pasa por el candado: todavía no es cliente, está viendo si
     # el producto le sirve. Cobrarle una prueba a alguien que ni siquiera dejó
@@ -893,11 +894,13 @@ elif section == T("nav_governance"):
                 st.caption(f"Recomendado por {rec['recomendado_por']} — validá, editá y guardá:")
                 txt = st.text_area("Definición", value=rec["texto"], key=f"gov_txt_{c['clave']}")
                 co, cs = st.columns(2)
-                owner = co.text_input("Data Owner que valida (nombre)", key=f"gov_o_{c['clave']}")
+                # `validador`, no `owner`: este scope importa el módulo mvpm.owner
+                # (edición del dueño del producto) y reusar el nombre lo pisaba.
+                validador = co.text_input("Data Owner que valida (nombre)", key=f"gov_o_{c['clave']}")
                 cargo = cs.text_input("Cargo", value="Data Owner", key=f"gov_c_{c['clave']}")
-                if st.form_submit_button("💾 Validar y guardar") and txt.strip() and owner.strip():
+                if st.form_submit_button("💾 Validar y guardar") and txt.strip() and validador.strip():
                     governance.guardar(EMPRESA_ID, c["clave"], txt.strip(), rec["recomendado_por"],
-                                       owner.strip(), cargo.strip())
+                                       validador.strip(), cargo.strip())
                     st.success("Definición validada y guardada (nueva versión).")
                     st.rerun()
             hist = db.historial_versiones(EMPRESA_ID, "concepto", c["clave"])

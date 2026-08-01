@@ -27,8 +27,23 @@ case "$cmd" in
   portable)
     python3 packaging/build_release.py
     ;;
+  owner)
+    # Marca ESTA máquina como la del dueño: el programa corre sin el candado de
+    # la prueba de 7 días, se abra como se abra (run.sh, .bat, .exe, streamlit
+    # directo). Escribe un archivo en los datos del usuario, no en el repo, así
+    # que no hay forma de que se cuele en un ZIP o instalador de cliente.
+    python3 -c "from mvpm import owner; print('Modo owner activado:', owner.activar())"
+    ;;
+  owner-off)
+    python3 -c "
+from mvpm import owner
+borrados = owner.desactivar()
+print('Modo owner desactivado. Marcadores borrados:', borrados or 'ninguno')
+print('Esta instalación vuelve a comportarse como la de un cliente (prueba + licencia).')
+"
+    ;;
   *)
-    echo "Uso: ./run.sh [install|app|api|test|portable]"
+    echo "Uso: ./run.sh [install|app|api|test|portable|owner|owner-off]"
     exit 1
     ;;
 esac
