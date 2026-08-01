@@ -45,7 +45,14 @@ def _junto_al_ejecutable() -> Path | None:
 
 
 def _se_puede_escribir(carpeta: Path) -> bool:
-    existia = carpeta.exists()
+    try:
+        existia = carpeta.exists()
+    except OSError:
+        # Ni siquiera se pudo preguntar si existe — típico de una carpeta
+        # padre sin permiso de lectura/ejecución (Path.exists() no traga un
+        # PermissionError, sólo los errores de "no existe"). Si no se puede
+        # ni mirar, seguro no se puede escribir.
+        return False
     try:
         carpeta.mkdir(parents=True, exist_ok=True)
         prueba = carpeta / ".prueba_escritura"
