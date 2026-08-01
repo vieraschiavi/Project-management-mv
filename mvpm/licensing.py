@@ -15,9 +15,9 @@ import hashlib
 import hmac
 import json
 import time
-from pathlib import Path
+from mvpm import rutas
 
-_STORE_DIR = Path.home() / ".mv_project_management"
+_STORE_DIR = rutas.directorio_datos()
 _SECRET_FILE = _STORE_DIR / "license_secret.txt"
 _USAGE_FILE = _STORE_DIR / "uso_copiloto.json"
 _TRIAL_FILE = _STORE_DIR / "trial.json"

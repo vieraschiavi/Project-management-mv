@@ -38,9 +38,14 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
+from mvpm import rutas
+
 MARCADOR = "OWNER_EDITION"
 
-_DATOS_USUARIO = Path.home() / ".mv_project_management"
+# Mismo directorio que db.py/licensing.py/reviews.py (ver mvpm/rutas.py): si
+# el .exe está instalado en D:\, el marcador también vive en D:\, no en el
+# perfil de Windows del usuario.
+_DATOS_USUARIO = rutas.directorio_datos()
 _RAIZ_PROGRAMA = Path(__file__).resolve().parent.parent
 
 #: Dónde se busca el marcador, en orden. `activar()` escribe en el primero.

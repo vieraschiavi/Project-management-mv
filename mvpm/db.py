@@ -6,19 +6,21 @@ DataFrames con exactamente las mismas columnas que `demo_data.projects()`,
 (`health.py`, `dependencies.py`, `prioritizer.py`, `policies.py`,
 `reports.py`, `exporters.py`, `copilot.py`) siga funcionando sin cambios.
 
-El archivo vive en el equipo/servidor del cliente (`~/.mv_project_management/`,
-mismo directorio que licencias y reseñas) — no se manda a ningún lado por
-defecto, consistente con "tus datos en tu servidor" de la landing.
+El archivo vive en el equipo/servidor del cliente, en la carpeta que decide
+`mvpm/rutas.py` (mismo directorio que licencias y reseñas: junto al `.exe`
+instalado si es escribible, si no el perfil del usuario) — no se manda a
+ningún lado por defecto, consistente con "tus datos en tu servidor" de la
+landing.
 """
 
 import sqlite3
 from contextlib import contextmanager
 from datetime import datetime, timezone
-from pathlib import Path
-
 import pandas as pd
 
-_STORE_DIR = Path.home() / ".mv_project_management"
+from mvpm import rutas
+
+_STORE_DIR = rutas.directorio_datos()
 _DB_FILE = _STORE_DIR / "datos.db"
 
 _HORAS_POR_TAREA_ACTIVA = 4  # estimación fija para el proxy de carga del equipo

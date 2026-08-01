@@ -164,6 +164,7 @@ end;
 function NextButtonClick(CurPageID: Integer): Boolean;
 var
   Libre: Int64;
+  Detalles: array of String;
 begin
   Result := True;
   if CurPageID <> wpSelectDir then
@@ -177,10 +178,14 @@ begin
 
   Libre := EspacioLibreMB(WizardDirValue);
   if (Libre >= 0) and (Libre < ESPACIO_MINIMO_MB) then begin
-    MsgBox(FmtMessage(CustomMessage('SinEspacio'),
-                      [ExtractFileDrive(WizardDirValue),
-                       IntToStr(Libre), IntToStr(ESPACIO_MINIMO_MB)]),
-           mbError, MB_OK);
+    { El literal de array NO puede quedar como primer carácter no-blanco de
+      una línea: el preprocesador de Inno lee línea por línea buscando
+      encabezados de sección, y un '[' al principio de renglón lo confunde
+      con un "[NombreDeSección]" — "Invalid section tag", compilación
+      abortada. Por eso se arma en una variable en vez de en la llamada. }
+    Detalles := [ExtractFileDrive(WizardDirValue), IntToStr(Libre),
+                IntToStr(ESPACIO_MINIMO_MB)];
+    MsgBox(FmtMessage(CustomMessage('SinEspacio'), Detalles), mbError, MB_OK);
     Result := False;
     Exit;
   end;
