@@ -157,3 +157,39 @@ def test_dos_sesiones_de_invitado_no_comparten_datos():
     a, b = invitado.almacen_vacio(), invitado.almacen_vacio()
     a.crear_proyecto(nombre="De la sesión A")
     assert b.total_proyectos() == 0
+
+
+# ------------------------------------------- el estado vacío del invitado
+
+def test_el_estado_vacio_del_invitado_no_ofrece_sembrar_la_base():
+    """Regresión: el bloque de "todavía no cargaste proyectos" de app.py era
+    común a invitado y usuario registrado, así que el invitado terminaba
+    llamando a db.cargar_datos_de_ejemplo(). Eso escribía 20 proyectos en la
+    base COMPARTIDA del servidor —rompiendo el "nada se guarda" que promete la
+    barra lateral y ensuciando el portafolio de los usuarios reales— mientras
+    el invitado, que lee de su almacén de sesión, no veía aparecer nada.
+
+    Se fija leyendo el código de app.py porque el bug vivía en la rama de UI,
+    no en el motor: los módulos por separado estaban bien.
+    """
+    from pathlib import Path
+
+    app = (Path(__file__).resolve().parent.parent / "app" / "app.py").read_text()
+    bloque = app.split("if proj_df.empty and task_df.empty:")[1].split("# ---")[0]
+    # Solo código ejecutable: los comentarios de este mismo bloque nombran el
+    # bug que se está previniendo, y harían pasar/fallar el test por el texto.
+    bloque = "\n".join(linea for linea in bloque.splitlines()
+                       if not linea.strip().startswith("#"))
+
+    assert "if INVITADO:" in bloque, (
+        "el estado vacío tiene que distinguir invitado de usuario registrado")
+
+    rama_invitado, rama_registrado = bloque.split("else:")
+    assert "db.cargar_datos_de_ejemplo" not in rama_invitado, (
+        "el invitado NO puede sembrar la base compartida del servidor")
+    assert "invitado.con_portafolio_real" in rama_invitado, (
+        "el invitado tiene que cargar el portafolio en SU almacén de sesión")
+    assert "esta sesión" in rama_invitado, (
+        "al invitado no se le habla de 'este servidor': sus datos no van ahí")
+    assert "db.cargar_datos_de_ejemplo" in rama_registrado, (
+        "el usuario registrado sí conserva el sembrado de ejemplo")
