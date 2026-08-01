@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MV Project Management — Project management with AI</title>
+<meta name="description" content="Project portfolio with measurable health, an AI copilot and automatic reports. Trilingual ES/EN/PT, 100% web and desktop.">
+
+<!-- Variante /en/ de la landing: existe para que un link compartido en inglés
+     (WhatsApp/LinkedIn/X) muestre una tarjeta social en inglés real, no la
+     española. El resto del sitio es una SPA con i18n 100% client-side
+     (mvpm_lang en localStorage, sin rutas por idioma) — acá replicamos SOLO
+     el <head>, con el mismo copy real que usa el selector de idioma en "/"
+     (I18N.en.hero_h1/hero_lead), y redirigimos de inmediato a "/" con el
+     idioma ya aplicado. Así los scrapers de redes (que no ejecutan JS ni
+     siguen el refresh) ven meta tags en inglés, y una persona real cae en la
+     página completa, ya en inglés. Mismo patrón en /pt/. -->
+<link rel="canonical" href="https://mv-project-management.vercel.app/en/">
+<link rel="alternate" hreflang="es" href="https://mv-project-management.vercel.app/">
+<link rel="alternate" hreflang="en" href="https://mv-project-management.vercel.app/en/">
+<link rel="alternate" hreflang="pt" href="https://mv-project-management.vercel.app/pt/">
+<link rel="alternate" hreflang="x-default" href="https://mv-project-management.vercel.app/">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="MV Project Management">
+<meta property="og:locale" content="en_US">
+<meta property="og:locale:alternate" content="es_ES">
+<meta property="og:locale:alternate" content="pt_BR">
+<meta property="og:url" content="https://mv-project-management.vercel.app/en/">
+<meta property="og:title" content="MV Project Management — Project management with AI">
+<meta property="og:description" content="Project portfolio with measurable health, an AI copilot and automatic reports. Trilingual ES/EN/PT, 100% web and desktop.">
+<meta property="og:image" content="https://mv-project-management.vercel.app/og-image.jpg">
+<meta property="og:image:secure_url" content="https://mv-project-management.vercel.app/og-image.jpg">
+<meta property="og:image:type" content="image/jpeg">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="MV Project Management — project portfolio management platform">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="MV Project Management — Project management with AI">
+<meta name="twitter:description" content="Project portfolio with measurable health, an AI copilot and automatic reports. Trilingual ES/EN/PT, 100% web and desktop.">
+<meta name="twitter:image" content="https://mv-project-management.vercel.app/og-image.jpg">
+<meta name="twitter:image:alt" content="MV Project Management — project portfolio management platform">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><rect width=%22100%22 height=%22100%22 rx=%2220%22 fill=%22%23081527%22/><text x=%2250%22 y=%2266%22 font-size=%2258%22 text-anchor=%22middle%22 fill=%22%23f2b441%22 font-family=%22sans-serif%22>M</text></svg>">
+<meta http-equiv="refresh" content="0; url=/?lang=en">
+<script>location.replace('/?lang=en');</script>
+</head>
+<body>
+<p>MV Project Management is trilingual — <a href="/?lang=en">continue in English</a>.</p>
+</body>
+</html>

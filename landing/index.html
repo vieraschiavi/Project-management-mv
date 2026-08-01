@@ -16,6 +16,10 @@
      las 3 etiquetas que lo llevan (og:url, og:image, twitter:image). Anotado
      también en el README, sección "Al desplegar con dominio propio". -->
 <link rel="canonical" href="https://mv-project-management.vercel.app/">
+<link rel="alternate" hreflang="es" href="https://mv-project-management.vercel.app/">
+<link rel="alternate" hreflang="en" href="https://mv-project-management.vercel.app/en/">
+<link rel="alternate" hreflang="pt" href="https://mv-project-management.vercel.app/pt/">
+<link rel="alternate" hreflang="x-default" href="https://mv-project-management.vercel.app/">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="MV Project Management">
 <meta property="og:locale" content="es_ES">
@@ -466,8 +470,8 @@
       <div class="price-card">
         <h3 data-i="p3_t">Implementación a medida</h3>
         <div class="amount" style="font-size:22px; line-height:1.3;" data-i="p3_amount">Consultanos<span style="display:block; font-size:12.5px; margin-top:2px;" data-i="p3_period">cotizada por proyecto, según alcance</span></div>
-        <p data-i="p3_d">Lo integramos con la base de datos o el ERP que ya usás, para que el portafolio se alimente solo de tus sistemas — sin cargar nada a mano.</p>
-        <ul><li data-i="p3_l1">Integración con tu BD / ERP</li><li data-i="p3_l2">Puesta en marcha y capacitación del equipo</li><li data-i="p3_l3">Soporte y mantenimiento mensual</li></ul>
+        <p data-i="p3_d">Se conecta directo a tu SAP, Oracle (E-Business Suite, Fusion Cloud o JD Edwards) o Microsoft Dynamics 365 — o a tu base SQL propia (SQL Server, PostgreSQL, MySQL, Oracle). Solo lectura, sin migrar nada: el portafolio se alimenta solo de donde ya están tus datos.</p>
+        <ul><li data-i="p3_l1">Conector a SAP, Oracle o Dynamics 365 (o tu SQL propio)</li><li data-i="p3_l2">Puesta en marcha y capacitación del equipo</li><li data-i="p3_l3">Soporte y mantenimiento mensual</li></ul>
         <a class="btn btn-ghost" href="#contacto" data-i="p3_cta">Pedir una propuesta</a>
       </div>
     </div>
@@ -655,8 +659,8 @@ const I18N = {
     p2_t:"Professional", p2_period:"/user/month", p2_uyu:"≈ UYU 360/month · charged in local currency at the day's rate", p2_d:"Keep everything you entered during the trial. Unlimited portfolios, AI prioritizer, dependencies, automatic report.",
     p2_l1:"Monthly subscription — renews itself, cancel anytime", p2_l2:"AI copilot with no quota (using your own AI key)", p2_l3:"Priority support", p2_cta:"Pay with MercadoPago",
     p3_t:"Custom implementation", p3_amount:"Talk to us", p3_period:"quoted per project, based on scope", p3_uyu:"",
-    p3_d:"We integrate it with the database or ERP you already run, so your portfolio feeds itself from your own systems — nothing typed by hand.",
-    p3_l1:"Integration with your DB / ERP", p3_l2:"Rollout and team training", p3_l3:"Monthly support and maintenance", p3_cta:"Request a proposal",
+    p3_d:"Connects straight to your SAP, Oracle (E-Business Suite, Fusion Cloud or JD Edwards) or Microsoft Dynamics 365 — or your own SQL database (SQL Server, PostgreSQL, MySQL, Oracle). Read-only, nothing migrated: your portfolio feeds itself from wherever your data already lives.",
+    p3_l1:"Connector to SAP, Oracle or Dynamics 365 (or your own SQL)", p3_l2:"Rollout and team training", p3_l3:"Monthly support and maintenance", p3_cta:"Request a proposal",
     reviews_kicker:"Reviews", reviews_h2:"Real user ratings",
     reviews_empty_title:"⭐ Program in beta", reviews_empty_body:"We don't have real customer reviews yet — we won't fabricate testimonials to look bigger than we are. Be one of the first to leave yours after trying the product; we'll publish it once verified.",
     faq_kicker:"FAQ", faq_h2:"What people ask before trying it",
@@ -734,8 +738,8 @@ const I18N = {
     p2_t:"Professional", p2_period:"/usuário/mês", p2_uyu:"≈ UYU 360/mês · cobrado em moeda local à cotação do dia", p2_d:"Continua com tudo o que carregou no teste. Portfólios ilimitados, priorizador IA, dependências, relatório automático.",
     p2_l1:"Assinatura mensal — renova sozinha, cancele quando quiser", p2_l2:"Copiloto IA sem limite de cota (com sua própria chave de IA)", p2_l3:"Suporte prioritário", p2_cta:"Pagar com MercadoPago",
     p3_t:"Implementação sob medida", p3_amount:"Fale conosco", p3_period:"cotizada por projeto, conforme o escopo", p3_uyu:"",
-    p3_d:"Integramos com o banco de dados ou o ERP que você já usa, para o portfólio se alimentar sozinho dos seus sistemas — sem digitar nada à mão.",
-    p3_l1:"Integração com seu BD / ERP", p3_l2:"Implantação e treinamento da equipe", p3_l3:"Suporte e manutenção mensal", p3_cta:"Pedir uma proposta",
+    p3_d:"Conecta direto no seu SAP, Oracle (E-Business Suite, Fusion Cloud ou JD Edwards) ou Microsoft Dynamics 365 — ou no seu banco SQL próprio (SQL Server, PostgreSQL, MySQL, Oracle). Somente leitura, sem migrar nada: o portfólio se alimenta sozinho de onde seus dados já estão.",
+    p3_l1:"Conector para SAP, Oracle ou Dynamics 365 (ou seu SQL próprio)", p3_l2:"Implantação e treinamento da equipe", p3_l3:"Suporte e manutenção mensal", p3_cta:"Pedir uma proposta",
     reviews_kicker:"Avaliações", reviews_h2:"Avaliação de usuários reais",
     reviews_empty_title:"⭐ Programa em fase beta", reviews_empty_body:"Ainda não temos avaliações de clientes reais — não vamos inventar depoimentos para parecer maiores do que somos. Seja um dos primeiros a deixar a sua depois de testar o produto; publicamos assim que for verificada.",
     faq_kicker:"Perguntas frequentes", faq_h2:"O que perguntam antes de testar",
@@ -763,6 +767,7 @@ const VIDEO_SRC = { es: 'video/demo.mp4', en: 'video/demo_en.mp4', pt: 'video/de
 
 function setLang(lang){
   localStorage.setItem('mvpm_lang', lang);
+  document.documentElement.lang = lang;
   document.getElementById('langSel').value = lang;
   if(lang === 'es'){ location.reload(); return; }
   const dict = I18N[lang];
@@ -792,6 +797,19 @@ function setLang(lang){
 }
 
 (function(){
+  // ?lang=en|pt llega desde el redirect de /en/ o /pt/ (ver landing/en/index.html
+  // y landing/pt/index.html): esas páginas existen solo para que los scrapers de
+  // redes sociales vean meta tags reales en ese idioma; acá aplicamos el idioma
+  // pedido y limpiamos la URL para que quede en "/".
+  const params = new URLSearchParams(window.location.search);
+  const fromUrl = params.get('lang');
+  if(fromUrl === 'en' || fromUrl === 'pt'){
+    setLang(fromUrl);
+    params.delete('lang');
+    const rest = params.toString();
+    history.replaceState(null, '', window.location.pathname + (rest ? '?' + rest : '') + window.location.hash);
+    return;
+  }
   const saved = localStorage.getItem('mvpm_lang');
   if(saved && saved !== 'es'){ setLang(saved); }
 })();

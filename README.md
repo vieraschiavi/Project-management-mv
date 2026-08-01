@@ -182,8 +182,23 @@ Más detalle en [`distribucion/README.md`](distribucion/README.md).
 ./run.sh install   # crea .venv e instala dependencias
 ./run.sh app        # dashboard en http://localhost:8501
 ./run.sh api         # API REST en http://localhost:8600
-./run.sh test         # corre la suite de tests
+./run.sh test         # corre la suite de tests del motor (Python/pytest)
 ```
+
+`./run.sh test` corre solo la suite de Python. La ruta del dinero (emitir
+licencia, firmarla, cobrar) vive en funciones serverless **JavaScript**
+(`api/checkout.js`, `api/verify-payment.js`, `api/_license.js`) que pytest no
+levanta — sus tests son Node puro, sin dependencias que instalar:
+
+```bash
+node tests/test_licencias.js
+node tests/test_checkout.js
+node tests/test_verify_payment.js
+```
+
+Es exactamente lo que corre `.github/workflows/tests.yml` en cada push — una
+máquina nueva con Python 3.11+ y Node instalados (nada más) puede reproducir
+la suite completa con estos cuatro comandos, sin preguntarle nada a nadie.
 
 El copiloto funciona sin configuración (motor de reglas). Para sumar la capa
 de IA opcional, exportá `ANTHROPIC_API_KEY` antes de correr `./run.sh app` —
@@ -247,16 +262,25 @@ automáticamente.
 
 ## Al desplegar con dominio propio
 
-Las etiquetas Open Graph de `landing/index.html` llevan la URL **absoluta** del
-sitio: los scrapers de WhatsApp, LinkedIn y X no resuelven rutas relativas, así
-que con una ruta relativa la tarjeta al compartir sale sin imagen.
+Las etiquetas Open Graph llevan la URL **absoluta** del sitio: los scrapers de
+WhatsApp, LinkedIn y X no resuelven rutas relativas, así que con una ruta
+relativa la tarjeta al compartir sale sin imagen. Esto se repite en **3
+archivos** (la landing y sus dos variantes de idioma, que existen solo para
+que compartir un link en inglés o portugués muestre la tarjeta social en ese
+idioma en vez de en español — ver comentario al principio de cada uno):
+
+- `landing/index.html` (es, `/`)
+- `landing/en/index.html` (en, `/en/`)
+- `landing/pt/index.html` (pt, `/pt/`)
 
 Hoy apuntan a `https://mv-project-management.vercel.app`. Si se compra un
-dominio propio, hay que cambiarlo en estas 4 etiquetas del `<head>`:
+dominio propio, hay que cambiarlo en estas etiquetas del `<head>` de **cada
+uno** de los 3 archivos:
 
 | Etiqueta | Qué es |
 |---|---|
 | `<link rel="canonical">` | URL preferida de la página |
+| `<link rel="alternate" hreflang="...">` | las 4 variantes (es/en/pt/x-default) |
 | `og:url` | la que muestran las redes al compartir |
 | `og:image` + `og:image:secure_url` | la tarjeta (1200×630) |
 | `twitter:image` | la misma tarjeta para X |
@@ -264,10 +288,12 @@ dominio propio, hay que cambiarlo en estas 4 etiquetas del `<head>`:
 Para comprobar que quedó bien, después de desplegar:
 
 ```bash
-curl -sI https://TU-DOMINIO/og-image.jpg | head -1   # tiene que dar 200, no 404
+curl -sI https://TU-DOMINIO/og-image.jpg | head -1        # tiene que dar 200, no 404
+curl -s https://TU-DOMINIO/en/ | grep '<title>'              # título en inglés
+curl -s https://TU-DOMINIO/pt/ | grep '<title>'              # título en portugués
 ```
 
-y pegar la URL del sitio en el
+y pegar la URL del sitio (y la de `/en/` y `/pt/`) en el
 [validador de LinkedIn](https://www.linkedin.com/post-inspector/) o el de
 Facebook, que además fuerzan a que refresquen su caché.
 
