@@ -1,0 +1,59 @@
+{
+  "version": "0.1",
+  "connections": [
+    {
+      "details": {
+        "protocol": "http",
+        "address": {
+          "url": "http://127.0.0.1:8600/api/proyectos"
+        }
+      },
+      "mode": "Import"
+    },
+    {
+      "details": {
+        "protocol": "http",
+        "address": {
+          "url": "http://127.0.0.1:8600/api/tareas"
+        }
+      },
+      "mode": "Import"
+    },
+    {
+      "details": {
+        "protocol": "http",
+        "address": {
+          "url": "http://127.0.0.1:8600/api/equipo"
+        }
+      },
+      "mode": "Import"
+    },
+    {
+      "details": {
+        "protocol": "http",
+        "address": {
+          "url": "http://127.0.0.1:8600/api/salud"
+        }
+      },
+      "mode": "Import"
+    },
+    {
+      "details": {
+        "protocol": "http",
+        "address": {
+          "url": "http://127.0.0.1:8600/api/backlog_priorizado"
+        }
+      },
+      "mode": "Import"
+    },
+    {
+      "details": {
+        "protocol": "http",
+        "address": {
+          "url": "http://127.0.0.1:8600/api/politicas"
+        }
+      },
+      "mode": "Import"
+    }
+  ]
+}

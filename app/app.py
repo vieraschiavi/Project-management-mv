@@ -355,10 +355,22 @@ def _selector_usuario(label: str, key: str, actual_id=None):
 
 
 if proj_df.empty and task_df.empty:
-    st.info("Todavía no cargaste proyectos en este servidor.")
-    if st.button("🌱 Cargar datos de ejemplo para explorar"):
-        db.cargar_datos_de_ejemplo()
-        st.rerun()
+    # El invitado y el usuario registrado tienen estados vacíos DISTINTOS. Antes
+    # compartían este bloque y el invitado terminaba llamando a
+    # db.cargar_datos_de_ejemplo(): eso sembraba 20 proyectos en la base
+    # compartida del servidor (rompiendo el "nada se guarda" que promete la
+    # barra lateral, y ensuciando el portafolio de los usuarios reales) mientras
+    # el invitado —que lee de su almacén de sesión— no veía aparecer nada.
+    if INVITADO:
+        st.info("Todavía no cargaste proyectos en esta sesión.")
+        if st.button("🇬🇧 Cargar el portafolio real del gobierno británico (132 proyectos)"):
+            st.session_state["invitado_almacen"] = invitado.con_portafolio_real()
+            st.rerun()
+    else:
+        st.info("Todavía no cargaste proyectos en este servidor.")
+        if st.button("🌱 Cargar datos de ejemplo para explorar"):
+            db.cargar_datos_de_ejemplo()
+            st.rerun()
 
 # ------------------------------------------------------------------ secciones
 

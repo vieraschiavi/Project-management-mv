@@ -66,3 +66,36 @@ def test_infinito_tambien_se_neutraliza(monkeypatch):
     json.dumps(r.json(), allow_nan=False)
     assert r.json()[0]["b"] is None
     assert r.json()[1]["a"] is None
+
+
+# ------------------------------------------------- ?format=csv para BI
+
+@pytest.mark.parametrize("ruta", ["/api/politicas", "/api/demo/pharma"])
+def test_format_csv_devuelve_csv_crudo_no_json(ruta):
+    """Regresión: `?format=csv` iba por JSONResponse, que serializa el texto
+    COMO JSON — la respuesta salía entre comillas y con los saltos escapados
+    (`\\n` literal) pero rotulada `text/csv`. pandas la leía como UNA columna
+    con todo el archivo adentro y CERO filas, así que el formato que el README
+    le ofrece al consultor de BI ("todos aceptan ?format=csv") no servía en
+    ninguna herramienta.
+    """
+    import io
+
+    import pandas as pd
+    from fastapi.testclient import TestClient
+
+    import api.main as main
+
+    client = TestClient(main.app)
+    r = client.get(ruta, params={"format": "csv"})
+    assert r.status_code == 200
+    assert r.headers["content-type"].startswith("text/csv")
+
+    crudo = r.text
+    assert not crudo.startswith('"'), "sale envuelto en comillas: es JSON, no CSV"
+    assert "\\n" not in crudo[:200], "los saltos de línea vienen escapados"
+    assert "\n" in crudo, "no tiene saltos de línea reales"
+
+    df = pd.read_csv(io.StringIO(crudo))
+    assert len(df.columns) > 1, f"se leyó una sola columna: {list(df.columns)[:1]}"
+    assert len(df) > 0, "se leyeron cero filas"
