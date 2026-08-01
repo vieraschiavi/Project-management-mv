@@ -1,6 +1,10 @@
 {
   "rewrites": [
     { "source": "/", "destination": "/landing/index.html" },
+    { "source": "/en", "destination": "/landing/en/index.html" },
+    { "source": "/en/", "destination": "/landing/en/index.html" },
+    { "source": "/pt", "destination": "/landing/pt/index.html" },
+    { "source": "/pt/", "destination": "/landing/pt/index.html" },
     { "source": "/(.*)", "destination": "/landing/$1" }
   ],
   "headers": [

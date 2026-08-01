@@ -262,16 +262,25 @@ automáticamente.
 
 ## Al desplegar con dominio propio
 
-Las etiquetas Open Graph de `landing/index.html` llevan la URL **absoluta** del
-sitio: los scrapers de WhatsApp, LinkedIn y X no resuelven rutas relativas, así
-que con una ruta relativa la tarjeta al compartir sale sin imagen.
+Las etiquetas Open Graph llevan la URL **absoluta** del sitio: los scrapers de
+WhatsApp, LinkedIn y X no resuelven rutas relativas, así que con una ruta
+relativa la tarjeta al compartir sale sin imagen. Esto se repite en **3
+archivos** (la landing y sus dos variantes de idioma, que existen solo para
+que compartir un link en inglés o portugués muestre la tarjeta social en ese
+idioma en vez de en español — ver comentario al principio de cada uno):
+
+- `landing/index.html` (es, `/`)
+- `landing/en/index.html` (en, `/en/`)
+- `landing/pt/index.html` (pt, `/pt/`)
 
 Hoy apuntan a `https://mv-project-management.vercel.app`. Si se compra un
-dominio propio, hay que cambiarlo en estas 4 etiquetas del `<head>`:
+dominio propio, hay que cambiarlo en estas etiquetas del `<head>` de **cada
+uno** de los 3 archivos:
 
 | Etiqueta | Qué es |
 |---|---|
 | `<link rel="canonical">` | URL preferida de la página |
+| `<link rel="alternate" hreflang="...">` | las 4 variantes (es/en/pt/x-default) |
 | `og:url` | la que muestran las redes al compartir |
 | `og:image` + `og:image:secure_url` | la tarjeta (1200×630) |
 | `twitter:image` | la misma tarjeta para X |
@@ -279,10 +288,12 @@ dominio propio, hay que cambiarlo en estas 4 etiquetas del `<head>`:
 Para comprobar que quedó bien, después de desplegar:
 
 ```bash
-curl -sI https://TU-DOMINIO/og-image.jpg | head -1   # tiene que dar 200, no 404
+curl -sI https://TU-DOMINIO/og-image.jpg | head -1        # tiene que dar 200, no 404
+curl -s https://TU-DOMINIO/en/ | grep '<title>'              # título en inglés
+curl -s https://TU-DOMINIO/pt/ | grep '<title>'              # título en portugués
 ```
 
-y pegar la URL del sitio en el
+y pegar la URL del sitio (y la de `/en/` y `/pt/`) en el
 [validador de LinkedIn](https://www.linkedin.com/post-inspector/) o el de
 Facebook, que además fuerzan a que refresquen su caché.
 
