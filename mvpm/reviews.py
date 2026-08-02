@@ -13,9 +13,9 @@ usuarios de producción.
 import json
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
-from pathlib import Path
+from mvpm import rutas
 
-_STORE_DIR = Path.home() / ".mv_project_management"
+_STORE_DIR = rutas.directorio_datos()
 _STORE_FILE = _STORE_DIR / "resenas.json"
 
 

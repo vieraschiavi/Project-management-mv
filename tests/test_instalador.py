@@ -262,3 +262,34 @@ def test_la_validacion_no_deja_carpetas_vacias_tiradas(iss):
     codigo = _seccion(_texto(iss), "Code")
     assert "RemoveDir" in codigo, (
         "se crea la carpeta para probar pero no se borra si no se instala")
+
+
+# ------------------------------- el bug real que rompió el build de CI
+
+@pytest.mark.parametrize("iss", ISS, ids=lambda p: p.name)
+def test_ninguna_linea_del_code_empieza_con_corchete(iss):
+    """EL BUG REAL, encontrado por el build de Windows (que sí compila con
+    Inno de verdad) después de que los 32 tests estáticos anteriores pasaran
+    igual: un literal de array de Pascal como
+
+        MsgBox(FmtMessage(msg,
+                          [Detalle1, Detalle2]), ...)
+
+    con el '[' como primer carácter no-blanco de un renglón, hace que el
+    PREPROCESADOR de Inno —que lee línea por línea buscando encabezados de
+    sección— lo confunda con un "[NombreDeSección]". Resultado real de CI:
+    'Error on line N: Invalid section tag. Compile aborted.'
+
+    Nada de la sintaxis de Pascal en sí estaba mal: por eso ni el chequeo de
+    begin/end ni el de funciones conocidas lo agarraban. Hacía falta simular
+    la regla exacta del parser de Inno, no la del lenguaje Pascal.
+    """
+    codigo = _seccion(_texto(iss), "Code")
+    for numero, linea in enumerate(codigo.splitlines(), start=1):
+        recortada = linea.strip()
+        if recortada.startswith("["):
+            pytest.fail(
+                f"{iss.name}: línea {numero} del bloque [Code] empieza con "
+                f"'[' — Inno la va a leer como un encabezado de sección, no "
+                f"como código: {linea!r}. Armá el array en una variable "
+                f"aparte en vez de como literal al principio de renglón.")
