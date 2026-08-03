@@ -43,16 +43,15 @@ def test_una_instalacion_limpia_no_es_owner(sin_marcadores):
     assert owner.motivo() is None
 
 
-def test_la_env_var_activa_el_modo_owner(sin_marcadores, monkeypatch):
-    monkeypatch.setenv("MVPM_OWNER_BYPASS", "1")
-    assert owner.es_owner() is True
-    assert "MVPM_OWNER_BYPASS" in owner.motivo()
-
-
-def test_un_valor_distinto_de_1_no_activa_nada(sin_marcadores, monkeypatch):
-    for valor in ["0", "", "true", "si"]:
+def test_la_env_var_de_bypass_ya_no_activa_nada(sin_marcadores, monkeypatch):
+    """Regresión de seguridad. `MVPM_OWNER_BYPASS=1` desbloqueaba el producto
+    entero por el solo hecho de existir la variable, y estaba documentada en
+    `mvpm/owner.py` — un archivo que viaja en el ZIP portable que baja
+    cualquiera. Era un bypass del candado a un `export` de distancia."""
+    for valor in ["1", "0", "", "true", "si"]:
         monkeypatch.setenv("MVPM_OWNER_BYPASS", valor)
-        assert owner.es_owner() is False, f"'{valor}' no debería activar el modo owner"
+        assert owner.es_owner() is False, (
+            f"MVPM_OWNER_BYPASS={valor!r} no puede desbloquear nada")
 
 
 @pytest.mark.parametrize("indice", [0, 1])
@@ -61,9 +60,61 @@ def test_cualquiera_de_los_marcadores_activa_el_modo_owner(sin_marcadores, indic
     otro junto al programa (lo empaqueta el .exe de la Owner Edition)."""
     ruta = sin_marcadores[indice]
     ruta.parent.mkdir(parents=True, exist_ok=True)
-    ruta.write_text("x", encoding="utf-8")
+    ruta.write_text(licensing.issue_license("enterprise", "dueno@ejemplo.com"),
+                    encoding="utf-8")
     assert owner.es_owner() is True
     assert str(ruta) in owner.motivo()
+
+
+@pytest.mark.parametrize("contenido", ["", "   ", "x", "soy el dueno, dejame entrar",
+                                       "MVPM2.falso.falso"])
+def test_un_marcador_sin_firma_valida_no_activa_nada(sin_marcadores, contenido):
+    """Regresión de seguridad, el otro bypass. `es_owner()` era
+    `any(ruta.exists() ...)`: alcanzaba con crear el archivo, con cualquier
+    contenido o vacío. El nombre está documentado en el propio código que
+    recibe el cliente, así que un `type nul > OWNER_EDITION` desbloqueaba el
+    producto sin pagar."""
+    ruta = sin_marcadores[0]
+    ruta.parent.mkdir(parents=True, exist_ok=True)
+    ruta.write_text(contenido, encoding="utf-8")
+    assert owner.es_owner() is False
+    assert owner.motivo() is None
+
+
+def test_un_marcador_firmado_con_otra_clave_no_activa_nada(sin_marcadores, monkeypatch):
+    """Un cliente que genere SU propio par de claves y se firme un marcador no
+    entra: lo que vale es la firma de la clave privada del dueño, y la pública
+    que viaja en el programa sólo verifica, no emite."""
+    import base64
+
+    from cryptography.hazmat.primitives import serialization
+    from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
+
+    ajena = Ed25519PrivateKey.generate()
+    cruda = ajena.private_bytes(
+        encoding=serialization.Encoding.Raw,
+        format=serialization.PrivateFormat.Raw,
+        encryption_algorithm=serialization.NoEncryption(),
+    )
+    monkeypatch.setenv(
+        "MVPM_LICENSE_PRIVATE_KEY",
+        base64.urlsafe_b64encode(cruda).rstrip(b"=").decode("ascii"),
+    )
+    token_ajeno = licensing.issue_license("enterprise", "pirata@ejemplo.com")
+
+    ruta = sin_marcadores[0]
+    ruta.parent.mkdir(parents=True, exist_ok=True)
+    ruta.write_text(token_ajeno, encoding="utf-8")
+    assert owner.es_owner() is False
+
+
+def test_un_cliente_no_puede_activarse_solo(sin_marcadores, monkeypatch):
+    """Sin la clave privada —o sea, en la máquina de cualquier cliente—
+    `activar()` no puede fabricar un marcador que valga."""
+    monkeypatch.delenv("MVPM_LICENSE_PRIVATE_KEY", raising=False)
+    with pytest.raises(RuntimeError, match="clave privada"):
+        owner.activar()
+    assert owner.es_owner() is False
 
 
 def test_activar_y_desactivar_son_reversibles(sin_marcadores):

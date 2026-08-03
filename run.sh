@@ -37,6 +37,18 @@ case "$cmd" in
     # la prueba de 7 días, se abra como se abra (run.sh, .bat, .exe, streamlit
     # directo). Escribe un archivo en los datos del usuario, no en el repo, así
     # que no hay forma de que se cuele en un ZIP o instalador de cliente.
+    #
+    # Necesita MVPM_LICENSE_PRIVATE_KEY: el marcador es un token firmado, y sólo
+    # el dueño tiene con qué firmarlo. Antes alcanzaba con crear el archivo, que
+    # es lo mismo que decir que cualquier cliente se activaba el modo owner.
+    if [ -z "${MVPM_LICENSE_PRIVATE_KEY:-}" ]; then
+      echo "Falta MVPM_LICENSE_PRIVATE_KEY: sin la clave privada no se puede firmar"
+      echo "el marcador de modo owner. Generá el par una sola vez con:"
+      echo "    python packaging/generar_claves_licencia.py --escribir"
+      echo "y después:"
+      echo "    MVPM_LICENSE_PRIVATE_KEY=<tu-clave> ./run.sh owner"
+      exit 1
+    fi
     python3 -c "from mvpm import owner; print('Modo owner activado:', owner.activar())"
     ;;
   owner-off)

@@ -217,7 +217,6 @@ def test_copilot_answers_without_ai_key(monkeypatch):
 
 def test_issue_and_verify_license_roundtrip(tmp_path, monkeypatch):
     monkeypatch.setattr(licensing, "_STORE_DIR", tmp_path)
-    monkeypatch.setattr(licensing, "_SECRET_FILE", tmp_path / "secret.txt")
     token = licensing.issue_license("professional", "cliente@empresa.com", payment_id="PAY-123")
     payload = licensing.verify_license(token)
     assert payload["plan"] == "professional"
@@ -227,7 +226,6 @@ def test_issue_and_verify_license_roundtrip(tmp_path, monkeypatch):
 
 def test_verify_license_rejects_tampered_token(tmp_path, monkeypatch):
     monkeypatch.setattr(licensing, "_STORE_DIR", tmp_path)
-    monkeypatch.setattr(licensing, "_SECRET_FILE", tmp_path / "secret.txt")
     token = licensing.issue_license("professional", "cliente@empresa.com")
     prefix, payload_b64, sig = token.split(".")
     tampered = f"{prefix}.{payload_b64}X.{sig}"
@@ -241,9 +239,12 @@ def test_verify_license_rejects_unknown_plan():
 
 def _patch_store(tmp_path, monkeypatch):
     monkeypatch.setattr(licensing, "_STORE_DIR", tmp_path)
-    monkeypatch.setattr(licensing, "_SECRET_FILE", tmp_path / "secret.txt")
     monkeypatch.setattr(licensing, "_USAGE_FILE", tmp_path / "uso.json")
     monkeypatch.setattr(licensing, "_TRIAL_FILE", tmp_path / "trial.json")
+    # La marca de prueba se guarda en varias rutas a la vez (borrar una sola no
+    # reinicia los 7 días), así que aislar el store es aislar TODAS: si no, los
+    # tests leerían la marca real de la máquina donde corre la suite.
+    monkeypatch.setattr(licensing, "_RUTAS_TRIAL", (tmp_path / "trial.json",))
 
 
 def test_trial_da_cupo_professional_sin_token(tmp_path, monkeypatch):
@@ -306,7 +307,6 @@ def test_licencia_paga_vencida_no_desbloquea(tmp_path, monkeypatch):
 
 def test_enterprise_quota_unlimited(tmp_path, monkeypatch):
     monkeypatch.setattr(licensing, "_STORE_DIR", tmp_path)
-    monkeypatch.setattr(licensing, "_SECRET_FILE", tmp_path / "secret.txt")
     monkeypatch.setattr(licensing, "_USAGE_FILE", tmp_path / "uso.json")
     token = licensing.issue_license("enterprise", "grande@empresa.com")
     for _ in range(500):
@@ -319,7 +319,6 @@ def test_enterprise_quota_unlimited(tmp_path, monkeypatch):
 def test_rules_engine_never_blocked_by_quota(tmp_path, monkeypatch):
     """El motor de reglas responde siempre, tenga o no cupo de IA."""
     monkeypatch.setattr(licensing, "_STORE_DIR", tmp_path)
-    monkeypatch.setattr(licensing, "_SECRET_FILE", tmp_path / "secret.txt")
     monkeypatch.setattr(licensing, "_USAGE_FILE", tmp_path / "uso.json")
     monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
     for _ in range(licensing.PLANES["demo"]["cupo_mensual_ia"] + 5):

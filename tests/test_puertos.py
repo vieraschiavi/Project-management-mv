@@ -88,9 +88,22 @@ def test_elegir_prefiere_el_primero_de_la_lista():
 
 
 def test_si_el_preferido_esta_ocupado_salta_al_siguiente():
+    """Ocupar el puerto es sólo la PRECONDICIÓN de este test, no lo que se
+    verifica. Si ya está ocupado por otra cosa, la precondición se cumple sola
+    y la verificación sigue valiendo igual.
+
+    Importa que no falle el bind: `MV_ProjectManagement.bat` corre esta suite
+    ANTES de abrir el programa, así que se ejecuta a menudo con una instancia
+    ya escuchando en el puerto preferido (el usuario que abre la app por
+    segunda vez sin cerrar la primera). Ocupándolo a ciegas, el bind tiraba
+    "Address already in use" y el `.bat` mostraba "[ADVERTENCIA] Algunos tests
+    fallaron" en una instalación perfectamente sana."""
     ocupador = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    ocupador.bind(("127.0.0.1", puertos.PUERTOS_PREFERIDOS[0]))
     try:
+        try:
+            ocupador.bind(("127.0.0.1", puertos.PUERTOS_PREFERIDOS[0]))
+        except OSError:
+            pass  # ya estaba ocupado por otra cosa: igual sirve
         elegido = puertos.elegir()
         assert elegido != puertos.PUERTOS_PREFERIDOS[0]
         assert puertos.esta_libre(elegido)

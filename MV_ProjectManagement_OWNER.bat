@@ -20,6 +20,22 @@ rem principal la primera vez); si no, el Python del sistema.
 set "PY=.venv\Scripts\python.exe"
 if not exist "%PY%" set "PY=python"
 
+rem El marcador es un token FIRMADO con la clave privada del dueno: sin ella no
+rem se puede activar nada. Antes alcanzaba con que el archivo existiera, o sea
+rem que cualquier cliente se saltaba el candado creandolo a mano.
+if "%MVPM_LICENSE_PRIVATE_KEY%"=="" (
+    echo [ERROR] Falta MVPM_LICENSE_PRIVATE_KEY.
+    echo.
+    echo Sin la clave privada no se puede firmar el marcador de modo owner.
+    echo Genera el par una sola vez con:
+    echo     python packaging\generar_claves_licencia.py --escribir
+    echo y despues, en esta misma ventana:
+    echo     set MVPM_LICENSE_PRIVATE_KEY=^<tu-clave^>
+    echo     MV_ProjectManagement_OWNER.bat
+    pause
+    exit /b 1
+)
+
 "%PY%" -c "from mvpm import owner; print('OK - modo owner activado'); print('Marcador:', owner.activar())"
 if errorlevel 1 (
     echo.

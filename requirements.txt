@@ -14,4 +14,11 @@ pytest>=8.3
 # requirements-dev.txt porque pytest también está acá: con estas dos, la suite
 # entera corre en una instalación nueva con un solo `pip install -r`.
 httpx>=0.27
+# Firma Ed25519 de las licencias (mvpm/licensing.py). Es dependencia del
+# candado del producto, no un extra: con el esquema anterior (HMAC con un
+# secreto que el propio cliente se autogeneraba) cualquiera se emitía una
+# licencia Enterprise en dos líneas, y el token que emitía el servidor de
+# pagos no validaba en la PC del que había pagado. Ed25519 no está en la
+# stdlib, y acá no corresponde escribir criptografía a mano.
+cryptography>=42
 anthropic>=0.34

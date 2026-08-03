@@ -1,7 +1,16 @@
-// Licencias firmadas — mismo esquema HMAC que mvpm/licensing.py en Python
-// (formato "MVPM1.<payload_b64url>.<firma_b64url>", mismo secreto compartido
-// vía MVPM_LICENSE_SECRET) para que ambos lados puedan emitir y verificar el
-// mismo token sin depender de una librería JWT externa.
+// Licencias firmadas — mismo esquema que mvpm/licensing.py en Python
+// (formato "MVPM2.<payload_b64url>.<firma_b64url>").
+//
+// Firma ASIMÉTRICA Ed25519, no un secreto compartido: acá vive la clave
+// PRIVADA (MVPM_LICENSE_PRIVATE_KEY, variable de entorno de Vercel) y en el
+// programa del cliente viaja sólo la PÚBLICA, que verifica pero no emite.
+//
+// El esquema anterior era HMAC con MVPM_LICENSE_SECRET "compartido", y estaba
+// roto en las dos direcciones: el cliente, al no tener esa variable, se
+// autogeneraba un secreto local, así que (a) podía emitirse una licencia
+// Enterprise solo y (b) el token que emitía ESTA función no le verificaba —
+// pagaba y seguía viendo "la prueba venció". Con Ed25519 las dos se caen: sin
+// la clave privada no se produce una firma que la pública acepte.
 
 const crypto = require('crypto');
 
@@ -12,17 +21,13 @@ const PLANES = {
   enterprise: { nombre: 'Enterprise', precio_usd: null, cupo_mensual_ia: null },
 };
 
-function secret() {
-  const s = process.env.MVPM_LICENSE_SECRET;
-  if (!s) {
-    // En Vercel el secreto SIEMPRE debe venir de una env var (no hay disco
-    // persistente entre invocaciones de una función serverless). Si falta,
-    // fallamos explícito en vez de emitir licencias con un secreto que
-    // cambia en cada cold start.
-    throw new Error('MVPM_LICENSE_SECRET no configurada');
-  }
-  return s;
-}
+// Node no toma los 32 bytes crudos de una clave Ed25519 directamente: hay que
+// envolverlos en DER. Estos son los encabezados fijos de la norma (PKCS#8 para
+// la privada, SPKI para la pública); lo único que cambia es la clave que va
+// pegada atrás. Se usa el mismo formato crudo base64url que Python, para que
+// el par que genera packaging/generar_claves_licencia.py sirva de los dos lados.
+const DER_PRIVADA = Buffer.from('302e020100300506032b657004220420', 'hex');
+const DER_PUBLICA = Buffer.from('302a300506032b6570032100', 'hex');
 
 function b64url(buf) {
   return buf.toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
@@ -34,6 +39,41 @@ function b64urlDecode(str) {
   return Buffer.from(str, 'base64');
 }
 
+function clavePrivada() {
+  const cruda = process.env.MVPM_LICENSE_PRIVATE_KEY;
+  if (!cruda) {
+    // En Vercel la clave SIEMPRE debe venir de una env var (no hay disco
+    // persistente entre invocaciones de una función serverless). Si falta,
+    // fallamos explícito en vez de emitir licencias que nadie va a poder
+    // verificar.
+    throw new Error('MVPM_LICENSE_PRIVATE_KEY no configurada');
+  }
+  const semilla = b64urlDecode(cruda);
+  if (semilla.length !== 32) {
+    throw new Error('MVPM_LICENSE_PRIVATE_KEY inválida: se esperaban 32 bytes');
+  }
+  return crypto.createPrivateKey({
+    key: Buffer.concat([DER_PRIVADA, semilla]),
+    format: 'der',
+    type: 'pkcs8',
+  });
+}
+
+function clavePublica() {
+  // Sólo hace falta para verificar del lado del servidor (tests, diagnóstico).
+  // Se deriva de la privada si no viene explícita, así no hay dos fuentes de
+  // verdad que se puedan desincronizar.
+  const cruda = process.env.MVPM_LICENSE_PUBLIC_KEY;
+  if (cruda) {
+    return crypto.createPublicKey({
+      key: Buffer.concat([DER_PUBLICA, b64urlDecode(cruda)]),
+      format: 'der',
+      type: 'spki',
+    });
+  }
+  return crypto.createPublicKey(clavePrivada());
+}
+
 function issueLicense(plan, email, paymentId = null) {
   if (!PLANES[plan]) throw new Error(`Plan desconocido: ${plan}`);
   const payload = {
@@ -42,17 +82,18 @@ function issueLicense(plan, email, paymentId = null) {
     cupo_mensual_ia: PLANES[plan].cupo_mensual_ia,
   };
   const payloadB64 = b64url(Buffer.from(JSON.stringify(payload)));
-  const sig = crypto.createHmac('sha256', secret()).update(payloadB64).digest();
-  return `MVPM1.${payloadB64}.${b64url(sig)}`;
+  // Ed25519 firma el mensaje entero (no un digest previo): algoritmo null.
+  const sig = crypto.sign(null, Buffer.from(payloadB64, 'ascii'), clavePrivada());
+  return `MVPM2.${payloadB64}.${b64url(sig)}`;
 }
 
 function verifyLicense(token) {
   try {
     const [prefix, payloadB64, sigB64] = token.split('.');
-    if (prefix !== 'MVPM1') return null;
-    const expected = crypto.createHmac('sha256', secret()).update(payloadB64).digest();
-    const actual = b64urlDecode(sigB64);
-    if (expected.length !== actual.length || !crypto.timingSafeEqual(expected, actual)) return null;
+    if (prefix !== 'MVPM2') return null;
+    const ok = crypto.verify(
+      null, Buffer.from(payloadB64, 'ascii'), clavePublica(), b64urlDecode(sigB64));
+    if (!ok) return null;
     return JSON.parse(b64urlDecode(payloadB64).toString('utf-8'));
   } catch (e) {
     return null;
