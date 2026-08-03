@@ -593,6 +593,56 @@ def test_build_release_portable_zip(monkeypatch):
         zip_path.unlink(missing_ok=True)
 
 
+def test_zip_publico_de_landing_esta_actualizado():
+    """landing/downloads/MV_Project_Management.zip es el archivo estático que
+    baja cualquiera desde el botón "Descargar" de la home — nada lo
+    reconstruye solo cuando cambia el código. Pasó de verdad: quedó congelado
+    en un commit de julio, sin mvpm/owner.py, mvpm/rutas.py ni
+    mvpm/puertos.py — meses de fixes (modo owner, disco elegido, puertos
+    robustos) que un cliente descargando hoy nunca recibía, con el programa
+    corriendo desde una build vieja sin que nada lo avisara.
+
+    Este test compara byte a byte el zip público contra lo que
+    build_portable_zip() generaría con el código actual. Si difieren, hay que
+    regenerarlo: `python packaging/build_release.py` y copiar el resultado a
+    `landing/downloads/MV_Project_Management.zip` antes de mergear.
+    """
+    import zipfile
+    import sys as _sys
+    from pathlib import Path as _Path
+
+    raiz = _Path(__file__).resolve().parent.parent
+    _sys.path.insert(0, str(raiz / "packaging"))
+    import build_release
+
+    publico = raiz / "landing" / "downloads" / "MV_Project_Management.zip"
+    assert publico.exists(), "falta landing/downloads/MV_Project_Management.zip"
+
+    fresco = build_release.build_portable_zip(version="freshness-check")
+    try:
+        with zipfile.ZipFile(publico) as zf_publico, zipfile.ZipFile(fresco) as zf_fresco:
+            nombres_publico = set(zf_publico.namelist())
+            nombres_fresco = set(zf_fresco.namelist())
+            faltan = sorted(nombres_fresco - nombres_publico)
+            sobran = sorted(nombres_publico - nombres_fresco)
+            assert not faltan and not sobran, (
+                "landing/downloads/MV_Project_Management.zip desactualizado — "
+                f"faltan: {faltan[:10]}, sobran: {sobran[:10]}. Regenerar con "
+                "packaging/build_release.py."
+            )
+            distintos = [
+                nombre for nombre in nombres_fresco
+                if zf_publico.read(nombre) != zf_fresco.read(nombre)
+            ]
+            assert not distintos, (
+                "landing/downloads/MV_Project_Management.zip tiene contenido "
+                f"desactualizado en: {distintos[:10]}. Regenerar con "
+                "packaging/build_release.py."
+            )
+    finally:
+        fresco.unlink(missing_ok=True)
+
+
 def test_planes_pagos_tienen_vigencia_larga():
     """El cobro es recurrente pero la licencia se emite una sola vez: si la
     vigencia fuera de 30 días, el cliente que YA pagó quedaría bloqueado al
