@@ -217,7 +217,6 @@ def test_copilot_answers_without_ai_key(monkeypatch):
 
 def test_issue_and_verify_license_roundtrip(tmp_path, monkeypatch):
     monkeypatch.setattr(licensing, "_STORE_DIR", tmp_path)
-    monkeypatch.setattr(licensing, "_SECRET_FILE", tmp_path / "secret.txt")
     token = licensing.issue_license("professional", "cliente@empresa.com", payment_id="PAY-123")
     payload = licensing.verify_license(token)
     assert payload["plan"] == "professional"
@@ -227,7 +226,6 @@ def test_issue_and_verify_license_roundtrip(tmp_path, monkeypatch):
 
 def test_verify_license_rejects_tampered_token(tmp_path, monkeypatch):
     monkeypatch.setattr(licensing, "_STORE_DIR", tmp_path)
-    monkeypatch.setattr(licensing, "_SECRET_FILE", tmp_path / "secret.txt")
     token = licensing.issue_license("professional", "cliente@empresa.com")
     prefix, payload_b64, sig = token.split(".")
     tampered = f"{prefix}.{payload_b64}X.{sig}"
@@ -241,9 +239,12 @@ def test_verify_license_rejects_unknown_plan():
 
 def _patch_store(tmp_path, monkeypatch):
     monkeypatch.setattr(licensing, "_STORE_DIR", tmp_path)
-    monkeypatch.setattr(licensing, "_SECRET_FILE", tmp_path / "secret.txt")
     monkeypatch.setattr(licensing, "_USAGE_FILE", tmp_path / "uso.json")
     monkeypatch.setattr(licensing, "_TRIAL_FILE", tmp_path / "trial.json")
+    # La marca de prueba se guarda en varias rutas a la vez (borrar una sola no
+    # reinicia los 7 días), así que aislar el store es aislar TODAS: si no, los
+    # tests leerían la marca real de la máquina donde corre la suite.
+    monkeypatch.setattr(licensing, "_RUTAS_TRIAL", (tmp_path / "trial.json",))
 
 
 def test_trial_da_cupo_professional_sin_token(tmp_path, monkeypatch):
@@ -306,7 +307,6 @@ def test_licencia_paga_vencida_no_desbloquea(tmp_path, monkeypatch):
 
 def test_enterprise_quota_unlimited(tmp_path, monkeypatch):
     monkeypatch.setattr(licensing, "_STORE_DIR", tmp_path)
-    monkeypatch.setattr(licensing, "_SECRET_FILE", tmp_path / "secret.txt")
     monkeypatch.setattr(licensing, "_USAGE_FILE", tmp_path / "uso.json")
     token = licensing.issue_license("enterprise", "grande@empresa.com")
     for _ in range(500):
@@ -319,7 +319,6 @@ def test_enterprise_quota_unlimited(tmp_path, monkeypatch):
 def test_rules_engine_never_blocked_by_quota(tmp_path, monkeypatch):
     """El motor de reglas responde siempre, tenga o no cupo de IA."""
     monkeypatch.setattr(licensing, "_STORE_DIR", tmp_path)
-    monkeypatch.setattr(licensing, "_SECRET_FILE", tmp_path / "secret.txt")
     monkeypatch.setattr(licensing, "_USAGE_FILE", tmp_path / "uso.json")
     monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
     for _ in range(licensing.PLANES["demo"]["cupo_mensual_ia"] + 5):
@@ -591,6 +590,56 @@ def test_build_release_portable_zip(monkeypatch):
             assert not any(n.startswith("owner/") for n in names)
     finally:
         zip_path.unlink(missing_ok=True)
+
+
+def test_zip_publico_de_landing_esta_actualizado():
+    """landing/downloads/MV_Project_Management.zip es el archivo estático que
+    baja cualquiera desde el botón "Descargar" de la home — nada lo
+    reconstruye solo cuando cambia el código. Pasó de verdad: quedó congelado
+    en un commit de julio, sin mvpm/owner.py, mvpm/rutas.py ni
+    mvpm/puertos.py — meses de fixes (modo owner, disco elegido, puertos
+    robustos) que un cliente descargando hoy nunca recibía, con el programa
+    corriendo desde una build vieja sin que nada lo avisara.
+
+    Este test compara byte a byte el zip público contra lo que
+    build_portable_zip() generaría con el código actual. Si difieren, hay que
+    regenerarlo: `python packaging/build_release.py` y copiar el resultado a
+    `landing/downloads/MV_Project_Management.zip` antes de mergear.
+    """
+    import zipfile
+    import sys as _sys
+    from pathlib import Path as _Path
+
+    raiz = _Path(__file__).resolve().parent.parent
+    _sys.path.insert(0, str(raiz / "packaging"))
+    import build_release
+
+    publico = raiz / "landing" / "downloads" / "MV_Project_Management.zip"
+    assert publico.exists(), "falta landing/downloads/MV_Project_Management.zip"
+
+    fresco = build_release.build_portable_zip(version="freshness-check")
+    try:
+        with zipfile.ZipFile(publico) as zf_publico, zipfile.ZipFile(fresco) as zf_fresco:
+            nombres_publico = set(zf_publico.namelist())
+            nombres_fresco = set(zf_fresco.namelist())
+            faltan = sorted(nombres_fresco - nombres_publico)
+            sobran = sorted(nombres_publico - nombres_fresco)
+            assert not faltan and not sobran, (
+                "landing/downloads/MV_Project_Management.zip desactualizado — "
+                f"faltan: {faltan[:10]}, sobran: {sobran[:10]}. Regenerar con "
+                "packaging/build_release.py."
+            )
+            distintos = [
+                nombre for nombre in nombres_fresco
+                if zf_publico.read(nombre) != zf_fresco.read(nombre)
+            ]
+            assert not distintos, (
+                "landing/downloads/MV_Project_Management.zip tiene contenido "
+                f"desactualizado en: {distintos[:10]}. Regenerar con "
+                "packaging/build_release.py."
+            )
+    finally:
+        fresco.unlink(missing_ok=True)
 
 
 def test_planes_pagos_tienen_vigencia_larga():

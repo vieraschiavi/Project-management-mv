@@ -4,6 +4,7 @@
 // del servidor antes de emitir la licencia. Mismo criterio que
 // api/verify-payment.js de MV Kobra AI.
 
+const { canjePrevio, registrarCanje } = require('./_canjes');
 const { issueLicense } = require('./_license');
 const { PLANS, montoAlcanza } = require('./_planes');
 const { limitar } = require('./_ratelimit');
@@ -75,7 +76,19 @@ module.exports = async (req, res) => {
       return;
     }
 
+    // Un pago = una licencia. Si este payment_id ya emitió una, se re-emite
+    // para el plan y el email de ESE primer canje, no para lo que pida la URL
+    // ahora: recargar la página de retorno tiene que devolverle su licencia al
+    // que pagó, pero un mismo pago no puede licenciar a medio mundo.
+    const previo = await canjePrevio(String(payment.id));
+    if (previo) {
+      const token = issueLicense(previo.plan, previo.email, String(payment.id));
+      res.status(200).json({ ok: true, plan: previo.plan, license_token: token, reemision: true });
+      return;
+    }
+
     const licenseEmail = payment.payer?.email || email;
+    await registrarCanje(String(payment.id), plan, licenseEmail);
     const token = issueLicense(plan, licenseEmail, String(payment.id));
     res.status(200).json({ ok: true, plan, license_token: token });
   } catch (err) {

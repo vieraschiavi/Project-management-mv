@@ -4,9 +4,21 @@
 // separa un cliente que pagó de cualquiera que sepa armar un JSON. Se corre con
 // `node tests/test_licencias.js`; el workflow tests.yml lo ejecuta en cada push.
 
-process.env.MVPM_LICENSE_SECRET = 'secreto-de-prueba-no-usar-en-produccion';
-
 const assert = require('assert');
+const crypto = require('crypto');
+
+// Par Ed25519 efímero para la corrida. Las claves reales no están en el repo
+// (la privada vive como variable de entorno en Vercel), y no deben estarlo.
+function parDeClaves() {
+  const { privateKey } = crypto.generateKeyPairSync('ed25519');
+  // El DER PKCS#8 de una Ed25519 son 48 bytes: 16 de encabezado fijo + los 32
+  // de la semilla, que es el formato crudo que usan _license.js y Python.
+  const semilla = privateKey.export({ format: 'der', type: 'pkcs8' }).subarray(16);
+  return semilla.toString('base64url');
+}
+
+process.env.MVPM_LICENSE_PRIVATE_KEY = parDeClaves();
+
 const { PLANES, issueLicense, verifyLicense } = require('../api/_license');
 
 let fallos = 0;
@@ -17,11 +29,11 @@ function test(nombre, fn) {
 
 console.log('_license.js — emisión');
 
-test('emite un token con el formato MVPM1.<payload>.<firma>', () => {
+test('emite un token con el formato MVPM2.<payload>.<firma>', () => {
   const t = issueLicense('professional', 'cliente@ejemplo.com');
   const partes = t.split('.');
   assert.strictEqual(partes.length, 3);
-  assert.strictEqual(partes[0], 'MVPM1');
+  assert.strictEqual(partes[0], 'MVPM2');
   assert.ok(partes[1].length > 0 && partes[2].length > 0);
 });
 
@@ -43,12 +55,12 @@ test('rechaza un plan que no existe en el catálogo', () => {
   assert.throws(() => issueLicense('plan_inventado', 'x@y.com'), /Plan desconocido/);
 });
 
-test('el token no lleva el secreto adentro', () => {
+test('el token no lleva la clave privada adentro', () => {
   const t = issueLicense('professional', 'cliente@ejemplo.com');
-  assert.ok(!t.includes(process.env.MVPM_LICENSE_SECRET),
-            'el secreto de firma no puede viajar en el token');
+  assert.ok(!t.includes(process.env.MVPM_LICENSE_PRIVATE_KEY),
+            'la clave privada de firma no puede viajar en el token');
   const crudo = Buffer.from(t.split('.')[1], 'base64').toString();
-  assert.ok(!crudo.includes(process.env.MVPM_LICENSE_SECRET));
+  assert.ok(!crudo.includes(process.env.MVPM_LICENSE_PRIVATE_KEY));
 });
 
 test('el payload es legible (no está cifrado) — es firmado, no secreto', () => {
@@ -85,27 +97,30 @@ test('RECHAZA una firma alterada', () => {
   assert.strictEqual(verifyLicense(`${pref}.${payloadB64}.${otra}`), null);
 });
 
-test('RECHAZA un token firmado con otro secreto', () => {
-  const original = process.env.MVPM_LICENSE_SECRET;
-  process.env.MVPM_LICENSE_SECRET = 'otro-secreto-distinto';
+test('RECHAZA un token firmado con otra clave privada', () => {
+  // Es el ataque que el esquema asimétrico tiene que frenar: cualquiera puede
+  // generarse un par de claves, pero sólo la privada del dueño produce firmas
+  // que la pública embebida en el programa acepta.
+  const original = process.env.MVPM_LICENSE_PRIVATE_KEY;
+  process.env.MVPM_LICENSE_PRIVATE_KEY = parDeClaves();
   delete require.cache[require.resolve('../api/_license')];
   const otroModulo = require('../api/_license');
   const ajeno = otroModulo.issueLicense('professional', 'a@b.com');
 
-  process.env.MVPM_LICENSE_SECRET = original;
+  process.env.MVPM_LICENSE_PRIVATE_KEY = original;
   delete require.cache[require.resolve('../api/_license')];
   const nuestro = require('../api/_license');
   assert.strictEqual(nuestro.verifyLicense(ajeno), null,
                      'un token de otra instalación no debe validar acá');
 });
 
-test('RECHAZA un prefijo que no es MVPM1', () => {
+test('RECHAZA un prefijo que no es MVPM2', () => {
   const t = issueLicense('professional', 'a@b.com');
   assert.strictEqual(verifyLicense('OTRO.' + t.split('.').slice(1).join('.')), null);
 });
 
 test('RECHAZA basura sin romperse', () => {
-  for (const basura of ['', 'no-es-un-token', 'a.b', 'a.b.c.d', 'MVPM1..', 'MVPM1.@@@.###']) {
+  for (const basura of ['', 'no-es-un-token', 'a.b', 'a.b.c.d', 'MVPM2..', 'MVPM2.@@@.###']) {
     assert.strictEqual(verifyLicense(basura), null, `debería rechazar: ${basura}`);
   }
 });
@@ -117,16 +132,27 @@ test('RECHAZA null/undefined sin lanzar', () => {
 
 console.log('\n_license.js — configuración');
 
-test('falla explícito si no hay secreto configurado', () => {
-  const original = process.env.MVPM_LICENSE_SECRET;
-  delete process.env.MVPM_LICENSE_SECRET;
+test('falla explícito si no hay clave privada configurada', () => {
+  const original = process.env.MVPM_LICENSE_PRIVATE_KEY;
+  delete process.env.MVPM_LICENSE_PRIVATE_KEY;
   delete require.cache[require.resolve('../api/_license')];
-  const sinSecreto = require('../api/_license');
-  // Emitir con un secreto que cambia en cada cold start haría licencias que no
-  // validan después: mejor reventar que emitir algo inservible.
-  assert.throws(() => sinSecreto.issueLicense('professional', 'a@b.com'),
-                /MVPM_LICENSE_SECRET/);
-  process.env.MVPM_LICENSE_SECRET = original;
+  const sinClave = require('../api/_license');
+  // Emitir sin la clave del dueño haría licencias que no validan en ninguna
+  // PC: mejor reventar que entregarle al que pagó algo inservible.
+  assert.throws(() => sinClave.issueLicense('professional', 'a@b.com'),
+                /MVPM_LICENSE_PRIVATE_KEY/);
+  process.env.MVPM_LICENSE_PRIVATE_KEY = original;
+  delete require.cache[require.resolve('../api/_license')];
+});
+
+test('RECHAZA una clave privada que no mide 32 bytes', () => {
+  const original = process.env.MVPM_LICENSE_PRIVATE_KEY;
+  process.env.MVPM_LICENSE_PRIVATE_KEY = Buffer.from('corta').toString('base64url');
+  delete require.cache[require.resolve('../api/_license')];
+  const malConfigurado = require('../api/_license');
+  assert.throws(() => malConfigurado.issueLicense('professional', 'a@b.com'),
+                /32 bytes/);
+  process.env.MVPM_LICENSE_PRIVATE_KEY = original;
   delete require.cache[require.resolve('../api/_license')];
 });
 

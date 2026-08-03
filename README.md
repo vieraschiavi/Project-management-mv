@@ -85,10 +85,47 @@ es lo único con costo real por uso:
 Se paga con MercadoPago (`api/checkout.js`); al aprobarse el pago,
 `api/verify-payment.js` re-verifica contra la API real de MercadoPago
 (nunca confía en el query string de retorno) y emite un token de licencia
-firmado (HMAC-SHA256, mismo esquema en Python y en JS, ver
+firmado con **Ed25519** (mismo esquema en Python y en JS, ver
 `mvpm/licensing.py` y `api/_license.js`). Sin `MP_ACCESS_TOKEN` configurada,
 el checkout cae a un link de pago fijo por plan (`MP_LINK_PROFESSIONAL`) en
-vez de romper.
+vez de romper. Un mismo `payment_id` no se puede canjear dos veces por
+licencias a nombres distintos (`api/_canjes.js`).
+
+### ⚠️ Paso obligatorio antes de vender: generar el par de claves
+
+Las licencias se firman con un par **Ed25519**: la clave privada emite y la
+pública verifica. El repo **no trae ninguna de las dos** (una clave privada en
+un repo es una clave privada quemada), así que hasta que generes el par
+`verify_license()` rechaza todo token y nadie puede activar una licencia.
+
+```bash
+python packaging/generar_claves_licencia.py --escribir
+```
+
+Eso imprime las dos mitades y pega la **pública** en `mvpm/licensing.py`
+(`CLAVE_PUBLICA_EMBEBIDA`) — commiteá ese cambio. La **privada** no se guarda
+en ningún archivo: cargala como variable de entorno `MVPM_LICENSE_PRIVATE_KEY`
+en dos lugares, y en ninguno más:
+
+1. **Vercel** → Settings → Environment Variables (para que el checkout pueda
+   emitir licencias al cobrar).
+2. **Tu máquina**, si vas a emitir licencias a mano desde `owner/panel.py` o
+   activar tu modo owner con `./run.sh owner`.
+
+Guardala también en tu gestor de contraseñas: si la perdés, las licencias ya
+emitidas siguen andando, pero para emitir nuevas hay que generar un par nuevo,
+publicar una versión con la pública nueva y reemitir.
+
+**Por qué asimétrico y no un secreto compartido.** El esquema anterior era HMAC
+con un "secreto compartido" que, si no llegaba por variable de entorno, el
+propio cliente se autogeneraba al azar en su disco. Eso rompía el candado en
+las dos direcciones a la vez: cualquiera se emitía una licencia Enterprise con
+dos líneas (`issue_license("enterprise", ...)`, firmada y verificada contra su
+propio secreto local), y al mismo tiempo el token legítimo que emitía el
+servidor **no** verificaba en la PC del que había pagado —secretos distintos—,
+así que el cliente pagaba y seguía viendo "la prueba venció". Con firma
+asimétrica las dos se caen solas: la clave que viaja en cada copia del programa
+sirve para verificar y no para emitir.
 
 ### Edición Owner (la instalación del dueño, sin candado)
 
@@ -96,11 +133,19 @@ El dueño del producto usa su propia herramienta todos los días y no tiene
 sentido que la prueba de 7 días lo deje afuera. Para marcar **esta** máquina:
 
 ```bash
+export MVPM_LICENSE_PRIVATE_KEY=<tu-clave-privada>
 ./run.sh owner       # activa el modo owner en esta máquina, para siempre
 ./run.sh owner-off    # vuelve al comportamiento de cliente (prueba + licencia)
 ```
 
-En Windows, doble clic en `MV_ProjectManagement_OWNER.bat` (una sola vez).
+En Windows, `set MVPM_LICENSE_PRIVATE_KEY=<tu-clave>` y después doble clic en
+`MV_ProjectManagement_OWNER.bat` (una sola vez).
+
+Hace falta la clave privada porque el marcador es un **token firmado**, no un
+archivo vacío: `es_owner()` verifica la firma en cada arranque. Antes alcanzaba
+con que el archivo existiera —o con exportar `MVPM_OWNER_BYPASS=1`—, y las dos
+cosas estaban documentadas en `mvpm/owner.py`, que viaja dentro del ZIP que
+baja cualquiera: eran dos bypasses del candado a un `touch` de distancia.
 
 Vale para **toda** forma de arrancar el programa —`run.sh app`, el `.bat`
 portable, el `.exe`, `streamlit run` directo—: la decisión vive en

@@ -9,7 +9,11 @@
 // barato podía canjearse por una licencia de un plan superior con sólo
 // cambiar la URL.
 
-process.env.MVPM_LICENSE_SECRET = 'secreto-de-prueba-no-usar-en-produccion';
+// Par Ed25519 efímero: las licencias se firman con clave privada del dueño,
+// que no está en el repo. Sin esto, issueLicense() revienta y todo responde 500.
+process.env.MVPM_LICENSE_PRIVATE_KEY = require('crypto')
+  .generateKeyPairSync('ed25519').privateKey
+  .export({ format: 'der', type: 'pkcs8' }).subarray(16).toString('base64url');
 process.env.MP_ACCESS_TOKEN = 'token-de-prueba';
 process.env.MP_CURRENCY = 'UYU';
 process.env.MP_TASA_UYU = '40';

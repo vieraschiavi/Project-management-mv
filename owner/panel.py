@@ -3,7 +3,7 @@
 ⚠️ ESTE ARCHIVO NO SE DISTRIBUYE AL CLIENTE.
 `packaging/build_release.py` sólo empaqueta mvpm/, app/, api/ y tests/, así que
 `owner/` queda fuera del ZIP y del instalador. Nunca lo agregues ahí: este panel
-usa el secreto de firma de licencias (MVPM_LICENSE_SECRET) y el Access Token de
+usa la clave PRIVADA de firma de licencias (MVPM_LICENSE_PRIVATE_KEY) y el Access Token de
 MercadoPago. Si viajan en el paquete del cliente, cualquiera se emite licencias.
 
 Qué resuelve:
@@ -12,7 +12,7 @@ Qué resuelve:
   - Ver los cobros reales y las suscripciones activas contra la API de MercadoPago.
 
 Correr:
-    MVPM_LICENSE_SECRET=<tu-secreto> MP_ACCESS_TOKEN=<tu-token> \
+    MVPM_LICENSE_PRIVATE_KEY=<tu-clave-privada> MP_ACCESS_TOKEN=<tu-token> \
         python -m streamlit run owner/panel.py
 """
 from __future__ import annotations
@@ -33,13 +33,13 @@ from mvpm import licensing  # noqa: E402
 st.set_page_config(page_title="MV Project Management · Owner", page_icon="🔐", layout="wide")
 
 MP_TOKEN = os.environ.get("MP_ACCESS_TOKEN", "")
-TIENE_SECRETO = bool(os.environ.get("MVPM_LICENSE_SECRET"))
+TIENE_SECRETO = bool(os.environ.get("MVPM_LICENSE_PRIVATE_KEY"))
 
 st.title("🔐 Panel del owner")
 
 if not TIENE_SECRETO:
     st.error(
-        "Falta **MVPM_LICENSE_SECRET**. Sin el mismo secreto que usa la web, las "
+        "Falta **MVPM_LICENSE_PRIVATE_KEY**. Sin la misma clave privada que usa la web, las "
         "licencias que emitas acá no van a validar en el programa del cliente. "
         "Exportá la variable con el mismo valor que cargaste en Vercel."
     )
@@ -94,7 +94,7 @@ with tab_verificar:
         if not payload:
             st.error(
                 "Token **inválido**: la firma no coincide. O está mal copiado, o fue "
-                "emitido con otro secreto (¿cambiaste MVPM_LICENSE_SECRET?)."
+                "emitido con otra clave (¿cambiaste MVPM_LICENSE_PRIVATE_KEY?)."
             )
         else:
             vigente = licensing.licencia_vigente(payload)

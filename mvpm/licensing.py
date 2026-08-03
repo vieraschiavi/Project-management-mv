@@ -4,23 +4,66 @@ políticas) no requiere licencia y no tiene cupo. Lo que se mide y factura es
 el uso del **copiloto con IA** (consultas que enriquece Claude), porque es lo
 único con costo variable real — el motor de reglas es gratis siempre.
 
-Token propio, sin dependencias externas (HMAC-SHA256, formato
-`MVPM1.<payload_b64url>.<firma_b64url>`), para no atar el proyecto a una
-librería JWT y poder reimplementar el mismo esquema en las funciones
-serverless de Node (`api/_license.js`) con el mismo secreto compartido.
+Token propio (formato `MVPM2.<payload_b64url>.<firma_b64url>`), sin atar el
+proyecto a una librería JWT, reimplementado con el mismo esquema en las
+funciones serverless de Node (`api/_license.js`).
+
+## Por qué la firma es asimétrica (Ed25519) y no un secreto compartido
+
+El servidor de pagos firma con la clave PRIVADA, que nunca sale de Vercel; el
+programa del cliente lleva sólo la clave PÚBLICA, que sirve para verificar y
+**no** para emitir.
+
+Antes esto era HMAC-SHA256 con un "secreto compartido" que, si no llegaba por
+variable de entorno, el propio cliente se autogeneraba al azar en su disco. Eso
+rompía el candado en las dos direcciones a la vez:
+
+* **El que no pagaba entraba.** Dos líneas con el módulo que viene en la caja
+  —`issue_license("enterprise", ...)`— firmaban con el secreto local y
+  `verify_license()` las validaba contra ese mismo secreto local.
+* **El que pagaba no entraba.** El token legítimo emitido por el servidor venía
+  firmado con el secreto de Vercel, que no coincidía con el del cliente, así
+  que `verify_license()` devolvía None y la persona que acababa de pagar seguía
+  viendo "la prueba venció".
+
+Con firma asimétrica las dos se caen solas: sin la clave privada no se puede
+producir una firma que la pública acepte, y la pública que viaja en cada copia
+del programa no sirve para emitir nada.
 """
 
 import base64
-import hashlib
-import hmac
+import binascii
 import json
+import os
 import time
+from pathlib import Path
+
+from cryptography.exceptions import InvalidSignature
+from cryptography.hazmat.primitives.asymmetric.ed25519 import (
+    Ed25519PrivateKey,
+    Ed25519PublicKey,
+)
 from mvpm import rutas
 
 _STORE_DIR = rutas.directorio_datos()
-_SECRET_FILE = _STORE_DIR / "license_secret.txt"
 _USAGE_FILE = _STORE_DIR / "uso_copiloto.json"
 _TRIAL_FILE = _STORE_DIR / "trial.json"
+
+#: Dónde se guarda la marca de "primer uso". Se escribe en TODAS y se lee la
+#: MÁS VIEJA de las que existan, así borrar una sola no devuelve la prueba a
+#: cero — que era lo que pasaba: `rm trial.json` daba 7 días nuevos, infinitas
+#: veces. Sin duplicados y en orden (dict.fromkeys): cuando el proceso no está
+#: congelado, _STORE_DIR ya es el perfil del usuario.
+#:
+#: Honestidad sobre el alcance: esto sube el listón de "borrar un archivo
+#: obvio" a "encontrar y borrar todos", no lo vuelve imposible. Una prueba
+#: offline en una máquina ajena siempre se puede resetear con suficiente
+#: empeño; lo que no puede pasar es que sea trivial.
+_RUTAS_TRIAL = tuple(dict.fromkeys([
+    _TRIAL_FILE,
+    Path.home() / rutas.NOMBRE_CARPETA / "trial.json",
+    Path.home() / ".mvpm_estado",
+]))
 
 # Prueba completa: el programa se descarga 100% desbloqueado y funciona sin
 # recortes durante estos días desde el primer uso. Al vencer, se bloquea el
@@ -71,20 +114,15 @@ PLANES = {
 }
 
 
-def _secret() -> bytes:
-    """Resuelve el secreto de firma: env var > archivo local generado una vez.
-    Mismo criterio de prioridad que `kobra/config.py`."""
-    import os
-    env = os.environ.get("MVPM_LICENSE_SECRET")
-    if env:
-        return env.encode("utf-8")
-    if _SECRET_FILE.exists():
-        return _SECRET_FILE.read_text().strip().encode("utf-8")
-    import secrets
-    token = secrets.token_hex(32)
-    _STORE_DIR.mkdir(parents=True, exist_ok=True)
-    _SECRET_FILE.write_text(token)
-    return token.encode("utf-8")
+#: Clave PÚBLICA de firma de licencias, en base64url de los 32 bytes crudos.
+#: Es la que viaja en cada copia del programa. Se puede pisar con la variable
+#: de entorno MVPM_LICENSE_PUBLIC_KEY (rotación de claves, o tests).
+#:
+#: Vacía = todavía no se generó el par de claves de producción. Mientras esté
+#: así, `verify_license()` rechaza TODO token: preferimos que no entre nadie
+#: con licencia a que entre cualquiera. Se genera una sola vez con
+#: `python packaging/generar_claves_licencia.py`.
+CLAVE_PUBLICA_EMBEBIDA = ""
 
 
 def _b64url(data: bytes) -> str:
@@ -96,11 +134,47 @@ def _b64url_decode(data: str) -> bytes:
     return base64.urlsafe_b64decode(data + padding)
 
 
+def _clave_publica() -> Ed25519PublicKey | None:
+    """La clave con la que el programa VERIFICA licencias. None si todavía no
+    hay par de claves configurado."""
+    crudo = os.environ.get("MVPM_LICENSE_PUBLIC_KEY", "").strip() or CLAVE_PUBLICA_EMBEBIDA
+    if not crudo:
+        return None
+    try:
+        return Ed25519PublicKey.from_public_bytes(_b64url_decode(crudo))
+    except (ValueError, TypeError, binascii.Error):
+        return None
+
+
+def _clave_privada() -> Ed25519PrivateKey | None:
+    """La clave con la que se EMITEN licencias. Vive sólo en el servidor de
+    pagos (variable de entorno en Vercel) y en la máquina del dueño para el
+    panel de licencias. Nunca viaja en lo que recibe un cliente."""
+    crudo = os.environ.get("MVPM_LICENSE_PRIVATE_KEY", "").strip()
+    if not crudo:
+        return None
+    try:
+        return Ed25519PrivateKey.from_private_bytes(_b64url_decode(crudo))
+    except (ValueError, TypeError, binascii.Error):
+        return None
+
+
 def issue_license(plan: str, email: str, payment_id: str | None = None) -> str:
     """Emite un token de licencia firmado. `payment_id` viene de MercadoPago
-    cuando la emisión sigue a un pago verificado; None para el plan demo."""
+    cuando la emisión sigue a un pago verificado; None para el plan demo.
+
+    Requiere la clave PRIVADA. En la máquina de un cliente no está, así que
+    esto no es una forma de fabricarse una licencia: es exactamente el punto
+    del esquema asimétrico.
+    """
     if plan not in PLANES:
         raise ValueError(f"Plan desconocido: {plan}")
+    clave = _clave_privada()
+    if clave is None:
+        raise RuntimeError(
+            "No hay clave privada de licencias (MVPM_LICENSE_PRIVATE_KEY). "
+            "Sólo el servidor de pagos y el panel del dueño pueden emitir licencias."
+        )
     payload = {
         "plan": plan,
         "email": email,
@@ -109,21 +183,28 @@ def issue_license(plan: str, email: str, payment_id: str | None = None) -> str:
         "cupo_mensual_ia": PLANES[plan]["cupo_mensual_ia"],
     }
     payload_b64 = _b64url(json.dumps(payload, separators=(",", ":")).encode("utf-8"))
-    sig = hmac.new(_secret(), payload_b64.encode("ascii"), hashlib.sha256).digest()
-    return f"MVPM1.{payload_b64}.{_b64url(sig)}"
+    sig = clave.sign(payload_b64.encode("ascii"))
+    return f"MVPM2.{payload_b64}.{_b64url(sig)}"
 
 
 def verify_license(token: str) -> dict | None:
-    """Verifica firma y estructura. Devuelve el payload si es válido, None si no."""
+    """Verifica firma y estructura. Devuelve el payload si es válido, None si no.
+
+    Sólo acepta `MVPM2` (Ed25519). Los `MVPM1` viejos (HMAC con secreto que el
+    propio cliente se autogeneraba) se rechazan a propósito: aceptarlos sería
+    dejar abierta la puerta que este cambio vino a cerrar.
+    """
+    clave = _clave_publica()
+    if clave is None or not token:
+        return None
     try:
         prefix, payload_b64, sig_b64 = token.split(".")
-        if prefix != "MVPM1":
+        if prefix != "MVPM2":
             return None
-        expected = hmac.new(_secret(), payload_b64.encode("ascii"), hashlib.sha256).digest()
-        if not hmac.compare_digest(expected, _b64url_decode(sig_b64)):
-            return None
+        clave.verify(_b64url_decode(sig_b64), payload_b64.encode("ascii"))
         return json.loads(_b64url_decode(payload_b64))
-    except (ValueError, KeyError, json.JSONDecodeError):
+    except (ValueError, KeyError, TypeError, binascii.Error,
+            json.JSONDecodeError, InvalidSignature):
         return None
 
 
@@ -177,24 +258,41 @@ def registrar_uso_ia(email: str = "demo@local") -> None:
 # --------------------------------------------------------------- prueba 7 días
 
 def _leer_trial() -> dict:
-    if not _TRIAL_FILE.exists():
-        return {}
-    try:
-        return json.loads(_TRIAL_FILE.read_text())
-    except json.JSONDecodeError:
-        return {}
+    """La marca MÁS VIEJA de todas las copias que existan. Borrar una sola no
+    reinicia la prueba: mientras quede otra, esa es la que manda."""
+    mas_vieja = None
+    for ruta in _RUTAS_TRIAL:
+        try:
+            data = json.loads(ruta.read_text())
+        except (OSError, json.JSONDecodeError):
+            continue
+        try:
+            ts = float(data["primer_uso"])
+        except (KeyError, TypeError, ValueError):
+            continue
+        if mas_vieja is None or ts < mas_vieja:
+            mas_vieja = ts
+    return {} if mas_vieja is None else {"primer_uso": mas_vieja}
 
 
 def primer_uso(ahora: float | None = None) -> float:
     """Devuelve el timestamp del primer uso, creándolo la primera vez. La marca
-    se guarda en disco y no se pisa: define desde cuándo corre la prueba."""
+    se guarda en disco y no se pisa: define desde cuándo corre la prueba.
+
+    Se reescribe en todas las rutas en cada llamada (no sólo al crearla) para
+    que restaurar una copia borrada sea automático: si quedó una sola, la
+    próxima apertura del programa vuelve a dejar las demás en su lugar.
+    """
     data = _leer_trial()
-    if "primer_uso" in data:
-        return float(data["primer_uso"])
-    ts = float(ahora if ahora is not None else time.time())
-    _STORE_DIR.mkdir(parents=True, exist_ok=True)
-    data["primer_uso"] = ts
-    _TRIAL_FILE.write_text(json.dumps(data, indent=2))
+    ts = float(data["primer_uso"]) if "primer_uso" in data else float(
+        ahora if ahora is not None else time.time())
+    contenido = json.dumps({"primer_uso": ts}, indent=2)
+    for ruta in _RUTAS_TRIAL:
+        try:
+            ruta.parent.mkdir(parents=True, exist_ok=True)
+            ruta.write_text(contenido)
+        except OSError:
+            continue  # una ruta sin permiso no puede tumbar el arranque
     return ts
 
 
