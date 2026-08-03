@@ -23,15 +23,32 @@ if not exist "%PY%" set "PY=python"
 rem El marcador es un token FIRMADO con la clave privada del dueno: sin ella no
 rem se puede activar nada. Antes alcanzaba con que el archivo existiera, o sea
 rem que cualquier cliente se saltaba el candado creandolo a mano.
+rem
+rem La forma NORMAL de tener el modo dueno hoy es el instalador Owner Edition:
+rem trae el marcador ya firmado adentro, asi que se instala y listo, sin tocar
+rem ninguna variable. Este .bat queda como alternativa para quien prefiera
+rem activarlo sobre una instalacion portable que ya tiene.
 if "%MVPM_LICENSE_PRIVATE_KEY%"=="" (
-    echo [ERROR] Falta MVPM_LICENSE_PRIVATE_KEY.
+    echo No hace falta este .bat: usa el INSTALADOR Owner Edition.
     echo.
-    echo Sin la clave privada no se puede firmar el marcador de modo owner.
-    echo Genera el par una sola vez con:
-    echo     python packaging\generar_claves_licencia.py --escribir
-    echo y despues, en esta misma ventana:
+    echo   MVProjectManagementOwner_Setup_v0.2.0.exe
+    echo.
+    echo Ese instalador trae el modo dueno ya firmado adentro: lo instalas,
+    echo abris el programa y ya corre sin el candado de los 7 dias. No hay que
+    echo configurar ninguna variable ni abrir una consola.
+    echo.
+    echo Donde bajarlo: en GitHub, pestana Actions, workflow
+    echo "Build Windows installer (Owner Edition)" - Run workflow. Al terminar
+    echo queda como artefacto de esa corrida. Con un tag owner-v* ademas queda
+    echo publicado como Release del repo.
+    echo.
+    echo ---------------------------------------------------------------
+    echo Alternativa avanzada: activarlo sobre ESTA carpeta portable.
+    echo Necesitas la clave privada de licencias:
     echo     set MVPM_LICENSE_PRIVATE_KEY=^<tu-clave^>
     echo     MV_ProjectManagement_OWNER.bat
+    echo Si todavia no generaste el par de claves:
+    echo     python packaging\generar_claves_licencia.py --escribir
     pause
     exit /b 1
 )

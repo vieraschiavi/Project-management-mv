@@ -1,9 +1,11 @@
 ; Script de Inno Setup 6 — "Owner Edition". Mismo instalador profesional que
 ; packaging/instalador.iss (icono en Menú Inicio + escritorio, elegir
 ; carpeta, elegir per-user/per-machine, EULA), con dos diferencias:
-;   1. Empaqueta el .exe compilado desde mvpm_owner.spec (trae el marcador
-;      OWNER_EDITION → arranca con MVPM_OWNER_BYPASS=1, sin candado de 7
-;      días ni límite de cupo de IA).
+;   1. Empaqueta el .exe compilado desde mvpm_owner.spec, que lleva adentro
+;      el marcador OWNER_EDITION ya FIRMADO por el CI (ver
+;      packaging/firmar_marcador_owner.py) → arranca sin candado de 7 días
+;      ni límite de cupo de IA, y sin que el dueño configure nada en su PC:
+;      instala, abre y ya está.
 ;   2. AppId, nombre de carpeta y nombre de .exe distintos — para poder
 ;      tener instalada la versión Owner y la versión cliente en la misma
 ;      PC al mismo tiempo, sin que una pise a la otra.

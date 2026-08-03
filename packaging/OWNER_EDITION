@@ -1,4 +1,17 @@
-Este archivo solo existe en el build "Owner Edition" (packaging/mvpm_owner.spec).
-Su sola presencia junto al .exe le dice a mvpm_launcher.py que active
-MVPM_OWNER_BYPASS=1 automáticamente. Nunca se empaqueta en el build para
-clientes (packaging/mvpm.spec) ni en el ZIP portable.
+# PLACEHOLDER SIN FIRMA — este archivo, tal como está versionado, NO activa
+# nada. No hay ninguna línea de token arriba, a propósito.
+#
+# El marcador real de la Owner Edition es una licencia FIRMADA con la clave
+# privada del dueño, y por eso no se committea: quedaría en el historial de git
+# para siempre. Lo genera el CI justo antes de compilar
+# (packaging/firmar_marcador_owner.py, a partir del secreto
+# MVPM_LICENSE_PRIVATE_KEY) y packaging/mvpm_owner.spec lo empaqueta dentro del
+# .exe.
+#
+# Consecuencia buscada: si alguien compila la Owner Edition sin ese secreto, el
+# .exe que sale se comporta como el de un cliente (prueba de 7 días). Fallar
+# hacia el lado seguro es preferible a un ejecutable que diga "Owner" y no
+# desbloquee — y mucho mejor que uno que desbloquee sin firma de nadie.
+#
+# mvpm/owner.py toma la primera línea que no empiece con '#': acá no hay
+# ninguna, así que la verificación falla y es_owner() devuelve False.

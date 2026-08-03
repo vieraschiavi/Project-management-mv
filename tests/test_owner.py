@@ -108,6 +108,22 @@ def test_un_marcador_firmado_con_otra_clave_no_activa_nada(sin_marcadores, monke
     assert owner.es_owner() is False
 
 
+def test_el_marcador_versionado_no_lleva_una_licencia_firmada():
+    """`packaging/OWNER_EDITION` es un placeholder: el marcador de verdad lo
+    firma el CI en el momento del build (packaging/firmar_marcador_owner.py).
+
+    Si alguien commitea el archivo ya firmado —fácil de hacer sin querer
+    después de probar el build a mano— esa licencia queda en el historial de
+    git para siempre, y cualquiera con acceso al repo se activa el modo owner
+    copiándola. Este test lo agarra antes del commit."""
+    ruta = Path(__file__).resolve().parent.parent / "packaging" / "OWNER_EDITION"
+    lineas = [ln.strip() for ln in ruta.read_text(encoding="utf-8").splitlines()]
+    utiles = [ln for ln in lineas if ln and not ln.startswith("#")]
+    assert not utiles, (
+        f"packaging/OWNER_EDITION tiene contenido sin comentar ({utiles[:1]}): "
+        "si es un token firmado, no puede committearse. Restauralo al placeholder.")
+
+
 def test_un_cliente_no_puede_activarse_solo(sin_marcadores, monkeypatch):
     """Sin la clave privada —o sea, en la máquina de cualquier cliente—
     `activar()` no puede fabricar un marcador que valga."""
