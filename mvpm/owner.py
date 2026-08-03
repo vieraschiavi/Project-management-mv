@@ -14,13 +14,34 @@ la decisión se centraliza acá: todas las formas de arrancar preguntan lo mismo
 
 Cualquiera de estas tres, en orden de cómo se usan en la práctica:
 
-1. **Marcador en los datos del usuario** (`~/.mv_project_management/OWNER_EDITION`).
-   Es el que activa `./run.sh owner`: se escribe una vez y vale para siempre en
-   esa máquina, sin importar con qué comando se abra el programa.
-2. **Marcador junto al programa** (`<raíz>/OWNER_EDITION`). Es el que empaqueta
-   `packaging/mvpm_owner.spec` al lado del `.exe` de la Owner Edition.
+1. **Marcador en el perfil del usuario** (`~/.mv_project_management/OWNER_EDITION`,
+   SIEMPRE ahí, sin importar disco de instalación ni si el proceso que pregunta
+   está congelado). Es el que escriben `./run.sh owner` y
+   `MV_ProjectManagement_OWNER.bat`, y el único que se puede activar sin tocar
+   la carpeta de instalación — se escribe una vez y vale para siempre en esa
+   máquina, para cualquier forma de abrir el programa después.
+2. **Marcador junto al programa** (`<raíz o carpeta de datos del proceso que
+   pregunta>/OWNER_EDITION`). Es el que empaqueta `packaging/mvpm_owner.spec`
+   al lado del `.exe` de la Owner Edition.
 3. **Variable de entorno** `MVPM_OWNER_BYPASS=1`, para un arranque puntual sin
    dejar nada escrito.
+
+## El bug que esto corrige
+
+`./run.sh owner` y el `.bat` corren SIN congelar (Python del sistema, no el
+`.exe`), así que hasta acá escribían el marcador vía `rutas.directorio_datos()`
+sin congelar — que siempre da el perfil del usuario. Pero desde que ese mismo
+`directorio_datos()` empezó a devolver "junto al .exe" para un proceso
+CONGELADO con la carpeta de instalación escribible (para respetar el disco
+elegido en el instalador), el `.exe` instalado dejó de preguntar en el perfil
+del usuario — pasó a preguntar junto a sí mismo. Activar con `./run.sh owner`
+escribía en un archivo que el `.exe` instalado ya no miraba: la función corría
+sin ningún error, pero no desbloqueaba nada.
+
+Por eso acá se pregunta SIEMPRE en el perfil del usuario (fijo, sin pasar por
+`directorio_datos()`) además del directorio de datos del proceso actual — así
+`./run.sh owner`/el `.bat` y el `.exe` instalado terminan mirando el mismo
+archivo pase lo que pase con el disco elegido.
 
 ## Por qué esto no afloja la licencia de nadie más
 
@@ -42,17 +63,27 @@ from mvpm import rutas
 
 MARCADOR = "OWNER_EDITION"
 
-# Mismo directorio que db.py/licensing.py/reviews.py (ver mvpm/rutas.py): si
-# el .exe está instalado en D:\, el marcador también vive en D:\, no en el
-# perfil de Windows del usuario.
-_DATOS_USUARIO = rutas.directorio_datos()
+# Fijo, SIN pasar por rutas.directorio_datos(): ese valor depende de si el
+# proceso que pregunta está congelado y de si su propia carpeta de instalación
+# es escribible, así que un `./run.sh owner` (sin congelar) y el `.exe`
+# instalado (congelado) podían terminar de acuerdo en un directorio distinto
+# cada uno — el bug real de esta sección. El perfil del usuario es el único
+# punto que da la misma respuesta sin importar quién pregunta.
+_PERFIL_USUARIO = Path.home() / rutas.NOMBRE_CARPETA
+# Además de dónde este PROCESO en particular guarda sus datos (coincide con lo
+# de arriba si no está congelado, o si la instalación no es escribible; puede
+# ser otro si el .exe congelado escribe junto a sí mismo).
+_DATOS_DEL_PROCESO = rutas.directorio_datos()
 _RAIZ_PROGRAMA = Path(__file__).resolve().parent.parent
 
 #: Dónde se busca el marcador, en orden. `activar()` escribe en el primero.
-RUTAS_MARCADOR = (
-    _DATOS_USUARIO / MARCADOR,
+#: Sin duplicados (dict.fromkeys conserva el orden) — cuando el proceso no
+#: está congelado, _DATOS_DEL_PROCESO y _PERFIL_USUARIO son la misma ruta.
+RUTAS_MARCADOR = tuple(dict.fromkeys([
+    _PERFIL_USUARIO / MARCADOR,
+    _DATOS_DEL_PROCESO / MARCADOR,
     _RAIZ_PROGRAMA / MARCADOR,
-)
+]))
 
 _TEXTO_MARCADOR = (
     "Este archivo marca esta instalación como la del DUEÑO del producto:\n"

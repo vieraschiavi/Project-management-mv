@@ -184,4 +184,8 @@ def test_db_licensing_reviews_y_owner_usan_el_mismo_directorio(no_congelado):
     assert db._STORE_DIR == esperado
     assert licensing._STORE_DIR == esperado
     assert reviews._STORE_DIR == esperado
-    assert owner._DATOS_USUARIO == esperado
+    # El marcador de modo owner es distinto a propósito (ver mvpm/owner.py):
+    # SIEMPRE en el perfil del usuario, nunca junto al .exe, aunque el
+    # proceso esté congelado — si no, ./run.sh owner y el .exe instalado
+    # terminan de acuerdo en un archivo distinto cada uno.
+    assert owner.RUTAS_MARCADOR[0] == esperado / owner.MARCADOR
