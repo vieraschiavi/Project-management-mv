@@ -165,3 +165,119 @@ def _muy_en_el_futuro() -> float:
     import time
 
     return time.time() + licensing.TRIAL_DIAS * 86400 * 10
+
+
+# --------------------- el bug real: ./run.sh owner vs. el .exe instalado
+
+def test_activar_sin_congelar_lo_ve_el_exe_instalado_en_otro_disco(monkeypatch, tmp_path):
+    """Reproduce el bug reportado ("la función owner no funciona"): activar()
+    corre SIN congelar (Python del sistema, no el .exe) — hasta acá escribía
+    vía `rutas.directorio_datos()` sin congelar, que da el perfil del usuario.
+    Pero ese mismo `directorio_datos()`, para un proceso CONGELADO con su
+    carpeta de instalación escribible, devuelve "junto al .exe" — no el
+    perfil del usuario. Resultado: `./run.sh owner` escribía un archivo que
+    el `.exe` instalado ya no miraba. Corría sin error y no desbloqueaba nada.
+
+    Se simulan DOS PROCESOS (recargando el módulo, que calcula sus rutas al
+    importarse) para que sea una reproducción fiel: en la realidad son dos
+    programas distintos preguntando por separado, no el mismo test corriendo
+    las dos ramas de un if.
+
+    OJO con el aislamiento: `rutas`/`owner` calculan sus constantes AL
+    IMPORTARSE, así que hay que recargarlos para que una simulación tome
+    efecto — pero por eso mismo, si el test terminara sin recargarlos una
+    última vez con el HOME real, el módulo quedaría contaminado con el HOME
+    falso de este test para el resto de la suite. `monkeypatch.setenv`
+    revierte HOME recién en el teardown del fixture, que corre DESPUÉS de que
+    termine esta función — un `reload` en un `finally` de acá adentro todavía
+    vería el HOME falso. Por eso HOME se maneja a mano con try/finally, no con
+    `monkeypatch.setenv`: así el reload final, bajo mi propio control, ya está
+    con el HOME real restaurado.
+    """
+    import importlib
+    import os
+    import sys
+
+    from mvpm import owner as owner_mod
+    from mvpm import rutas as rutas_mod
+
+    monkeypatch.delenv("MVPM_OWNER_BYPASS", raising=False)
+    monkeypatch.delenv("MVPM_DATA_DIR", raising=False)
+
+    home_real = os.environ.get("HOME")
+    home_falso = tmp_path / "casa_del_dueno"
+    try:
+        os.environ["HOME"] = str(home_falso)
+
+        # Proceso 1: `./run.sh owner` — Python del sistema, sin congelar.
+        monkeypatch.delattr(sys, "frozen", raising=False)
+        importlib.reload(rutas_mod)
+        importlib.reload(owner_mod)
+        marcador_escrito = owner_mod.activar()
+
+        # Proceso 2: el .exe instalado y congelado, en un disco cualquiera
+        # con su carpeta de instalación escribible — el caso común.
+        instalacion = tmp_path / "D_MVPM_Test"
+        instalacion.mkdir()
+        monkeypatch.setattr(sys, "frozen", True, raising=False)
+        monkeypatch.setattr(sys, "executable", str(instalacion / "MVProjectManagement.exe"))
+        importlib.reload(rutas_mod)
+        importlib.reload(owner_mod)
+        assert owner_mod.es_owner() is True, (
+            f"el .exe instalado en {instalacion} no ve el marcador que "
+            f"escribió ./run.sh owner en {marcador_escrito}"
+        )
+    finally:
+        if home_real is None:
+            os.environ.pop("HOME", None)
+        else:
+            os.environ["HOME"] = home_real
+        monkeypatch.delattr(sys, "frozen", raising=False)
+        importlib.reload(rutas_mod)
+        importlib.reload(owner_mod)
+
+
+def test_activar_no_congelado_y_es_owner_congelado_apuntan_al_mismo_archivo(monkeypatch, tmp_path):
+    """Versión más directa del test anterior: el primer elemento de
+    RUTAS_MARCADOR —donde escribe activar()— tiene que ser IGUAL sin importar
+    si el proceso que pregunta está congelado o no. Si algún día alguien
+    vuelve a hacer que ese primer elemento dependa de rutas.directorio_datos()
+    a secas, este test lo agarra sin necesitar simular dos procesos enteros.
+
+    Mismo cuidado de aislamiento que el test anterior: HOME se restaura a
+    mano ANTES del reload final, no vía monkeypatch (que revertiría después).
+    """
+    import importlib
+    import os
+    import sys
+
+    from mvpm import owner as owner_mod
+    from mvpm import rutas as rutas_mod
+
+    monkeypatch.delenv("MVPM_DATA_DIR", raising=False)
+
+    home_real = os.environ.get("HOME")
+    home_falso = tmp_path / "casa"
+    try:
+        os.environ["HOME"] = str(home_falso)
+
+        monkeypatch.delattr(sys, "frozen", raising=False)
+        importlib.reload(rutas_mod)
+        importlib.reload(owner_mod)
+        sin_congelar = owner_mod.RUTAS_MARCADOR[0]
+
+        monkeypatch.setattr(sys, "frozen", True, raising=False)
+        monkeypatch.setattr(sys, "executable", str(tmp_path / "OtroDisco" / "app.exe"))
+        (tmp_path / "OtroDisco").mkdir()
+        importlib.reload(rutas_mod)
+        importlib.reload(owner_mod)
+        congelado = owner_mod.RUTAS_MARCADOR[0]
+        assert sin_congelar == congelado == home_falso / ".mv_project_management" / "OWNER_EDITION"
+    finally:
+        if home_real is None:
+            os.environ.pop("HOME", None)
+        else:
+            os.environ["HOME"] = home_real
+        monkeypatch.delattr(sys, "frozen", raising=False)
+        importlib.reload(rutas_mod)
+        importlib.reload(owner_mod)
