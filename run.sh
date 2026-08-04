@@ -38,18 +38,12 @@ case "$cmd" in
     # directo). Escribe un archivo en los datos del usuario, no en el repo, así
     # que no hay forma de que se cuele en un ZIP o instalador de cliente.
     #
-    # Necesita MVPM_LICENSE_PRIVATE_KEY: el marcador es un token firmado, y sólo
-    # el dueño tiene con qué firmarlo. Antes alcanzaba con crear el archivo, que
-    # es lo mismo que decir que cualquier cliente se activaba el modo owner.
-    if [ -z "${MVPM_LICENSE_PRIVATE_KEY:-}" ]; then
-      echo "Falta MVPM_LICENSE_PRIVATE_KEY: sin la clave privada no se puede firmar"
-      echo "el marcador de modo owner. Generá el par una sola vez con:"
-      echo "    python packaging/generar_claves_licencia.py --escribir"
-      echo "y después:"
-      echo "    MVPM_LICENSE_PRIVATE_KEY=<tu-clave> ./run.sh owner"
-      exit 1
-    fi
-    python3 -c "from mvpm import owner; print('Modo owner activado:', owner.activar())"
+    # El marcador es un token firmado y sólo el dueño tiene con qué firmarlo
+    # (antes alcanzaba con crear el archivo, o sea que cualquier cliente se
+    # activaba el modo owner). packaging/activar_owner.py resuelve la clave
+    # solo: variable de entorno, o el archivo donde la dejó la primera vez, o
+    # la genera si esto es un checkout del repo. Un doble clic, una sola vez.
+    python3 packaging/activar_owner.py
     ;;
   owner-off)
     python3 -c "

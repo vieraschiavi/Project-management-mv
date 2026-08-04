@@ -17,6 +17,12 @@ INCLUDE_DIRS = ["mvpm", "app", "api", "tests"]
 INCLUDE_FILES = [
     "MV_ProjectManagement.bat", "requirements.txt", "README.md", "run.sh",
     "LICENSE.txt", "packaging/EULA.txt",
+    # `run.sh owner` existe también en el paquete del cliente, así que el script
+    # que invoca tiene que estar o el usuario ve un "no such file" en vez del
+    # motivo real. Incluirlo no afloja nada: se niega a activar salvo desde un
+    # checkout del repo, y para eso pide `.git` y
+    # packaging/generar_claves_licencia.py — ninguno de los dos viaja acá.
+    "packaging/activar_owner.py",
 ]
 
 EXCLUDE_NAMES = {"__pycache__", ".venv", ".pytest_cache", ".git"}
