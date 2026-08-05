@@ -54,6 +54,23 @@ def main() -> int:
     # clave pública embebida, el .exe tampoco lo va a aceptar, y es mucho mejor
     # enterarse acá que después de instalar.
     if licensing.verify_license(token) is None:
+        # Los dos motivos posibles son distintos y llevan a arreglos distintos,
+        # así que se separan. Antes los dos daban "son de pares distintos", que
+        # para el caso de la clave vacía manda a revisar justo lo que no es.
+        if not licensing.CLAVE_PUBLICA_EMBEBIDA:
+            print(
+                "ERROR: CLAVE_PUBLICA_EMBEBIDA está VACÍA en mvpm/licensing.py.\n"
+                "\n"
+                "Con la clave pública vacía el programa rechaza TODO token —el\n"
+                "marcador del dueño y también cualquier licencia comprada— así\n"
+                "que este .exe no se desbloquearía ni con el marcador adentro.\n"
+                "\n"
+                "Falta commitear la clave pública a la rama desde la que corre\n"
+                "este build. Se genera junto con la privada:\n"
+                "    python packaging/generar_claves_licencia.py --escribir",
+                file=sys.stderr,
+            )
+            return 1
         print(
             "ERROR: el token que se acaba de firmar NO valida contra la clave\n"
             "pública embebida en mvpm/licensing.py (CLAVE_PUBLICA_EMBEBIDA).\n"

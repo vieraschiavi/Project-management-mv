@@ -70,3 +70,22 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: packaging/Output/*.exe
+          name: "Owner Edition ${{ github.ref_name }}"
+          # prerelease para que este Release NUNCA quede como "Latest release"
+          # del repo: si mañana se publican releases de cliente, el que la
+          # gente ve primero no puede ser el del dueño.
+          prerelease: true
+          body: |
+            **Instalador de la Owner Edition — uso exclusivo del dueño.**
+
+            Trae adentro un marcador de licencia firmado, así que corre sin la
+            prueba de 7 días y sin límite de cupo de IA, en cualquier máquina
+            donde se instale y sin configurar nada.
+
+            Por eso mismo **este .exe no se comparte con nadie**: quien lo tenga
+            tiene el producto desbloqueado. Es un asset de un repositorio
+            privado y ahí tiene que quedarse — no va a la landing, no va a
+            Vercel Blob, no se manda por mail.
+
+            Los clientes usan el instalador normal (`build_windows.yml`), que
+            sí pasa por la prueba y la licencia.

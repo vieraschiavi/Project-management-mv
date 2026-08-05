@@ -207,6 +207,59 @@ def test_la_clave_privada_nunca_viaja_en_el_zip_del_cliente():
         zip_path.unlink(missing_ok=True)
 
 
+# --------------------------------- por dónde sale el instalador del dueño
+
+def test_el_instalador_owner_no_se_publica_en_ningun_canal_publico():
+    """El .exe de la Owner Edition lleva un marcador FIRMADO adentro: quien lo
+    tenga tiene el producto desbloqueado, sin pagar y sin tocar nada. O sea que
+    el único control que queda es por dónde se distribuye.
+
+    El instalador de cliente sí se sube a Vercel Blob, que es una URL pública
+    permanente. Si alguna vez se copiara ese paso al workflow del dueño, el
+    ejecutable que desbloquea todo quedaría colgado de una URL abierta.
+
+    Se miran las líneas que el workflow EJECUTA, descartando comentarios: los
+    comentarios hablan de Vercel Blob justamente para explicar por qué no se
+    usa, así que buscar la palabra suelta daría un falso positivo eterno.
+
+    Sin parsear YAML a propósito: pyyaml no está en requirements.txt y no vale
+    la pena agregar una dependencia para esto.
+    """
+    lineas = (RAIZ / ".github" / "workflows" / "build_windows_owner.yml").read_text(
+        encoding="utf-8").splitlines()
+    ejecutable = "\n".join(
+        linea for linea in lineas if not linea.lstrip().startswith("#")).lower()
+
+    assert "publish_blob" not in ejecutable
+    assert "blob_read_write_token" not in ejecutable
+    assert "@vercel/blob" not in ejecutable
+
+
+def test_el_instalador_owner_no_se_ofrece_desde_la_landing():
+    """La landing es lo que ve cualquiera. El único instalador linkeado ahí
+    tiene que ser el de cliente."""
+    for html in (RAIZ / "landing").rglob("*.html"):
+        texto = html.read_text(encoding="utf-8", errors="ignore").lower()
+        assert "owner_setup" not in texto
+        assert "mvprojectmanagementowner" not in texto
+
+
+def test_el_release_del_dueno_no_queda_como_ultimo_release_del_repo():
+    """`prerelease: true` evita que el Release del dueño sea el que GitHub
+    muestra como "Latest" — el que vería primero cualquiera con acceso."""
+    workflow = (RAIZ / ".github" / "workflows" / "build_windows_owner.yml").read_text(
+        encoding="utf-8")
+    assert "prerelease: true" in workflow
+
+
+def test_el_build_owner_corta_si_falta_la_clave_privada():
+    """Sin el secreto, compilar igual daría un .exe que dice "Owner Edition" y
+    se comporta como el de un cliente: prueba de 7 días incluida."""
+    script = (RAIZ / "packaging" / "firmar_marcador_owner.py").read_text(encoding="utf-8")
+    assert 'if not os.environ.get("MVPM_LICENSE_PRIVATE_KEY", "").strip():' in script
+    assert "return 1" in script
+
+
 def test_el_paquete_del_cliente_no_permite_autogenerar_claves():
     """`packaging/activar_owner.py` genera un par de claves solo si corre desde
     un checkout del repo, y esa condición es lo único que separa "el dueño
