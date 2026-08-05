@@ -129,13 +129,61 @@ def _pedir_clave() -> str:
         # a quién preguntarle: se cae al mensaje de instalación de cliente.
         return ""
     print("Esta copia todavía no está activada como la del dueño.")
-    print("Si sos el dueño, pegá tu clave privada de licencias y dale Enter.")
-    print("(Si no la tenés a mano, dejá vacío y dale Enter para salir.)")
     print()
-    try:
-        return input("MVPM_LICENSE_PRIVATE_KEY = ").strip()
-    except (EOFError, KeyboardInterrupt):
-        return ""
+    print("Pegá tu CLAVE PRIVADA de licencias: 43 caracteres sin espacios, del")
+    print("estilo 'JIHgwW...NREJm0'. No es tu email ni tu contraseña — el email")
+    print("identifica la licencia, pero lo que la firma es esta clave.")
+    print("La generó packaging/generar_claves_licencia.py y quedó guardada en")
+    print("tu gestor de contraseñas.")
+    print()
+    print("(Si no la tenés a mano, dejá vacío y Enter. Más fácil todavía:")
+    print(" bajá owner/MV_Project_Management_OWNER.zip del repo, que ya viene")
+    print(" activado y no pide nada.)")
+    print()
+    for intento in range(3):
+        try:
+            pegado = input("MVPM_LICENSE_PRIVATE_KEY = ").strip()
+        except (EOFError, KeyboardInterrupt):
+            return ""
+        if not pegado:
+            return ""
+        motivo = _por_que_no_parece_una_clave(pegado)
+        if motivo is None:
+            return pegado
+        # Se avisa ANTES de guardar nada. Antes esto se aceptaba, se escribía
+        # en el perfil del usuario y recién al fallar la firma se borraba: el
+        # usuario veía "Clave guardada" seguido de "esa clave no sirve", que es
+        # justo el orden que hace pensar que se rompió algo.
+        print(f"  -> {motivo}")
+        if intento < 2:
+            print("     Probá de nuevo.")
+            print()
+    return ""
+
+
+#: Largo de la clave privada Ed25519 en el base64url que usa licensing.py
+#: (32 bytes crudos, sin el relleno '=').
+_LARGO_CLAVE = 43
+
+
+def _por_que_no_parece_una_clave(texto: str) -> str | None:
+    """Por qué lo pegado no puede ser la clave privada, o None si podría serlo.
+
+    Es una revisión de forma, no de validez: la prueba de verdad es firmar. Sólo
+    sirve para responder con algo útil en vez de un "no sirve para firmar"
+    genérico cuando lo pegado es obviamente otra cosa.
+    """
+    if "@" in texto:
+        return ("eso es un email, no la clave. El email va adentro de la "
+                "licencia; la clave es la cadena de 43 caracteres.")
+    if " " in texto:
+        return "tiene espacios: la clave no lleva ninguno, revisá cómo la copiaste."
+    if len(texto) != _LARGO_CLAVE:
+        return (f"tiene {len(texto)} caracteres y la clave tiene {_LARGO_CLAVE}: "
+                f"{'quedó cortada al copiarla' if len(texto) < _LARGO_CLAVE else 'se copió de más'}.")
+    if not all(c.isalnum() or c in "-_" for c in texto):
+        return "tiene caracteres que la clave no usa (sólo letras, números, - y _)."
+    return None
 
 
 def _generar_y_persistir() -> tuple[str, str]:
