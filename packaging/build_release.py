@@ -7,6 +7,7 @@ compila aparte, en CI, con PyInstaller + Inno Setup
 (.github/workflows/build_windows.yml).
 """
 
+import shutil
 import zipfile
 from pathlib import Path
 
@@ -50,6 +51,49 @@ def build_portable_zip(version: str = "0.1.0") -> Path:
     return zip_path
 
 
+#: Dónde queda el ZIP del dueño dentro del repo. Va versionado a propósito:
+#: el repo es privado, así que "bajarlo de GitHub" ES el control de acceso.
+ZIP_OWNER = ROOT / "owner" / "MV_Project_Management_OWNER.zip"
+
+
+def build_owner_zip(version: str = "0.1.0") -> Path:
+    """El mismo paquete portable, más el marcador firmado en la raíz.
+
+    Es la versión del dueño: se descarga del repo privado, se descomprime y se
+    abre — sin pegar claves, sin cargar secretos y sin esperar un build de
+    Windows. El marcador va en la RAÍZ del paquete porque es una de las rutas
+    donde `mvpm/owner.py` busca (`_RAIZ_PROGRAMA / MARCADOR`); en
+    `packaging/OWNER_EDITION` no lo encontraría.
+
+    Por qué esto no afloja el candado de nadie: lo único que hace distinto a
+    este ZIP es un archivo que NO está en INCLUDE_FILES, así que el paquete de
+    cliente —el que se publica en la web— no lo lleva ni puede llevarlo por
+    accidente. Los tests de tests/test_owner.py lo fijan.
+    """
+    marcador = ROOT / "packaging" / "OWNER_EDITION"
+    contenido = marcador.read_text(encoding="utf-8")
+    if not [ln for ln in contenido.splitlines()
+            if ln.strip() and not ln.strip().startswith("#")]:
+        raise RuntimeError(
+            "packaging/OWNER_EDITION no tiene un token firmado: el ZIP del "
+            "dueño saldría con el candado de cliente puesto. Firmalo con "
+            "packaging/firmar_marcador_owner.py (necesita MVPM_LICENSE_PRIVATE_KEY).")
+
+    base = build_portable_zip(version=version)
+    ZIP_OWNER.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copyfile(base, ZIP_OWNER)
+    with zipfile.ZipFile(ZIP_OWNER, "a", zipfile.ZIP_DEFLATED) as zf:
+        zf.writestr("OWNER_EDITION", contenido)
+    base.unlink(missing_ok=True)
+    return ZIP_OWNER
+
+
 if __name__ == "__main__":
-    path = build_portable_zip()
-    print(f"Paquete portable generado: {path} ({path.stat().st_size / 1024:.0f} KB)")
+    import sys
+
+    if "--owner" in sys.argv[1:]:
+        path = build_owner_zip()
+        print(f"Paquete del DUEÑO generado: {path} ({path.stat().st_size / 1024:.0f} KB)")
+    else:
+        path = build_portable_zip()
+        print(f"Paquete portable generado: {path} ({path.stat().st_size / 1024:.0f} KB)")

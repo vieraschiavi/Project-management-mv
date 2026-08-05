@@ -24,7 +24,12 @@ case "$cmd" in
     # podía leer sin credenciales. Para exponerla a propósito (Power BI desde
     # otra máquina): MVPM_API_HOST=0.0.0.0 y además MVPM_API_KEY=<clave>, que
     # api/main.py exige para todo pedido que no venga de esta misma máquina.
-    uvicorn api.main:app --host "${MVPM_API_HOST:-127.0.0.1}" --port "${MVPM_API_PORT:-8600}"
+    # El puerto sale de mvpm/puertos.py igual que el del dashboard: 8600 sigue
+    # siendo el primero (para no invalidar los .pbids ya repartidos) pero si
+    # está tomado se elige otro en vez de morir con "Address already in use".
+    API_PUERTO="${MVPM_API_PORT:-$(python3 -m mvpm.puertos --api)}"
+    echo "API de BI en http://127.0.0.1:${API_PUERTO}"
+    uvicorn api.main:app --host "${MVPM_API_HOST:-127.0.0.1}" --port "${API_PUERTO}"
     ;;
   test)
     pytest tests/ -v

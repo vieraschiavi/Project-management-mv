@@ -25,7 +25,7 @@ from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import PlainTextResponse
 
-from mvpm import db, demo_pharma, exporters, licensing, reviews
+from mvpm import db, demo_pharma, exporters, licensing, puertos, reviews
 
 app = FastAPI(title="MV Project Management API", version="0.1.0")
 
@@ -34,10 +34,19 @@ API_KEY = os.environ.get("MVPM_API_KEY") or ""
 # página web que la víctima tuviera abierta leyera su portafolio entero desde
 # el navegador. Por defecto ahora sólo se permite el propio host local; se
 # amplía con MVPM_API_ORIGINS (lista separada por comas) si hace falta.
+#
+# Los puertos por defecto salen de mvpm/puertos.py y no están escritos a mano.
+# Estaban: la lista decía 8501, que es exactamente el puerto que el dashboard
+# YA NO usa —puertos.py lo excluye a propósito por ser el default de Streamlit
+# y el más disputado—. O sea que el único origen permitido era uno donde la app
+# nunca escucha, y cualquier pedido del dashboard real moría en el navegador
+# por CORS sin que nada lo dijera.
 _origins_env = os.environ.get("MVPM_API_ORIGINS", "").strip()
 ALLOWED_ORIGINS = ([o.strip() for o in _origins_env.split(",") if o.strip()]
                    if _origins_env else
-                   ["http://localhost:8501", "http://127.0.0.1:8501"])
+                   [f"http://{host}:{puerto}"
+                    for puerto in puertos.PUERTOS_PREFERIDOS
+                    for host in ("localhost", "127.0.0.1")])
 
 app.add_middleware(
     CORSMiddleware,

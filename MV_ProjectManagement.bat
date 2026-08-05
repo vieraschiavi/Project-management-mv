@@ -57,9 +57,16 @@ for /f "delims=" %%p in ('".venv\Scripts\python.exe" -m mvpm.puertos') do set "M
 if not defined MVPM_PUERTO set "MVPM_PUERTO=8731"
 
 echo.
-echo Abriendo MV Project Management en tu navegador...
+echo Abriendo MV Project Management...
 echo   http://localhost:%MVPM_PUERTO%
-start "" "http://localhost:%MVPM_PUERTO%"
+
+rem Ventana propia del programa, no una pestana mas del navegador abierto.
+rem mvpm\ventana.py usa el modo aplicacion de Edge/Chrome: sin barra de
+rem direcciones ni pestanas, con su propio icono en la barra de tareas. Si no
+rem encuentra ninguno cae solo a la pestana comun. Va en segundo plano porque
+rem espera a que Streamlit escuche, y Streamlit arranca en la linea siguiente.
+start "" /b ".venv\Scripts\python.exe" -m mvpm.ventana "http://localhost:%MVPM_PUERTO%"
+
 ".venv\Scripts\python.exe" -m streamlit run app\app.py --server.headless true --server.port %MVPM_PUERTO%
 
 pause

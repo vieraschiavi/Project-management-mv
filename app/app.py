@@ -50,11 +50,36 @@ from mvpm import (
 )
 from mvpm import copilot as copilot_mod
 
-st.set_page_config(page_title="MV Project Management", page_icon="📋", layout="wide")
+st.set_page_config(
+    page_title="MV Project Management", page_icon="📋", layout="wide",
+    # Sin esto el menú "···" ofrece Record a screencast, Report a bug y About
+    # Streamlit: tres cosas que le cuentan al cliente con qué está hecho el
+    # producto que compró, y ninguna que le sirva.
+    menu_items={"Get help": None, "Report a Bug": None, "About": None},
+)
 
 st.markdown(
     f"""
     <style>
+    /* El programa se instala con su icono, su acceso directo y su ventana
+       propia (mvpm/ventana.py). Lo que quedaba delatando que abajo hay
+       Streamlit es su barra de herramientas: el botón Deploy, el menú
+       hamburguesa, la franja de color de arriba y el "Made with Streamlit" del
+       pie. Nada de eso significa algo para quien usa el programa —el Deploy
+       incluso invita a publicar el portafolio del cliente en la nube de
+       Streamlit— así que se oculta.
+
+       Se ocultan los elementos puntuales y NO el header entero a propósito: la
+       flecha para plegar y desplegar la barra lateral vive ahí, y esconder el
+       header completo deja al usuario sin forma de recuperarla si la cierra. */
+    [data-testid="stToolbar"] {{ visibility: hidden; height: 0; position: fixed; }}
+    [data-testid="stDecoration"] {{ display: none; }}
+    [data-testid="stStatusWidget"] {{ display: none; }}
+    [data-testid="stAppDeployButton"] {{ display: none; }}
+    #MainMenu {{ visibility: hidden; }}
+    footer {{ visibility: hidden; height: 0; }}
+    [data-testid="stHeader"] {{ background: transparent; }}
+
     .stApp {{ background-color: {BRAND['navy']}; }}
     [data-testid="stMetricValue"] {{ color: {BRAND['amber']}; }}
     h1, h2, h3 {{ color: {BRAND['ink']}; }}
@@ -162,6 +187,27 @@ LICENSE_TOKEN = st.sidebar.text_input(
     help="Se emite automáticamente al pagar el plan Professional. Sin token, "
          "corrés la prueba completa de 7 días con todo desbloqueado.",
 ) or None
+
+# El dueño no tiene que pegar ningún token en su propia herramienta: si esta
+# máquina tiene su clave privada, el marcador se firma solo en el arranque.
+# En la máquina de un cliente esto no hace nada —no hay clave que firmar— así
+# que no afloja el candado: ver mvpm/owner.py.
+owner.activar_automatico()
+
+# Y si escribe su email ahí arriba, se intenta lo mismo explícitamente. El
+# email NO es la credencial: sin la clave en la máquina no desbloquea nada,
+# justamente para que un cliente no entre gratis escribiendo el mail del dueño,
+# que está publicado en la landing.
+if LICENSE_TOKEN and owner.es_email_owner(LICENSE_TOKEN):
+    if owner.activar_automatico() or owner.es_owner():
+        LICENSE_TOKEN = None
+    else:
+        st.sidebar.error(
+            "Esta máquina no tiene tu clave de licencias, así que no puedo "
+            "firmar el modo dueño. Corré una vez MV_ProjectManagement_OWNER.bat "
+            "y pegá tu clave privada: después no se pide nunca más."
+        )
+        LICENSE_TOKEN = None
 
 st.sidebar.divider()
 st.sidebar.caption(f"👤 {user['nombre']} · {user['rol']}")
