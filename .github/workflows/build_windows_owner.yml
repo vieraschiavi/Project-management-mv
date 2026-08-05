@@ -31,11 +31,27 @@ jobs:
           pip install -r requirements.txt
           pip install pyinstaller Cython setuptools
 
-      # Antes de compilar: el marcador que hace que este .exe sea el del dueño
-      # es una licencia firmada, así que se genera acá con el secreto y no vive
-      # en el repo. Si el secreto falta, el paso corta el build en vez de dejar
-      # salir un "Owner Edition" que se comporta como el de un cliente.
-      - name: Firmar el marcador de Owner Edition
+      # El marcador que hace que este .exe sea el del dueño es una licencia
+      # firmada, y vive versionada en packaging/OWNER_EDITION. Se puede hacer
+      # porque este repo es privado: bajar el archivo ya ES el control de
+      # acceso, el mismo que protege al .exe que sale de acá.
+      #
+      # Por eso este build NO necesita ningún secreto configurado. El paso de
+      # firma sólo corre si el marcador versionado no sirve —porque se rotaron
+      # las claves, o porque quedó en el placeholder— y ahí sí hace falta
+      # MVPM_LICENSE_PRIVATE_KEY.
+      - name: Verificar el marcador de Owner Edition
+        id: marcador
+        shell: bash
+        run: |
+          if python packaging/verificar_marcador_owner.py; then
+            echo "hay_que_firmar=no" >> "$GITHUB_OUTPUT"
+          else
+            echo "hay_que_firmar=si" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Firmar el marcador (sólo si el versionado no sirve)
+        if: steps.marcador.outputs.hay_que_firmar == 'si'
         env:
           MVPM_LICENSE_PRIVATE_KEY: ${{ secrets.MVPM_LICENSE_PRIVATE_KEY }}
         run: python packaging/firmar_marcador_owner.py

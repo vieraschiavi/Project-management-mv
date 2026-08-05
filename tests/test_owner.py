@@ -307,20 +307,87 @@ def test_activar_owner_se_niega_sin_checkout_del_repo(tmp_path, monkeypatch):
     assert activar_owner._es_checkout_del_repo() is True
 
 
-def test_el_marcador_versionado_no_lleva_una_licencia_firmada():
-    """`packaging/OWNER_EDITION` es un placeholder: el marcador de verdad lo
-    firma el CI en el momento del build (packaging/firmar_marcador_owner.py).
+def test_el_marcador_versionado_esta_firmado_y_sirve(monkeypatch):
+    """`packaging/OWNER_EDITION` lleva una licencia firmada, a propósito.
 
-    Si alguien commitea el archivo ya firmado —fácil de hacer sin querer
-    después de probar el build a mano— esa licencia queda en el historial de
-    git para siempre, y cualquiera con acceso al repo se activa el modo owner
-    copiándola. Este test lo agarra antes del commit."""
-    ruta = Path(__file__).resolve().parent.parent / "packaging" / "OWNER_EDITION"
-    lineas = [ln.strip() for ln in ruta.read_text(encoding="utf-8").splitlines()]
-    utiles = [ln for ln in lineas if ln and not ln.startswith("#")]
-    assert not utiles, (
-        f"packaging/OWNER_EDITION tiene contenido sin comentar ({utiles[:1]}): "
-        "si es un token firmado, no puede committearse. Restauralo al placeholder.")
+    Antes este test exigía lo contrario —que fuera un placeholder— porque la
+    licencia iba a firmarse en el CI con un secreto. La decisión cambió: el
+    marcador vive versionado, y por eso el build de la Owner Edition no
+    necesita ningún secreto configurado y el ZIP del dueño se puede armar en
+    cualquier máquina.
+
+    Lo que se está aceptando con eso, explícito: la licencia queda en el
+    historial de git para siempre, así que **cualquiera con acceso a este repo
+    tiene el producto desbloqueado**. Es sostenible sólo porque el repo es
+    privado — bajar el archivo ES el control de acceso, el mismo que protege al
+    .exe de la Owner Edition, que lleva ese mismo marcador adentro. Si el repo
+    se hiciera público, o se sumara alguien que no es el dueño, hay que rotar
+    el par de claves y republicar.
+
+    Lo que NO cambió, y está fijado en los tests de acá abajo: nada de esto
+    llega a un artefacto de cliente.
+    """
+    from mvpm import licensing
+
+    # conftest.py inyecta un par de claves efímero por corrida en las variables
+    # de entorno, y ésas le ganan a la embebida. Acá interesa justamente la
+    # embebida: es la que va a tener la copia que se instale.
+    monkeypatch.delenv("MVPM_LICENSE_PUBLIC_KEY", raising=False)
+
+    ruta = RAIZ / "packaging" / "OWNER_EDITION"
+    token = owner._token_del_marcador(ruta)
+    assert token, "packaging/OWNER_EDITION quedó sin token: el build saldría con candado"
+    payload = licensing.verify_license(token)
+    assert payload is not None, (
+        "el token de packaging/OWNER_EDITION no valida contra "
+        "CLAVE_PUBLICA_EMBEBIDA: son de pares de claves distintos")
+    assert payload["plan"] in licensing.PLANES_PAGOS
+    assert payload["email"] == owner.EMAIL_OWNER
+
+
+def test_el_zip_del_cliente_no_lleva_el_marcador_ni_por_accidente():
+    """El corolario de lo anterior, y el test que sostiene todo el esquema.
+
+    El paquete del dueño y el del cliente se arman con la MISMA función; lo
+    único que los diferencia es que al del dueño se le agrega el marcador
+    después. Si `packaging/OWNER_EDITION` entrara en INCLUDE_FILES, o si
+    alguien copiara el marcador a la raíz del repo, el ZIP que se publica en la
+    web saldría sin candado y el producto sería gratis para todos."""
+    import sys as _sys
+    import zipfile
+
+    _sys.path.insert(0, str(RAIZ / "packaging"))
+    import build_release
+
+    zip_path = build_release.build_portable_zip(version="sin-marcador")
+    try:
+        with zipfile.ZipFile(zip_path) as zf:
+            nombres = zf.namelist()
+        assert owner.MARCADOR not in nombres
+        assert not any(n.endswith("/" + owner.MARCADOR) for n in nombres)
+    finally:
+        zip_path.unlink(missing_ok=True)
+
+
+def test_el_zip_del_dueno_si_lleva_el_marcador_y_en_la_raiz():
+    """En la raíz y no en packaging/: `mvpm/owner.py` busca en la raíz del
+    programa, así que en cualquier otro lado el ZIP del dueño saldría con el
+    candado de cliente puesto sin que nada lo avise."""
+    import zipfile
+
+    ruta = RAIZ / "owner" / "MV_Project_Management_OWNER.zip"
+    assert ruta.exists(), "falta el ZIP del dueño: python packaging/build_release.py --owner"
+    with zipfile.ZipFile(ruta) as zf:
+        assert owner.MARCADOR in zf.namelist()
+
+
+def test_el_zip_del_dueno_no_se_publica_en_la_web():
+    """Vive en el repo privado. La carpeta que se publica es landing/, y ahí no
+    puede aparecer."""
+    publicados = list((RAIZ / "landing").rglob("*.zip"))
+    for zip_publico in publicados:
+        assert "OWNER" not in zip_publico.name.upper(), (
+            f"{zip_publico} parece el paquete del dueño y está en landing/")
 
 
 def test_un_cliente_no_puede_activarse_solo(sin_marcadores, monkeypatch):
