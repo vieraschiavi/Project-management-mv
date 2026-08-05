@@ -12,11 +12,8 @@ apuntando al mismo puerto.
 """
 
 import os
-import socket
 import sys
 import threading
-import time
-import webbrowser
 from pathlib import Path
 
 # La elección del puerto vive en mvpm/puertos.py, que consultan las cuatro
@@ -27,15 +24,16 @@ from pathlib import Path
 # está sys.path armado para el .exe congelado.
 
 
-def _esperar_y_abrir(url: str, timeout_s: int = 25) -> None:
-    inicio = time.time()
-    while time.time() - inicio < timeout_s:
-        try:
-            with socket.create_connection(("127.0.0.1", int(url.rsplit(":", 1)[1])), timeout=0.5):
-                webbrowser.open(url)
-                return
-        except OSError:
-            time.sleep(0.3)
+def _esperar_y_abrir(url: str) -> None:
+    """Abre el programa cuando Streamlit ya esté escuchando.
+
+    La espera y la ventana viven en mvpm/ventana.py, que es lo que usan también
+    el `.bat` portable y `run.sh`: una sola definición de "cómo se ve abrir el
+    programa" para todas las formas de arrancarlo.
+    """
+    from mvpm import ventana
+
+    ventana.esperar_y_abrir(url)
 
 
 def main() -> None:

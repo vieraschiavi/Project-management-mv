@@ -31,6 +31,15 @@ import socket
 #: el default de Streamlit y por eso el más disputado.
 PUERTOS_PREFERIDOS = (8731, 8742, 8753, 8764)
 
+#: Lo mismo para la API de BI, que hasta acá tenía 8600 clavado en `run.sh`.
+#: 8600 no es un puerto reservado de nadie, pero "no es de nadie" no es lo
+#: mismo que "está libre": si el usuario ya tiene algo escuchando ahí (otra
+#: API local, un túnel, un contenedor), uvicorn moría con `Address already in
+#: use` y Power BI se quedaba sin origen de datos sin explicación. Se mantiene
+#: 8600 como primera opción para no invalidar los `.pbids` ya repartidos, y se
+#: agregan alternativas para cuando esté tomado.
+PUERTOS_API_PREFERIDOS = (8600, 8611, 8622, 8633)
+
 HOST = "127.0.0.1"
 
 
@@ -74,19 +83,26 @@ def elegir(preferidos: tuple[int, ...] = PUERTOS_PREFERIDOS, host: str = HOST) -
     return _puerto_del_sistema(host)
 
 
-def elegir_con_reintento(intentos: int = 3, host: str = HOST) -> int:
+def elegir_con_reintento(intentos: int = 3, host: str = HOST,
+                         preferidos: tuple[int, ...] = PUERTOS_PREFERIDOS) -> int:
     """Igual que `elegir()`, pero descarta el candidato si dejó de estar libre
     entre que se eligió y que se verificó. Cierra la carrera de la que habla
     `elegir()` para el caso realista: otra app arrancando al mismo tiempo.
     """
     descartados: set[int] = set()
     for _ in range(max(1, intentos)):
-        disponibles = tuple(p for p in PUERTOS_PREFERIDOS if p not in descartados)
+        disponibles = tuple(p for p in preferidos if p not in descartados)
         puerto = elegir(disponibles, host)
         if esta_libre(puerto, host):
             return puerto
         descartados.add(puerto)
     return _puerto_del_sistema(host)
+
+
+def elegir_con_reintento_api(intentos: int = 3, host: str = HOST) -> int:
+    """El puerto de la API de BI. Lista propia para que dashboard y API no se
+    peleen el mismo número cuando arrancan juntos."""
+    return elegir_con_reintento(intentos, host, PUERTOS_API_PREFERIDOS)
 
 
 def _puerto_del_sistema(host: str = HOST) -> int:
@@ -114,4 +130,11 @@ def desde_entorno(valor: str | None, host: str = HOST) -> int:
 if __name__ == "__main__":
     # Lo usan MV_ProjectManagement.bat y run.sh: imprimen esto y se lo pasan a
     # Streamlit. Un único lugar donde se decide, para las cuatro formas de abrir.
-    print(elegir_con_reintento())
+    # Con `--api` devuelve el de la API de BI, que tiene su propia lista para no
+    # rifarle a uvicorn un puerto que el dashboard podría estar por tomar.
+    import sys as _sys
+
+    if "--api" in _sys.argv[1:]:
+        print(elegir_con_reintento_api())
+    else:
+        print(elegir_con_reintento())

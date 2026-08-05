@@ -50,11 +50,36 @@ from mvpm import (
 )
 from mvpm import copilot as copilot_mod
 
-st.set_page_config(page_title="MV Project Management", page_icon="📋", layout="wide")
+st.set_page_config(
+    page_title="MV Project Management", page_icon="📋", layout="wide",
+    # Sin esto el menú "···" ofrece Record a screencast, Report a bug y About
+    # Streamlit: tres cosas que le cuentan al cliente con qué está hecho el
+    # producto que compró, y ninguna que le sirva.
+    menu_items={"Get help": None, "Report a Bug": None, "About": None},
+)
 
 st.markdown(
     f"""
     <style>
+    /* El programa se instala con su icono, su acceso directo y su ventana
+       propia (mvpm/ventana.py). Lo que quedaba delatando que abajo hay
+       Streamlit es su barra de herramientas: el botón Deploy, el menú
+       hamburguesa, la franja de color de arriba y el "Made with Streamlit" del
+       pie. Nada de eso significa algo para quien usa el programa —el Deploy
+       incluso invita a publicar el portafolio del cliente en la nube de
+       Streamlit— así que se oculta.
+
+       Se ocultan los elementos puntuales y NO el header entero a propósito: la
+       flecha para plegar y desplegar la barra lateral vive ahí, y esconder el
+       header completo deja al usuario sin forma de recuperarla si la cierra. */
+    [data-testid="stToolbar"] {{ visibility: hidden; height: 0; position: fixed; }}
+    [data-testid="stDecoration"] {{ display: none; }}
+    [data-testid="stStatusWidget"] {{ display: none; }}
+    [data-testid="stAppDeployButton"] {{ display: none; }}
+    #MainMenu {{ visibility: hidden; }}
+    footer {{ visibility: hidden; height: 0; }}
+    [data-testid="stHeader"] {{ background: transparent; }}
+
     .stApp {{ background-color: {BRAND['navy']}; }}
     [data-testid="stMetricValue"] {{ color: {BRAND['amber']}; }}
     h1, h2, h3 {{ color: {BRAND['ink']}; }}
