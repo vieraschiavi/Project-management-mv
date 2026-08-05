@@ -163,6 +163,27 @@ LICENSE_TOKEN = st.sidebar.text_input(
          "corrés la prueba completa de 7 días con todo desbloqueado.",
 ) or None
 
+# El dueño no tiene que pegar ningún token en su propia herramienta: si esta
+# máquina tiene su clave privada, el marcador se firma solo en el arranque.
+# En la máquina de un cliente esto no hace nada —no hay clave que firmar— así
+# que no afloja el candado: ver mvpm/owner.py.
+owner.activar_automatico()
+
+# Y si escribe su email ahí arriba, se intenta lo mismo explícitamente. El
+# email NO es la credencial: sin la clave en la máquina no desbloquea nada,
+# justamente para que un cliente no entre gratis escribiendo el mail del dueño,
+# que está publicado en la landing.
+if LICENSE_TOKEN and owner.es_email_owner(LICENSE_TOKEN):
+    if owner.activar_automatico() or owner.es_owner():
+        LICENSE_TOKEN = None
+    else:
+        st.sidebar.error(
+            "Esta máquina no tiene tu clave de licencias, así que no puedo "
+            "firmar el modo dueño. Corré una vez MV_ProjectManagement_OWNER.bat "
+            "y pegá tu clave privada: después no se pide nunca más."
+        )
+        LICENSE_TOKEN = None
+
 st.sidebar.divider()
 st.sidebar.caption(f"👤 {user['nombre']} · {user['rol']}")
 if st.sidebar.button("Cerrar sesión"):

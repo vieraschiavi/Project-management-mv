@@ -11,7 +11,15 @@ instrucciones para que las haga una persona.
    mismo script la dejó la primera vez. Por esto sólo hace falta correrlo una
    vez por máquina: después ya no hay nada que configurar nunca más.
 3. **La genera él mismo**, y de paso pega la clave pública en
-   `mvpm/licensing.py`. Sólo en este caso hay setup, y ocurre una única vez.
+   `mvpm/licensing.py`. Sólo desde un checkout del repo, y una única vez.
+4. **Se la pide a quien lo corre**, en una instalación descargada: por
+   `--clave`, por un `clave_owner.txt` al lado del programa, o pegándola en la
+   consola. Se guarda en (2) y no se vuelve a preguntar en esa máquina.
+
+El paso 4 existe porque el dueño también usa el ZIP y el instalador, no sólo su
+checkout: antes esa copia se negaba y lo mandaba a "instalá la Owner Edition",
+que es justo lo que no siempre tiene a mano. Traer una clave que ya existe no
+es lo mismo que fabricar una nueva — un cliente no tiene ninguna que traer.
 
 ## Por qué el paso 3 no reabre el agujero que cerramos
 
@@ -79,6 +87,57 @@ def _guardar_clave_local(clave: str) -> Path:
     return ruta
 
 
+#: Archivo que el dueño puede dejar al lado del programa con su clave, para no
+#: tener que pegarla a mano. Se borra apenas se guarda en el perfil del usuario:
+#: no tiene sentido dejar la clave privada suelta en la carpeta del programa,
+#: que es justo la que se comprime cuando se arma un ZIP.
+ARCHIVO_CLAVE_SUELTA = "clave_owner.txt"
+
+
+def _pedir_clave() -> str:
+    """La clave privada que trae el dueño a una instalación descargada.
+
+    Tres formas, de la más automática a la más manual: un argumento, un archivo
+    al lado del programa, o pegarla cuando se la pide. Ninguna sirve para un
+    cliente, que no tiene la clave — por eso esto no reabre el candado.
+    """
+    argv = sys.argv[1:]
+    for i, arg in enumerate(argv):
+        if arg == "--clave" and i + 1 < len(argv):
+            return argv[i + 1].strip()
+        if arg.startswith("--clave="):
+            return arg.split("=", 1)[1].strip()
+
+    suelta = ROOT / ARCHIVO_CLAVE_SUELTA
+    if suelta.exists():
+        try:
+            clave = suelta.read_text(encoding="utf-8").strip()
+        except OSError:
+            clave = ""
+        if clave:
+            print(f"Encontré tu clave en {suelta}.")
+            try:
+                suelta.unlink()
+                print("La moví a tus datos de usuario y borré ese archivo:")
+                print("dejarla suelta acá la metería en cualquier ZIP que armes.")
+            except OSError:
+                print("No pude borrar ese archivo — borralo a mano.")
+            return clave
+
+    if not sys.stdin or not sys.stdin.isatty():
+        # Sin consola interactiva (doble clic que no abre terminal, CI) no hay
+        # a quién preguntarle: se cae al mensaje de instalación de cliente.
+        return ""
+    print("Esta copia todavía no está activada como la del dueño.")
+    print("Si sos el dueño, pegá tu clave privada de licencias y dale Enter.")
+    print("(Si no la tenés a mano, dejá vacío y dale Enter para salir.)")
+    print()
+    try:
+        return input("MVPM_LICENSE_PRIVATE_KEY = ").strip()
+    except (EOFError, KeyboardInterrupt):
+        return ""
+
+
 def _generar_y_persistir() -> tuple[str, str]:
     """Genera el par, guarda la privada y pega la pública en licensing.py.
     Devuelve (privada, publica) en base64url."""
@@ -112,29 +171,42 @@ def _avisos_de_publicacion(privada: str) -> None:
 def main() -> int:
     clave = os.environ.get("MVPM_LICENSE_PRIVATE_KEY", "").strip()
     recien_generada = False
+    recien_guardada = False
 
     if not clave:
         clave = _leer_clave_local()
 
     if not clave:
         if not _es_checkout_del_repo():
-            print(
-                "Esto es una instalación de cliente, no la del dueño.\n"
-                "\n"
-                "El modo dueño se activa con una licencia firmada, y la clave para\n"
-                "firmarla no viaja en lo que se distribuye — por eso una copia\n"
-                "instalada no puede activarse sola.\n"
-                "\n"
-                "Si sos el dueño: corré esto desde tu copia del repositorio, o\n"
-                "instalá la Owner Edition, que ya viene con el modo activado.",
-                file=sys.stderr,
-            )
-            return 1
-        clave, publica = _generar_y_persistir()
-        recien_generada = True
-        # La pública recién escrita en licensing.py no la ve un módulo que ya
-        # esté importado, así que para ESTA corrida se pasa por entorno.
-        os.environ["MVPM_LICENSE_PUBLIC_KEY"] = publica
+            # Instalación descargada (ZIP o instalador): no se puede generar un
+            # par acá —eso sería el bypass— pero el dueño SÍ puede traer la
+            # clave que ya tiene. Un cliente no la tiene, así que sigue afuera.
+            clave = _pedir_clave()
+            if not clave:
+                print(
+                    "Esto es una instalación de cliente, no la del dueño.\n"
+                    "\n"
+                    "El modo dueño se activa con una licencia firmada, y la clave\n"
+                    "para firmarla no viaja en lo que se distribuye — por eso una\n"
+                    "copia instalada no puede activarse sola.\n"
+                    "\n"
+                    "Si sos el dueño, pegá tu clave privada de licencias cuando\n"
+                    "este script te la pida: se guarda una sola vez y no vuelve a\n"
+                    "preguntarte nunca más en esta máquina.",
+                    file=sys.stderr,
+                )
+                return 1
+            ruta = _guardar_clave_local(clave)
+            recien_guardada = True
+            print(f"Clave guardada en: {ruta}")
+            print("No vas a tener que pegarla de nuevo en esta máquina.")
+            print()
+        else:
+            clave, publica = _generar_y_persistir()
+            recien_generada = True
+            # La pública recién escrita en licensing.py no la ve un módulo que
+            # ya esté importado, así que para ESTA corrida se pasa por entorno.
+            os.environ["MVPM_LICENSE_PUBLIC_KEY"] = publica
 
     # licensing.py lee las claves del entorno en cada llamada, así que alcanza
     # con dejarlas acá: no hace falta recargar nada.
@@ -142,7 +214,34 @@ def main() -> int:
 
     from mvpm import owner
 
-    marcador = owner.activar()
+    try:
+        marcador = owner.activar()
+    except (RuntimeError, ValueError):
+        # Clave mal pegada (cortada, con espacios, de otro par). Se borra la
+        # que se acababa de guardar para que el próximo intento vuelva a
+        # preguntar en vez de fallar callado para siempre.
+        ruta = owner.ruta_clave_local()
+        if recien_guardada and ruta.exists():
+            ruta.unlink()
+        print(
+            "Esa clave no sirve para firmar: quedó cortada al pegarla, o es de\n"
+            "otro par de claves. Volvé a correr esto y pegala completa.",
+            file=sys.stderr,
+        )
+        return 1
+
+    if not owner.es_owner():
+        # Firmó, pero esta copia no puede verificar: su CLAVE_PUBLICA_EMBEBIDA
+        # es de otro par. Pasa si se activa con la clave vieja una copia ya
+        # publicada con claves nuevas.
+        print(
+            "Se escribió el marcador pero esta copia no lo reconoce: la clave\n"
+            "pública que trae es de otro par. Usá la clave privada que\n"
+            "corresponde a esta versión del programa.",
+            file=sys.stderr,
+        )
+        return 1
+
     print(f"Modo owner activado: {marcador}")
     print("Abrí el programa como siempre: ya corre sin el candado de los 7 días.")
 

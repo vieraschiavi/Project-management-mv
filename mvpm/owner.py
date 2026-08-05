@@ -67,15 +67,28 @@ máquina, que es lo mismo que decir que tiene que editar el código.
 from __future__ import annotations
 
 import os
+import stat
 from pathlib import Path
 
 from mvpm import licensing, rutas
 
 MARCADOR = "OWNER_EDITION"
 
-#: Con qué email se emite el token del marcador. Sólo es una etiqueta para
-#: saber de quién es la instalación al diagnosticar; no habilita nada por sí.
-EMAIL_OWNER = "owner@mv-project-management"
+#: Con qué email se emite el token del marcador, y qué email reconoce
+#: `es_email_owner()` como "soy yo" en la pantalla de licencia.
+#:
+#: Ojo con qué significa esto: el email NO es la credencial. Escribirlo no
+#: desbloquea nada por sí solo — lo único que hace es disparar el intento de
+#: activación, que después necesita la clave privada de abajo. Si alcanzara
+#: con el email, cualquier cliente escribiría el del dueño (está publicado en
+#: la landing y en el EULA) y usaría el producto pago gratis: sería el mismo
+#: bypass que ya cerramos dos veces, ahora escrito en una casilla de texto.
+EMAIL_OWNER = "vieraschiavi@gmail.com"
+
+#: Archivo donde queda la clave privada de licencias en la máquina del dueño.
+#: Es LO ÚNICO que separa su instalación de la de un cliente: el marcador se
+#: firma con esto, y esto nunca viaja en el ZIP ni en el instalador.
+ARCHIVO_CLAVE = "clave_privada_owner"
 
 # Fijo, SIN pasar por rutas.directorio_datos(): ese valor depende de si el
 # proceso que pregunta está congelado y de si su propia carpeta de instalación
@@ -187,6 +200,83 @@ def activar(email: str = EMAIL_OWNER) -> Path:
     ruta.parent.mkdir(parents=True, exist_ok=True)
     ruta.write_text(_TEXTO_MARCADOR.format(token=token), encoding="utf-8")
     return ruta
+
+
+def ruta_clave_local() -> Path:
+    """Dónde vive la clave privada del dueño en esta máquina. Siempre en el
+    perfil del usuario, por lo mismo que el marcador: no depende del disco de
+    instalación ni de si el proceso está congelado, y no hay forma de que se
+    cuele en un ZIP armado desde la carpeta del programa."""
+    return _PERFIL_USUARIO / ARCHIVO_CLAVE
+
+
+def clave_privada_local() -> str:
+    """La clave privada de licencias disponible en esta máquina, o "".
+
+    Mira la variable de entorno primero y el archivo del perfil después, que es
+    el mismo orden que usa `packaging/activar_owner.py`.
+    """
+    desde_entorno = os.environ.get("MVPM_LICENSE_PRIVATE_KEY", "").strip()
+    if desde_entorno:
+        return desde_entorno
+    try:
+        return ruta_clave_local().read_text(encoding="utf-8").strip()
+    except OSError:
+        return ""
+
+
+def guardar_clave_local(clave: str) -> Path:
+    """Guarda la clave privada para que no haya que volver a pegarla nunca.
+    Permisos 600: sólo la cuenta del dueño puede leerla."""
+    ruta = ruta_clave_local()
+    ruta.parent.mkdir(parents=True, exist_ok=True)
+    ruta.write_text(clave.strip(), encoding="utf-8")
+    try:
+        ruta.chmod(stat.S_IRUSR | stat.S_IWUSR)
+    except OSError:
+        # En Windows el modo POSIX no aplica igual; tampoco molesta.
+        pass
+    return ruta
+
+
+def es_email_owner(texto: str) -> bool:
+    """¿El texto que escribieron es el email del dueño?
+
+    Por sí solo no habilita nada (ver el comentario de EMAIL_OWNER): sirve para
+    saber que hay que INTENTAR activar, no para dar por activado.
+    """
+    return texto.strip().casefold() == EMAIL_OWNER.casefold()
+
+
+def activar_automatico() -> Path | None:
+    """Deja esta máquina en modo dueño si tiene con qué, sin pedir nada.
+
+    Es lo que hace que el dueño no tenga que correr un `.bat` ni pegar un token
+    en cada instalación: si la clave privada está en la máquina, el marcador se
+    escribe solo en el primer arranque y ya queda para siempre.
+
+    Devuelve la ruta del marcador si lo escribió, o None si no había nada que
+    hacer — porque ya estaba activo, o porque esta máquina no tiene la clave,
+    que es el caso de cualquier cliente.
+    """
+    if es_owner():
+        return None
+    clave = clave_privada_local()
+    if not clave:
+        return None
+    anterior = os.environ.get("MVPM_LICENSE_PRIVATE_KEY")
+    os.environ["MVPM_LICENSE_PRIVATE_KEY"] = clave
+    try:
+        return activar()
+    except (RuntimeError, OSError):
+        # Clave inservible o disco de sólo lectura: se sigue como cliente en
+        # vez de romper el arranque de la app.
+        return None
+    finally:
+        if anterior is None:
+            os.environ.pop("MVPM_LICENSE_PRIVATE_KEY", None)
+        else:
+            os.environ["MVPM_LICENSE_PRIVATE_KEY"] = anterior
 
 
 def desactivar() -> list[Path]:

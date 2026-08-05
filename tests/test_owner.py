@@ -13,6 +13,7 @@ Dos cosas que fijar, y la segunda importa más que la primera:
 """
 
 import ast
+import os
 from pathlib import Path
 
 import pytest
@@ -20,6 +21,17 @@ import pytest
 from mvpm import licensing, owner
 
 RAIZ = Path(__file__).resolve().parent.parent
+
+
+def _par_de_claves() -> tuple[str, str]:
+    """Un par Ed25519 nuevo, en el mismo base64url que usa licensing.py.
+    Cada test firma con el suyo: nunca se toca el par real de producción."""
+    import sys as _sys
+
+    _sys.path.insert(0, str(RAIZ / "packaging"))
+    from generar_claves_licencia import generar
+
+    return generar()
 
 
 @pytest.fixture
@@ -106,6 +118,93 @@ def test_un_marcador_firmado_con_otra_clave_no_activa_nada(sin_marcadores, monke
     ruta.parent.mkdir(parents=True, exist_ok=True)
     ruta.write_text(token_ajeno, encoding="utf-8")
     assert owner.es_owner() is False
+
+
+# ------------------------------------------- activación sin pedir nada
+
+@pytest.fixture
+def maquina_limpia(sin_marcadores, monkeypatch, tmp_path):
+    """Una máquina sin marcador Y sin clave privada: el caso del cliente.
+
+    Aísla también dónde se busca la clave, para no leer ni pisar la real del
+    dueño si corre la suite en su propia máquina.
+    """
+    monkeypatch.delenv("MVPM_LICENSE_PRIVATE_KEY", raising=False)
+    monkeypatch.setattr(owner, "_PERFIL_USUARIO", tmp_path / "perfil")
+    return tmp_path / "perfil"
+
+
+def test_sin_la_clave_no_se_activa_nada_solo(maquina_limpia):
+    """Lo que ve un cliente: el arranque intenta activar y no pasa nada."""
+    assert owner.clave_privada_local() == ""
+    assert owner.activar_automatico() is None
+    assert owner.es_owner() is False
+
+
+def test_con_la_clave_guardada_se_activa_en_el_arranque(maquina_limpia, monkeypatch):
+    """Lo que ve el dueño: dejó la clave una vez y no vuelve a hacer nada."""
+    privada, publica = _par_de_claves()
+    monkeypatch.setenv("MVPM_LICENSE_PUBLIC_KEY", publica)
+    owner.guardar_clave_local(privada)
+
+    assert owner.activar_automatico() is not None
+    assert owner.es_owner() is True
+    # Idempotente: el segundo arranque no reescribe ni falla.
+    assert owner.activar_automatico() is None
+    assert owner.es_owner() is True
+
+
+def test_activar_automatico_no_deja_la_clave_privada_en_el_entorno(maquina_limpia, monkeypatch):
+    """La clave se usa para firmar y se saca: que quede exportada la dejaría a
+    mano de cualquier subproceso que la app lance después."""
+    privada, publica = _par_de_claves()
+    monkeypatch.setenv("MVPM_LICENSE_PUBLIC_KEY", publica)
+    owner.guardar_clave_local(privada)
+
+    owner.activar_automatico()
+    assert os.environ.get("MVPM_LICENSE_PRIVATE_KEY") is None
+
+
+def test_el_email_del_dueno_por_si_solo_no_desbloquea_nada(maquina_limpia):
+    """EL test de esta función. El email del dueño está publicado en la landing
+    y en el EULA, así que si alcanzara con escribirlo, cualquier cliente usaría
+    el producto pago gratis — el mismo bypass de #23, mudado a una casilla de
+    texto. `es_email_owner()` sólo dice "intentá activar"; quien decide es la
+    firma."""
+    assert owner.es_email_owner(owner.EMAIL_OWNER) is True
+    assert owner.es_owner() is False
+    assert owner.activar_automatico() is None
+    assert owner.es_owner() is False
+
+
+@pytest.mark.parametrize("texto, esperado", [
+    ("vieraschiavi@gmail.com", True),
+    ("  VieraSchiavi@Gmail.COM  ", True),   # mayúsculas y espacios al pegar
+    ("vieraschiavi@gmail.com.ar", False),
+    ("otro@gmail.com", False),
+    ("", False),
+])
+def test_es_email_owner_reconoce_el_email_como_lo_escribiria_una_persona(texto, esperado):
+    assert owner.es_email_owner(texto) is esperado
+
+
+def test_la_clave_privada_nunca_viaja_en_el_zip_del_cliente():
+    """El corolario del test anterior: el email no alcanza justamente porque
+    hace falta la clave, así que la clave no puede estar en lo que se entrega."""
+    import sys as _sys
+    import zipfile
+
+    _sys.path.insert(0, str(RAIZ / "packaging"))
+    import build_release
+
+    zip_path = build_release.build_portable_zip(version="sin-clave-privada")
+    try:
+        with zipfile.ZipFile(zip_path) as zf:
+            for nombre in zf.namelist():
+                assert owner.ARCHIVO_CLAVE not in nombre
+                assert "clave_owner" not in nombre
+    finally:
+        zip_path.unlink(missing_ok=True)
 
 
 def test_el_paquete_del_cliente_no_permite_autogenerar_claves():
