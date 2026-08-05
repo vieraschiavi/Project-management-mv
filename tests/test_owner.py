@@ -108,6 +108,53 @@ def test_un_marcador_firmado_con_otra_clave_no_activa_nada(sin_marcadores, monke
     assert owner.es_owner() is False
 
 
+def test_el_paquete_del_cliente_no_permite_autogenerar_claves():
+    """`packaging/activar_owner.py` genera un par de claves solo si corre desde
+    un checkout del repo, y esa condición es lo único que separa "el dueño
+    activándose en su máquina" de "un cliente activándose gratis".
+
+    Se fija acá lo que sostiene esa condición: que el ZIP que recibe el cliente
+    no traiga NI el directorio de git NI el generador de claves. Si alguien
+    agregara `packaging/generar_claves_licencia.py` a INCLUDE_FILES, el candado
+    se caería sin que nada más lo avisara."""
+    import sys as _sys
+    import zipfile
+
+    raiz = Path(__file__).resolve().parent.parent
+    _sys.path.insert(0, str(raiz / "packaging"))
+    import build_release
+
+    zip_path = build_release.build_portable_zip(version="frontera-owner")
+    try:
+        with zipfile.ZipFile(zip_path) as zf:
+            nombres = zf.namelist()
+        assert not any("generar_claves_licencia" in n for n in nombres), (
+            "el generador de claves no puede viajar al cliente: con él, "
+            "activar_owner.py le firmaría un marcador propio")
+        assert not any(n.startswith(".git/") for n in nombres)
+    finally:
+        zip_path.unlink(missing_ok=True)
+
+
+def test_activar_owner_se_niega_sin_checkout_del_repo(tmp_path, monkeypatch):
+    """La otra mitad de lo anterior: sin `.git` y sin el generador, la puerta
+    de autogeneración queda cerrada."""
+    import sys as _sys
+
+    raiz = Path(__file__).resolve().parent.parent
+    _sys.path.insert(0, str(raiz / "packaging"))
+    import activar_owner
+
+    monkeypatch.setattr(activar_owner, "ROOT", tmp_path)
+    assert activar_owner._es_checkout_del_repo() is False
+
+    # Con las dos señales presentes sí se considera checkout del dueño.
+    (tmp_path / ".git").mkdir()
+    (tmp_path / "packaging").mkdir()
+    (tmp_path / "packaging" / "generar_claves_licencia.py").write_text("")
+    assert activar_owner._es_checkout_del_repo() is True
+
+
 def test_el_marcador_versionado_no_lleva_una_licencia_firmada():
     """`packaging/OWNER_EDITION` es un placeholder: el marcador de verdad lo
     firma el CI en el momento del build (packaging/firmar_marcador_owner.py).
