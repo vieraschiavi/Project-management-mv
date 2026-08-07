@@ -416,6 +416,48 @@ def test_el_zip_del_dueno_si_lleva_el_marcador_y_en_la_raiz():
         assert owner.MARCADOR in zf.namelist()
 
 
+def test_el_zip_del_dueno_esta_actualizado():
+    """El paquete del dueño es un archivo commiteado: nada lo reconstruye solo
+    cuando cambia el código. Es exactamente el problema que ya pasó con el ZIP
+    público de la landing, que quedó congelado meses sin que nada lo avisara —
+    con la diferencia de que acá el perjudicado es el dueño, que abriría una
+    build vieja creyendo que tiene la última.
+
+    Se compara contra lo que saldría del código actual, salvo el marcador (que
+    es lo único que el paquete del dueño agrega). Si falla:
+    `python packaging/build_release.py --owner`.
+    """
+    import sys as _sys
+    import zipfile
+
+    _sys.path.insert(0, str(RAIZ / "packaging"))
+    import build_release
+
+    publico = RAIZ / "owner" / "MV_Project_Management_OWNER.zip"
+    assert publico.exists(), "falta owner/MV_Project_Management_OWNER.zip"
+
+    fresco = build_release.build_portable_zip(version="freshness-owner")
+    try:
+        with zipfile.ZipFile(publico) as zf_pub, zipfile.ZipFile(fresco) as zf_new:
+            # El marcador es lo único que este paquete suma; el resto tiene que
+            # ser idéntico al portable armado con el código de hoy.
+            nombres_pub = set(zf_pub.namelist()) - {owner.MARCADOR}
+            nombres_new = set(zf_new.namelist())
+            faltan = sorted(nombres_new - nombres_pub)
+            sobran = sorted(nombres_pub - nombres_new)
+            assert not faltan and not sobran, (
+                "owner/MV_Project_Management_OWNER.zip desactualizado — "
+                f"faltan: {faltan[:10]}, sobran: {sobran[:10]}. Regenerar con "
+                "`python packaging/build_release.py --owner`.")
+            distintos = [n for n in nombres_new if zf_pub.read(n) != zf_new.read(n)]
+            assert not distintos, (
+                "owner/MV_Project_Management_OWNER.zip tiene contenido viejo en: "
+                f"{distintos[:10]}. Regenerar con "
+                "`python packaging/build_release.py --owner`.")
+    finally:
+        fresco.unlink(missing_ok=True)
+
+
 def test_el_zip_del_dueno_no_se_publica_en_la_web():
     """Vive en el repo privado. La carpeta que se publica es landing/, y ahí no
     puede aparecer."""
