@@ -43,10 +43,23 @@ if not exist ".venv\Scripts\python.exe" (
     )
 )
 
+rem Chequeo de arranque: que el motor IMPORTE. Es lo unico que puede impedir
+rem que el programa abra, y tarda menos de un segundo.
+rem
+rem Antes aca se corria la suite entera (pytest tests\), y eso estaba mal por
+rem dos motivos. Uno: tarda minutos, asi que al doble clic no pasaba nada
+rem visible y parecia que el .bat no abria. Dos: varios tests verifican cosas
+rem del REPOSITORIO (.github\, landing\, distribucion\, owner\) que no viajan
+rem en el paquete, asi que en la copia del usuario fallaban siempre — y uno
+rem cortaba la coleccion entera. El usuario abria su programa y lo primero que
+rem veia era una pared de errores rojos de tests que no son asunto suyo.
 echo Verificando instalacion...
-".venv\Scripts\python.exe" -m pytest tests\ -q --no-header
+".venv\Scripts\python.exe" -c "import mvpm, streamlit, pandas" 2>nul
 if errorlevel 1 (
-    echo [ADVERTENCIA] Algunos tests fallaron, pero se intenta igual iniciar el programa.
+    echo [ERROR] Faltan dependencias o quedaron a medio instalar.
+    echo Borra la carpeta .venv y volve a ejecutar este archivo.
+    pause
+    exit /b 1
 )
 
 rem Puerto: se elige uno libre en vez de dejar que Streamlit tome su 8501 por
