@@ -22,16 +22,16 @@ on:
     # bajaba de Actions podía ser de semanas atrás y no tener los arreglos que
     # ya estaban en main.
     #
-    # Mismo criterio y mismos paths que build_windows.yml (el de cliente), más
-    # el marcador: si se rota el par de claves hay que reconstruir, porque el
-    # .exe viejo lleva firmada la licencia vieja.
+    # Mismos paths que build_windows.yml, porque los dos .exe empaquetan lo
+    # mismo (ver `datas` en packaging/mvpm.spec y mvpm_owner.spec): app/ y
+    # mvpm/, más el launcher de packaging/. api/ NO va adentro del .exe —
+    # viaja sólo en el ZIP portable— así que no dispara reconstrucción.
     branches:
       - main
     paths:
       - "packaging/**"
       - "mvpm/**"
       - "app/**"
-      - "api/**"
       - "requirements.txt"
       - ".github/workflows/build_windows_owner.yml"
   workflow_dispatch: {}
