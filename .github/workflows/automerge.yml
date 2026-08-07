@@ -1,0 +1,120 @@
+name: Auto-merge
+
+# Mergea solo los PR que ya están en verde, borra la rama, y dispara los builds
+# de instalador que hagan falta.
+#
+# Por qué no alcanza con la opción "Allow auto-merge" de GitHub: ésa es un
+# ajuste del repositorio que hay que habilitar a mano y que además sigue
+# necesitando que alguien apriete "Enable auto-merge" en CADA pull request. Esto
+# no pide nada: si los tests pasaron, entra.
+#
+# ## El detalle que hace que esto no rompa los builds
+#
+# Un push hecho con GITHUB_TOKEN NO dispara workflows. Es una protección de
+# GitHub contra bucles infinitos, y acá tenía una consecuencia concreta: al
+# mergear con el token, `build_windows.yml` y `build_windows_owner.yml` —que
+# escuchan push a main— nunca se enterarían. Los instaladores quedarían
+# congelados en la versión anterior justamente por haber automatizado el merge.
+#
+# Por eso, después de mergear, se disparan explícitamente por API
+# (`createWorkflowDispatch`), que sí funciona con el token. Y sólo si el PR tocó
+# algo que va adentro del instalador, para no gastar minutos de runner de
+# Windows en un cambio de README.
+
+on:
+  workflow_run:
+    workflows: ["Tests"]
+    types: [completed]
+
+permissions:
+  contents: write        # mergear y borrar la rama
+  pull-requests: write   # leer y cerrar el PR
+  actions: write         # disparar los builds de instalador
+
+jobs:
+  merge:
+    # Sólo si los tests terminaron en verde y no es un push a main.
+    if: >
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.head_branch != 'main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/github-script@v7
+        with:
+          script: |
+            const {owner, repo} = context.repo;
+            const sha = context.payload.workflow_run.head_sha;
+
+            // El evento de workflow_run no trae el PR, así que se busca por el
+            // commit: es lo único que ata una corrida de tests a un PR.
+            const {data: prs} = await github.rest.repos.listPullRequestsAssociatedWithCommit(
+              {owner, repo, commit_sha: sha});
+
+            const abiertos = prs.filter(pr => pr.state === 'open' && !pr.draft);
+            if (abiertos.length === 0) {
+              core.info('Ningún PR abierto y listo para este commit — nada que hacer.');
+              return;
+            }
+
+            // Lo que termina adentro del .exe (ver `datas` en los .spec). api/ no
+            // está: viaja en el ZIP portable, no en el instalador. Tiene que
+            // coincidir con los `paths` de build_windows*.yml.
+            const RUTAS_DE_PRODUCTO = [
+              'mvpm/', 'app/', 'packaging/', 'requirements.txt',
+            ];
+
+            for (const pr of abiertos) {
+              // Estado fresco: el `pr` del listado puede venir de antes de que
+              // terminaran los checks, y mergeable se calcula en diferido.
+              const {data: actual} = await github.rest.pulls.get(
+                {owner, repo, pull_number: pr.number});
+
+              if (actual.mergeable === false) {
+                core.warning(`PR #${pr.number}: hay conflictos con la base, no se mergea.`);
+                continue;
+              }
+              if (actual.head.sha !== sha) {
+                core.info(`PR #${pr.number}: llegaron commits nuevos después de estos tests.`);
+                continue;
+              }
+
+              const {data: archivos} = await github.rest.pulls.listFiles(
+                {owner, repo, pull_number: pr.number, per_page: 100});
+              const tocaElProducto = archivos.some(
+                f => RUTAS_DE_PRODUCTO.some(r => f.filename.startsWith(r)));
+
+              await github.rest.pulls.merge({
+                owner, repo, pull_number: pr.number,
+                merge_method: 'squash',
+                commit_title: `${actual.title} (#${pr.number})`,
+              });
+              core.info(`PR #${pr.number} mergeado.`);
+
+              // Borrar la rama. No es crítico: si falla (protegida, o ya
+              // borrada por el ajuste del repo) el merge ya está hecho.
+              try {
+                await github.rest.git.deleteRef(
+                  {owner, repo, ref: `heads/${actual.head.ref}`});
+                core.info(`Rama ${actual.head.ref} borrada.`);
+              } catch (e) {
+                core.warning(`No se pudo borrar ${actual.head.ref}: ${e.message}`);
+              }
+
+              if (!tocaElProducto) {
+                core.info('El PR no toca el producto: no se reconstruyen instaladores.');
+                continue;
+              }
+
+              // Acá está el punto del comentario de arriba: el push del merge
+              // no dispara nada por haberse hecho con GITHUB_TOKEN, así que los
+              // builds se piden a mano.
+              for (const wf of ['build_windows.yml', 'build_windows_owner.yml']) {
+                try {
+                  await github.rest.actions.createWorkflowDispatch(
+                    {owner, repo, workflow_id: wf, ref: 'main'});
+                  core.info(`Build disparado: ${wf}`);
+                } catch (e) {
+                  core.warning(`No se pudo disparar ${wf}: ${e.message}`);
+                }
+              }
+            }
