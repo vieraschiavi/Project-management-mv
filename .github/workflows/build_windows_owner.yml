@@ -4,16 +4,43 @@ name: Build Windows installer (Owner Edition)
 # trae adentro un marcador de owner FIRMADO (ver packaging/mvpm_launcher.py +
 # packaging/firmar_marcador_owner.py) — sin candado de prueba de 7 días ni
 # límite de cupo de IA, y sin que el dueño tenga que configurar nada en su PC:
-# instala y abre. Nunca se dispara con push a main ni se publica en Vercel Blob:
-# sólo corre a mano (workflow_dispatch) o con un tag owner-v*, y el .exe
-# resultante queda SOLO como artefacto de Actions y, en tags, como asset de
-# un GitHub Release — visible nada más que para quien tiene acceso a este
-# repo privado.
+# instala y abre.
+#
+# Se reconstruye solo cuando cambia el producto (ver `paths` abajo), igual que
+# el de cliente. Lo que NUNCA hace es publicarse en Vercel Blob: el .exe queda
+# como artefacto de Actions y, en tags owner-v*, como asset de un Release —
+# visible nada más que para quien tiene acceso a este repo privado. Ese es el
+# único control que separa este instalador del de cliente, porque el marcador
+# firmado que lleva adentro desbloquea el producto en cualquier máquina.
 on:
   push:
     tags:
       - "owner-v*"
+    # Además del tag, se reconstruye solo cuando cambia algo que va ADENTRO del
+    # .exe. Antes había que acordarse de dispararlo a mano, así que el
+    # instalador del dueño quedaba viejo sin que nada lo dijera: la copia que se
+    # bajaba de Actions podía ser de semanas atrás y no tener los arreglos que
+    # ya estaban en main.
+    #
+    # Mismo criterio y mismos paths que build_windows.yml (el de cliente), más
+    # el marcador: si se rota el par de claves hay que reconstruir, porque el
+    # .exe viejo lleva firmada la licencia vieja.
+    branches:
+      - main
+    paths:
+      - "packaging/**"
+      - "mvpm/**"
+      - "app/**"
+      - "api/**"
+      - "requirements.txt"
+      - ".github/workflows/build_windows_owner.yml"
   workflow_dispatch: {}
+
+# Si entran varios pushes seguidos a main, sólo interesa el último: los builds
+# intermedios producirían instaladores que nadie va a bajar.
+concurrency:
+  group: build-owner-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   build:
