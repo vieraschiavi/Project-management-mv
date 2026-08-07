@@ -122,7 +122,7 @@ PLANES = {
 #: así, `verify_license()` rechaza TODO token: preferimos que no entre nadie
 #: con licencia a que entre cualquiera. Se genera una sola vez con
 #: `python packaging/generar_claves_licencia.py`.
-CLAVE_PUBLICA_EMBEBIDA = "vadCzaYiA6wT3-qWffYtSSzLHTcNidaaKv-Y0Lt_fdE"
+CLAVE_PUBLICA_EMBEBIDA = "Ba7bsdl1pysbGEuG6wa3fne1PfdsTbkIpo8DD7cIgMg"
 
 
 def _b64url(data: bytes) -> str:
