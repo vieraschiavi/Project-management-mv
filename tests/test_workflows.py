@@ -150,3 +150,35 @@ def test_el_build_del_dueno_sigue_sin_publicarse_en_ningun_canal_publico():
     assert "publish_blob" not in wf.lower()
     assert "blob_read_write_token" not in wf.lower()
     assert "prerelease: true" in wf
+
+
+# ------------------------------------------- la carpeta INSTALADOR/
+
+@pytest.mark.parametrize("workflow, sub", [
+    ("build_windows.yml", "CLIENTE"),
+    ("build_windows_owner.yml", "OWNER"),
+])
+def test_cada_build_deja_su_exe_en_la_carpeta_instalador(workflow, sub):
+    """El instalador se baja del repo, no de Actions. Si el paso desaparece, la
+    carpeta queda con un .exe viejo y nadie se entera: el build sigue en verde
+    porque compiló bien, sólo que el resultado no llegó a ningún lado."""
+    wf = _sin_comentarios(workflow)
+    assert "publicar_en_carpeta_instalador.ps1" in wf
+    assert f"-Subcarpeta {sub}" in wf
+
+
+@pytest.mark.parametrize("workflow", ["build_windows.yml", "build_windows_owner.yml"])
+def test_los_builds_pueden_escribir_en_el_repo(workflow):
+    """Sin `contents: write` el commit del instalador falla con 403 al final de
+    un build de varios minutos."""
+    assert "contents: write" in _sin_comentarios(workflow)
+
+
+def test_el_instalador_del_dueno_y_el_del_cliente_no_se_pisan():
+    """Van a subcarpetas distintas. Si los dos escribieran en la misma, el
+    borrado previo de .exe dejaría un solo instalador y el otro desaparecería —
+    y con esa mezcla el .exe del dueño podría terminar donde no va."""
+    cliente = _sin_comentarios("build_windows.yml")
+    owner = _sin_comentarios("build_windows_owner.yml")
+    assert "-Subcarpeta CLIENTE" in cliente and "-Subcarpeta OWNER" not in cliente
+    assert "-Subcarpeta OWNER" in owner and "-Subcarpeta CLIENTE" not in owner
