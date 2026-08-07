@@ -22,6 +22,13 @@ CARPETA_PBIDS = Path(__file__).resolve().parent.parent / "distribucion" / "power
 BASE = "http://127.0.0.1:8600"
 
 
+#: Este archivo viaja en el ZIP portable (INCLUDE_DIRS incluye `tests/`), pero
+#: `distribucion/powerbi/` NO viaja: sólo existe en el repositorio. Sin este skip, el
+#: usuario que abre el programa ve un error de colección que corta TODA la suite antes de correr un solo test — el `.bat` corre la suite al
+#: arrancar, así que es lo primero que aparece en pantalla.
+if not CARPETA_PBIDS.exists():
+    pytest.skip("distribucion/powerbi/ no viaja en el paquete: es del repositorio", allow_module_level=True)
+
 @pytest.fixture(scope="module")
 def client():
     import api.main as main

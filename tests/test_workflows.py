@@ -25,6 +25,13 @@ WORKFLOWS = RAIZ / ".github" / "workflows"
 #: tests de tests/test_owner.py y tests/test_core.py, que es donde importa.
 RUTAS_DE_PRODUCTO = ("mvpm/", "app/", "packaging/", "requirements.txt")
 
+#: Este archivo viaja en el ZIP portable (INCLUDE_DIRS incluye `tests/`), pero
+#: `.github/workflows/` NO viaja: sólo existe en el repositorio. Sin este skip, el
+#: usuario que abre el programa ve 12 tests fallando por archivos que su copia no tiene — el `.bat` corre la suite al
+#: arrancar, así que es lo primero que aparece en pantalla.
+if not WORKFLOWS.exists():
+    pytest.skip(".github/workflows/ no viaja en el paquete: es del repositorio", allow_module_level=True)
+
 
 def _texto(nombre: str) -> str:
     return (WORKFLOWS / nombre).read_text(encoding="utf-8")
