@@ -14,6 +14,9 @@ on:
       - ".github/workflows/build_windows.yml"
   workflow_dispatch: {}
 
+permissions:
+  contents: write   # commitear el .exe en INSTALADOR/
+
 jobs:
   build:
     runs-on: windows-latest
@@ -52,6 +55,16 @@ jobs:
       - name: Compilar instalador (Inno Setup)
         run: |
           & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" packaging\instalador.iss
+
+      # Deja el instalador en INSTALADOR/CLIENTE/ y lo commitea, para poder
+      # bajarlo directo del repositorio sin entrar a Actions. El push usa
+      # GITHUB_TOKEN, que no dispara workflows: no hay bucle con este mismo
+      # build. Ver packaging/publicar_en_carpeta_instalador.ps1.
+      - name: Publicar en INSTALADOR/CLIENTE/
+        if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
+        shell: pwsh
+        run: |
+          ./packaging/publicar_en_carpeta_instalador.ps1 -Subcarpeta CLIENTE -Origen packaging/Output
 
       - name: Subir instalador como artefacto
         uses: actions/upload-artifact@v4

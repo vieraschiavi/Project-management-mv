@@ -235,6 +235,19 @@ def test_el_instalador_owner_no_se_publica_en_ningun_canal_publico():
     assert "@vercel/blob" not in ejecutable
 
 
+def test_la_carpeta_instalador_no_viaja_en_el_paquete_del_cliente():
+    """INSTALADOR/OWNER/ tiene el .exe que desbloquea el producto entero. Si
+    `INSTALADOR` entrara en INCLUDE_DIRS, ese ejecutable saldría adentro del ZIP
+    que se publica en la landing — o sea, regalado."""
+    import sys as _sys
+
+    _sys.path.insert(0, str(RAIZ / "packaging"))
+    import build_release
+
+    assert "INSTALADOR" not in build_release.INCLUDE_DIRS
+    assert not any("INSTALADOR" in f for f in build_release.INCLUDE_FILES)
+
+
 def test_el_instalador_owner_no_se_ofrece_desde_la_landing():
     """La landing es lo que ve cualquiera. El único instalador linkeado ahí
     tiene que ser el de cliente."""
