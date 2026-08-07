@@ -260,23 +260,40 @@ def test_el_build_owner_corta_si_falta_la_clave_privada():
     assert "return 1" in script
 
 
-@pytest.mark.parametrize("pegado, esperado_en_el_motivo", [
-    ("vieraschiavi@gmail.com", "email"),
-    ("mi contraseña de siempre", "espacios"),
-    ("JIHgwWqzyBWfyuqHLA3aVkh9ZDzzZlnks2ljDNREJm", "cortada"),
-    ("JIHgwWqzyBWfyuqHLA3aVkh9ZDzzZlnks2ljDNREJm0=", "de más"),
-    ("*" * 43, "caracteres que la clave no usa"),
+@pytest.mark.parametrize("caso, esperado_en_el_motivo", [
+    ("email", "email"),
+    ("con espacios", "espacios"),
+    ("cortada", "cortada"),
+    ("con relleno", "de más"),
+    ("caracteres raros", "caracteres que la clave no usa"),
 ])
-def test_lo_que_no_es_la_clave_se_rechaza_antes_de_guardarlo(pegado, esperado_en_el_motivo):
+def test_lo_que_no_es_la_clave_se_rechaza_antes_de_guardarlo(caso, esperado_en_el_motivo):
     """El caso real que motivó esto: el dueño pegó su EMAIL en el prompt de la
     clave. Se aceptaba, se escribía en el perfil del usuario, y recién al
     fallar la firma se borraba — así que en pantalla leía "Clave guardada"
     seguido de "esa clave no sirve", que es el orden que hace pensar que se
-    rompió algo. Ahora se avisa antes de tocar el disco, y diciendo QUÉ pegó."""
+    rompió algo. Ahora se avisa antes de tocar el disco, y diciendo QUÉ pegó.
+
+    Los casos con forma de clave se derivan de un par GENERADO en el momento, no
+    de una constante escrita acá. La versión anterior de este test usaba la
+    clave privada real de producción como dato de prueba: quedó commiteada, y
+    como `tests/` viaja en el ZIP portable, terminó publicada en el paquete que
+    baja cualquier cliente desde la landing. Cualquiera podía sacarla de ahí y
+    emitirse licencias. Nunca una clave de verdad en un test.
+    """
     import sys as _sys
 
     _sys.path.insert(0, str(RAIZ / "packaging"))
     import activar_owner
+
+    privada, _ = _par_de_claves()
+    pegado = {
+        "email": "alguien@ejemplo.com",
+        "con espacios": "mi contraseña de siempre",
+        "cortada": privada[:-1],
+        "con relleno": privada + "=",
+        "caracteres raros": "*" * 43,
+    }[caso]
 
     motivo = activar_owner._por_que_no_parece_una_clave(pegado)
     assert motivo is not None, f"{pegado!r} no debería pasar la revisión de forma"
@@ -293,6 +310,67 @@ def test_una_clave_de_verdad_pasa_la_revision_de_forma():
 
     privada, _ = _par_de_claves()
     assert activar_owner._por_que_no_parece_una_clave(privada) is None
+
+
+def test_ningun_archivo_del_repo_puede_firmar_licencias():
+    """Regresión de la peor falla que tuvo este repo.
+
+    Un test usó la clave privada REAL de producción como dato de prueba. Quedó
+    commiteada en tests/test_owner.py y, como `tests/` viaja en el ZIP portable,
+    terminó dentro del paquete que baja cualquier cliente desde la landing:
+    bastaba abrir el archivo para sacar la clave con la que se firman TODAS las
+    licencias del producto y emitirse una Enterprise.
+
+    Ninguna búsqueda de texto lo hubiera agarrado —la clave es una cadena
+    cualquiera— así que este test no la busca: prueba a FIRMAR. Recorre el
+    árbol, junta todo lo que tenga forma de clave Ed25519 en base64url, y falla
+    si alguna de esas cadenas produce un token que la clave pública embebida
+    acepta. Es la única definición que importa: si sirve para firmar, no puede
+    estar acá.
+    """
+    import re
+
+    from mvpm import licensing
+
+    candidatas = set()
+    for ruta in RAIZ.rglob("*"):
+        partes = ruta.relative_to(RAIZ).parts
+        if not ruta.is_file() or {".git", ".venv", "dist", ".pytest_cache"} & set(partes):
+            continue
+        if ruta.suffix.lower() in {".zip", ".png", ".jpg", ".mp4", ".ico", ".pyd", ".so"}:
+            continue
+        try:
+            texto = ruta.read_text(encoding="utf-8")
+        except (OSError, UnicodeDecodeError):
+            continue
+        candidatas.update(re.findall(r"\b[A-Za-z0-9_-]{43}\b", texto))
+
+    # Se firma directo con la primitiva, sin pasar por el entorno: interesa si
+    # la cadena PUEDE firmar, no si está configurada como la clave activa.
+    import base64
+    import binascii
+
+    from cryptography.exceptions import InvalidSignature
+    from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
+
+    publica = licensing._clave_publica()
+    assert publica is not None, "sin clave pública embebida este test no prueba nada"
+
+    for candidata in sorted(candidatas):
+        try:
+            cruda = base64.urlsafe_b64decode(candidata + "=")
+            privada = Ed25519PrivateKey.from_private_bytes(cruda)
+        except (ValueError, TypeError, binascii.Error):
+            continue
+        firma = privada.sign(b"prueba")
+        try:
+            publica.verify(firma, b"prueba")
+        except InvalidSignature:
+            continue
+        raise AssertionError(
+            "Hay una cadena en el repo que firma licencias válidas contra "
+            "CLAVE_PUBLICA_EMBEBIDA. Es la clave privada de producción: sacala "
+            "del árbol y ROTÁ el par, porque ya quedó en el historial de git.")
 
 
 def test_el_paquete_del_cliente_no_permite_autogenerar_claves():
