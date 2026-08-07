@@ -260,6 +260,41 @@ def test_el_build_owner_corta_si_falta_la_clave_privada():
     assert "return 1" in script
 
 
+@pytest.mark.parametrize("pegado, esperado_en_el_motivo", [
+    ("vieraschiavi@gmail.com", "email"),
+    ("mi contraseña de siempre", "espacios"),
+    ("JIHgwWqzyBWfyuqHLA3aVkh9ZDzzZlnks2ljDNREJm", "cortada"),
+    ("JIHgwWqzyBWfyuqHLA3aVkh9ZDzzZlnks2ljDNREJm0=", "de más"),
+    ("*" * 43, "caracteres que la clave no usa"),
+])
+def test_lo_que_no_es_la_clave_se_rechaza_antes_de_guardarlo(pegado, esperado_en_el_motivo):
+    """El caso real que motivó esto: el dueño pegó su EMAIL en el prompt de la
+    clave. Se aceptaba, se escribía en el perfil del usuario, y recién al
+    fallar la firma se borraba — así que en pantalla leía "Clave guardada"
+    seguido de "esa clave no sirve", que es el orden que hace pensar que se
+    rompió algo. Ahora se avisa antes de tocar el disco, y diciendo QUÉ pegó."""
+    import sys as _sys
+
+    _sys.path.insert(0, str(RAIZ / "packaging"))
+    import activar_owner
+
+    motivo = activar_owner._por_que_no_parece_una_clave(pegado)
+    assert motivo is not None, f"{pegado!r} no debería pasar la revisión de forma"
+    assert esperado_en_el_motivo in motivo
+
+
+def test_una_clave_de_verdad_pasa_la_revision_de_forma():
+    """La revisión es de forma, no de validez: no puede rechazar una clave
+    legítima. Se prueba con un par recién generado, no con una constante."""
+    import sys as _sys
+
+    _sys.path.insert(0, str(RAIZ / "packaging"))
+    import activar_owner
+
+    privada, _ = _par_de_claves()
+    assert activar_owner._por_que_no_parece_una_clave(privada) is None
+
+
 def test_el_paquete_del_cliente_no_permite_autogenerar_claves():
     """`packaging/activar_owner.py` genera un par de claves solo si corre desde
     un checkout del repo, y esa condición es lo único que separa "el dueño
