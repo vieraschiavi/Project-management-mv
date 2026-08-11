@@ -83,17 +83,23 @@ $ErrorActionPreference = "Continue"
 #     error: Please commit or stash them.
 #
 # y como los reintentos de abajo no limpian nada, los cinco fallaban idénticos y
-# el .exe recién compilado se perdía. No es la carrera entre los dos builds: es
-# el árbol sucio, que ningún reintento arregla.
+# el .exe recién compilado se perdía. No es la carrera entre los dos builds
+# —para eso están los reintentos— sino el árbol sucio, que ningún reintento
+# arregla.
 #
-# Quién lo ensucia: packaging/marcar_build_owner.py reescribe mvpm/edicion.py
-# —que está VERSIONADO— para dejar ES_OWNER_BUILD = True adentro del binario.
-# Por eso fallaba SÓLO el build del dueño: el de cliente no pasa por ese paso y
-# encontraba el árbol limpio. Es la razón por la que INSTALADOR/CLIENTE existe
-# desde hace tiempo y INSTALADOR/OWNER nunca llegó a existir.
+# Quién lo ensucia, en los DOS builds: packaging/strip_py_sources.py borra los
+# mvpm/*.py después de que Cython los compila, y esos 39 archivos están
+# VERSIONADOS. Para git son 39 borrados sin commitear. El build del dueño suma
+# uno más: marcar_build_owner.py reescribe mvpm/edicion.py para dejar
+# ES_OWNER_BUILD = True adentro del binario.
 #
-# Se descarta todo lo demás: a esta altura el .exe ya está commiteado, y lo que
-# queda en el árbol es residuo de compilación que no tiene que viajar a main.
+# Los dos builds del merge de #39 murieron acá con el mismo error, cliente y
+# dueño, después de compilar el .exe entero.
+#
+# `git checkout -- .` restaura tanto lo modificado como lo borrado, así que
+# cubre los dos casos. Se descarta todo lo demás: a esta altura el .exe ya está
+# commiteado, y lo que queda en el árbol es residuo de compilación que no tiene
+# que viajar a main.
 git checkout -- .
 
 # ---------------------------------------------------------------- el push
