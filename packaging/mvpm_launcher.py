@@ -80,6 +80,22 @@ def main() -> None:
     sys.argv = [
         "streamlit", "run", str(base_dir / "app" / "app.py"),
         "--server.port", str(puerto),
+        # Sin esto el .exe no abre: muere en el arranque con
+        #   RuntimeError: server.port does not work when global.developmentMode is true.
+        #
+        # Streamlit decide si está "en modo desarrollo" mirando su PROPIA ruta
+        # (config.py, _global_development_mode): da True cuando "site-packages"
+        # no aparece en `__file__`. Adentro de un .exe de PyInstaller el módulo
+        # vive en _MEIxxxxx\streamlit\config.py, sin site-packages a la vista,
+        # así que el empaquetado arranca creyéndose un checkout de desarrollo.
+        # Y en modo desarrollo _check_conflicts prohíbe fijar server.port —que
+        # es justo lo que necesitamos, porque el puerto lo elige mvpm/puertos.py
+        # y Electron tiene que saber a dónde apuntar la ventana.
+        #
+        # Corriendo desde el repo no pasa nunca: ahí Streamlit SÍ está en
+        # site-packages. Por eso la suite entera y `./run.sh app` pasan en
+        # verde mientras el instalador no abre — el bug sólo existe congelado.
+        "--global.developmentMode", "false",
         "--server.headless", "true",
         "--browser.gatherUsageStats", "false",
         "--theme.base", "dark",
