@@ -4,6 +4,19 @@ set -euo pipefail
 
 cmd="${1:-app}"
 
+# `install` crea .venv y mete ahí las dependencias, pero el `source` de esa
+# rama muere con el proceso del script: los demás comandos volvían a arrancar
+# con el Python del SISTEMA, donde nada de eso está instalado. O sea que el
+# flujo documentado —`./run.sh install` y después `./run.sh app`— fallaba en
+# una máquina limpia: `streamlit: command not found` en app/api, y
+# `ModuleNotFoundError` en test (el pytest del PATH no ve `cryptography`).
+# Activarlo acá arriba hace que todos los comandos usen el mismo intérprete
+# que `install` preparó. Si no hay .venv, se sigue con el del sistema.
+if [ -d .venv ]; then
+  # shellcheck disable=SC1091
+  source .venv/bin/activate
+fi
+
 case "$cmd" in
   install)
     python3 -m venv .venv
