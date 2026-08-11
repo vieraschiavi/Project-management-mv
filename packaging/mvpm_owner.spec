@@ -13,9 +13,11 @@
 #      acceso al repo privado". El repo es PÚBLICO. O sea que el marcador —una
 #      licencia enterprise firmada— era descargable por cualquiera.
 #
-# Lo que queda es un .exe idéntico al del cliente, que se activa solo en la
-# máquina del dueño porque ahí está la clave privada local
-# (owner.activar_automatico()). Ver .github/workflows/build_windows_owner.yml.
+# Lo que hace distinto a este .exe es una CONSTANTE compilada, no un archivo:
+# packaging/marcar_build_owner.py pone ES_OWNER_BUILD = True en mvpm/edicion.py
+# antes de que Cython compile mvpm/ a .pyd, así que viaja como código nativo.
+# No se puede copiar a otra instalación ni pegar en el campo de licencia.
+# Ver .github/workflows/build_windows_owner.yml.
 #
 # Se mantiene deliberadamente como copia de mvpm.spec en vez de compartir
 # código: son ~90 líneas de configuración declarativa de PyInstaller, y una

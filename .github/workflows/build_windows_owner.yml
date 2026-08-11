@@ -4,15 +4,21 @@ name: Build Windows installer (Owner Edition)
 # AppId y carpeta propios para poder tener las dos versiones instaladas en la
 # misma PC sin que una pise a la otra.
 #
-# El .exe ya NO trae ningún marcador de owner adentro. Lo traía, firmado, y el
-# comentario que estaba acá decía que eso era seguro porque el Release quedaba
-# "visible nada más que para quien tiene acceso a este repo privado". El repo es
-# PÚBLICO: ese .exe —y el packaging/OWNER_EDITION versionado— le daban el
-# producto pago a cualquiera que pasara. Ver packaging/mvpm_owner.spec.
+# El .exe abre desbloqueado, sin pedir clave ni token: se compila con
+# ES_OWNER_BUILD = True (packaging/marcar_build_owner.py, ANTES de Cython, así
+# la constante queda adentro del .pyd). No necesita ningún secreto configurado.
 #
-# Ahora lo que desbloquea el modo dueño vive sólo en la máquina del dueño (su
-# clave privada local, ver mvpm/owner.py), y el marcador se emite atado a esa
-# máquina. Este build no necesita secretos y no produce nada desbloqueado.
+# Antes esto se hacía metiendo un marcador FIRMADO adentro del .exe, y el
+# comentario que estaba acá decía que era seguro porque el Release quedaba
+# "visible nada más que para quien tiene acceso a este repo privado" — mientras
+# el repo era PÚBLICO. Una constante compilada es estrictamente mejor que ese
+# marcador: no es un token que se pueda pegar en el campo de licencia de otra
+# copia, y no es un archivo que se pueda copiar a la instalación de un cliente.
+#
+# Pero apoyarse en que este .exe no sea descargable por cualquiera SÍ vuelve a
+# depender de que el repositorio siga siendo privado. Si vuelve a ser público,
+# esto deja de proteger nada. El candado que no depende de eso es el marcador
+# firmado y atado a la máquina, que sigue funcionando en paralelo (mvpm/owner.py).
 #
 # Se reconstruye solo cuando cambia el producto (ver `paths` abajo), igual que
 # el de cliente. Sigue sin publicarse en Vercel Blob ni linkearse desde la
@@ -76,6 +82,11 @@ jobs:
       # Este build ya no necesita ningún secreto, y tampoco produce nada que
       # desbloquee el producto por sí solo: el .exe se activa en la máquina del
       # dueño porque ahí está su clave privada local, no por lo que trae adentro.
+
+      # ANTES de Cython a propósito: así la constante queda adentro del .pyd, y
+      # no como un .py legible —y editable— al lado del ejecutable.
+      - name: Marcar este build como Owner Edition
+        run: python packaging/marcar_build_owner.py
 
       - name: Compilar mvpm/ a binario nativo (Cython)
         run: |
