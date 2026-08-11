@@ -182,3 +182,54 @@ def test_el_instalador_del_dueno_y_el_del_cliente_no_se_pisan():
     owner = _sin_comentarios("build_windows_owner.yml")
     assert "-Subcarpeta CLIENTE" in cliente and "-Subcarpeta OWNER" not in cliente
     assert "-Subcarpeta OWNER" in owner and "-Subcarpeta CLIENTE" not in owner
+
+
+# ------------------------------ el push de los dos builds a la misma rama
+
+def _publicador() -> str:
+    return (RAIZ / "packaging" / "publicar_en_carpeta_instalador.ps1").read_text(
+        encoding="utf-8")
+
+
+def test_el_push_del_instalador_reintenta():
+    """Los dos builds —cliente y dueño— se disparan con el MISMO push a main,
+    corren en paralelo y terminan los dos pusheando a esa misma rama. El que
+    llega segundo se encuentra con que main avanzó entre su `pull --rebase` y su
+    `push`, y muere con "cannot lock ref 'refs/heads/main'".
+
+    Ya pasó una vez: el build de cliente entró y el del dueño quedó en rojo con
+    el .exe compilado y tirado. Un solo `pull --rebase` no cierra el caso porque
+    la ventana es justamente la que hay entre el pull y el push: lo que lo cierra
+    es reintentar el par completo.
+    """
+    ps = _publicador()
+    assert "git pull --rebase origin main" in ps
+    assert "git push origin HEAD:main" in ps
+    assert "maxIntentos" in ps, "el push no reintenta: la carrera entre los dos builds vuelve"
+    assert "git rebase --abort" in ps, (
+        "sin abortar el rebase a medio hacer, el reintento se encuentra uno en "
+        "curso y falla siempre")
+
+
+def test_el_publicador_corta_antes_del_limite_de_github():
+    """GitHub rechaza todo archivo de 100 MiB o más, y no hay forma de forzarlo:
+    el push muere del lado del servidor DESPUÉS de subir el archivo entero. El
+    instalador de cliente ronda los 98 MiB, así que el margen es de un par de MB.
+    Sin este corte, el día que se pase, el build falla con un error remoto que no
+    dice cuál archivo fue, al final de quince minutos de compilación."""
+    ps = _publicador()
+    assert "100MB" in ps
+    assert "exit 1" in ps
+
+
+def test_el_publicador_no_deja_pasar_un_push_fallido_como_exito():
+    """Si el bucle se queda sin intentos tiene que terminar en rojo. Salir 0 con
+    el instalador sin pushear es el peor caso: el build queda en verde y la
+    carpeta INSTALADOR/ se queda con el .exe viejo sin que nada lo avise."""
+    ps = _publicador()
+    assert "for (" in ps, "no hay bucle de reintentos que revisar"
+    cola = ps[ps.rindex("for ("):]
+    assert "Write-Error" in cola, "quedarse sin intentos no reporta nada"
+    assert cola.rstrip().endswith("exit 1"), (
+        "el script termina en verde después de agotar los reintentos: el build "
+        "quedaría en verde con INSTALADOR/ sin actualizar")
