@@ -19,7 +19,7 @@ function parDeClaves() {
 
 process.env.MVPM_LICENSE_PRIVATE_KEY = parDeClaves();
 
-const { PLANES, issueLicense, verifyLicense } = require('../api/_license');
+const { PLANES, issueLicense, verifyLicense, FIRMAS_REVOCADAS } = require('../api/_license');
 
 let fallos = 0;
 function test(nombre, fn) {
@@ -165,6 +165,37 @@ test('el catálogo de planes coincide con el de Python (mvpm/licensing.py)', () 
   assert.strictEqual(PLANES.professional.cupo_mensual_ia, 1000);
   assert.strictEqual(PLANES.professional_anual.cupo_mensual_ia, 1000);
   assert.strictEqual(PLANES.enterprise.cupo_mensual_ia, null);
+});
+
+test('la lista de revocados dice lo mismo que la de Python', () => {
+  // Las dos mitades del mismo esquema. Si se desincronizan, el servidor sigue
+  // aceptando un token que el programa ya rechaza (o al reves), y la revocacion
+  // deja de significar nada. La lista existe porque packaging/OWNER_EDITION
+  // quedo versionado en un repo publico con una licencia enterprise adentro.
+  const fs = require('fs');
+  const path = require('path');
+  const py = fs.readFileSync(
+    path.join(__dirname, '..', 'mvpm', 'licensing.py'), 'utf-8');
+  const bloque = py.match(/FIRMAS_REVOCADAS = frozenset\(\{([\s\S]*?)\}\)/);
+  assert.ok(bloque, 'no encontre FIRMAS_REVOCADAS en mvpm/licensing.py');
+  const enPython = new Set(
+    [...bloque[1].matchAll(/"([A-Za-z0-9_-]{40,})"/g)].map((m) => m[1]));
+
+  assert.ok(enPython.size > 0, 'FIRMAS_REVOCADAS quedo vacia en Python');
+  assert.deepStrictEqual([...FIRMAS_REVOCADAS].sort(), [...enPython].sort());
+});
+
+test('un token revocado se rechaza aunque la firma sea impecable', () => {
+  const token = issueLicense('enterprise', 'dueno@ejemplo.com');
+  assert.ok(verifyLicense(token), 'el token recien emitido deberia valer');
+
+  const firma = token.split('.')[2];
+  FIRMAS_REVOCADAS.add(firma);
+  try {
+    assert.strictEqual(verifyLicense(token), null);
+  } finally {
+    FIRMAS_REVOCADAS.delete(firma);
+  }
 });
 
 if (fallos) { console.error(`\n${fallos} test(s) fallaron`); process.exit(1); }

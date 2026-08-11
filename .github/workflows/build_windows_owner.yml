@@ -1,17 +1,22 @@
 name: Build Windows installer (Owner Edition)
 
-# Build separado del instalador normal (build_windows.yml). El .exe que sale
-# trae adentro un marcador de owner FIRMADO (ver packaging/mvpm_launcher.py +
-# packaging/firmar_marcador_owner.py) — sin candado de prueba de 7 días ni
-# límite de cupo de IA, y sin que el dueño tenga que configurar nada en su PC:
-# instala y abre.
+# Build separado del instalador normal (build_windows.yml): mismo programa, con
+# AppId y carpeta propios para poder tener las dos versiones instaladas en la
+# misma PC sin que una pise a la otra.
+#
+# El .exe ya NO trae ningún marcador de owner adentro. Lo traía, firmado, y el
+# comentario que estaba acá decía que eso era seguro porque el Release quedaba
+# "visible nada más que para quien tiene acceso a este repo privado". El repo es
+# PÚBLICO: ese .exe —y el packaging/OWNER_EDITION versionado— le daban el
+# producto pago a cualquiera que pasara. Ver packaging/mvpm_owner.spec.
+#
+# Ahora lo que desbloquea el modo dueño vive sólo en la máquina del dueño (su
+# clave privada local, ver mvpm/owner.py), y el marcador se emite atado a esa
+# máquina. Este build no necesita secretos y no produce nada desbloqueado.
 #
 # Se reconstruye solo cuando cambia el producto (ver `paths` abajo), igual que
-# el de cliente. Lo que NUNCA hace es publicarse en Vercel Blob: el .exe queda
-# como artefacto de Actions y, en tags owner-v*, como asset de un Release —
-# visible nada más que para quien tiene acceso a este repo privado. Ese es el
-# único control que separa este instalador del de cliente, porque el marcador
-# firmado que lleva adentro desbloquea el producto en cualquier máquina.
+# el de cliente. Sigue sin publicarse en Vercel Blob ni linkearse desde la
+# landing: es el canal del dueño, aunque ya no sea eso lo que protege nada.
 on:
   push:
     tags:
@@ -61,30 +66,16 @@ jobs:
           pip install -r requirements.txt
           pip install pyinstaller Cython setuptools
 
-      # El marcador que hace que este .exe sea el del dueño es una licencia
-      # firmada, y vive versionada en packaging/OWNER_EDITION. Se puede hacer
-      # porque este repo es privado: bajar el archivo ya ES el control de
-      # acceso, el mismo que protege al .exe que sale de acá.
+      # Acá había dos pasos que firmaban un marcador de Owner Edition y lo
+      # metían adentro del .exe. Se sacaron: el comentario que los justificaba
+      # decía "se puede hacer porque este repo es privado", y el repo es
+      # PÚBLICO. El marcador es una licencia enterprise firmada, así que
+      # cualquiera que bajara este .exe —o el archivo versionado— tenía el
+      # producto pago gratis. Ver packaging/mvpm_owner.spec.
       #
-      # Por eso este build NO necesita ningún secreto configurado. El paso de
-      # firma sólo corre si el marcador versionado no sirve —porque se rotaron
-      # las claves, o porque quedó en el placeholder— y ahí sí hace falta
-      # MVPM_LICENSE_PRIVATE_KEY.
-      - name: Verificar el marcador de Owner Edition
-        id: marcador
-        shell: bash
-        run: |
-          if python packaging/verificar_marcador_owner.py; then
-            echo "hay_que_firmar=no" >> "$GITHUB_OUTPUT"
-          else
-            echo "hay_que_firmar=si" >> "$GITHUB_OUTPUT"
-          fi
-
-      - name: Firmar el marcador (sólo si el versionado no sirve)
-        if: steps.marcador.outputs.hay_que_firmar == 'si'
-        env:
-          MVPM_LICENSE_PRIVATE_KEY: ${{ secrets.MVPM_LICENSE_PRIVATE_KEY }}
-        run: python packaging/firmar_marcador_owner.py
+      # Este build ya no necesita ningún secreto, y tampoco produce nada que
+      # desbloquee el producto por sí solo: el .exe se activa en la máquina del
+      # dueño porque ahí está su clave privada local, no por lo que trae adentro.
 
       - name: Compilar mvpm/ a binario nativo (Cython)
         run: |
@@ -111,16 +102,19 @@ jobs:
         run: |
           ./packaging/publicar_en_carpeta_instalador.ps1 -Subcarpeta OWNER -Origen packaging/Output
 
-      - name: Subir instalador como artefacto (sólo visible en este repo)
+      - name: Subir instalador como artefacto
         uses: actions/upload-artifact@v4
         with:
           name: MVProjectManagement-Owner-Setup-Windows
           path: packaging/Output/*.exe
 
-      # A diferencia de build_windows.yml, esto NUNCA se publica en Vercel
-      # Blob ni se linkea desde la landing — el Release de GitHub ya es
-      # privado (mismo repo privado), así que alcanza como canal de descarga
-      # exclusivo para el owner.
+      # A diferencia de build_windows.yml, esto no se publica en Vercel Blob ni
+      # se linkea desde la landing. Ojo con lo que eso significa y con lo que
+      # NO: acá decía que el Release "ya es privado (mismo repo privado)" y por
+      # eso alcanzaba como canal exclusivo del dueño. El repo es público, así
+      # que este .exe lo puede bajar cualquiera. Es aceptable únicamente porque
+      # ya no lleva nada adentro que desbloquee el producto — no porque el canal
+      # sea privado, que no lo es.
       - name: Publicar en un Release de GitHub (sólo en tags owner-v*)
         if: startsWith(github.ref, 'refs/tags/owner-v')
         uses: softprops/action-gh-release@v2

@@ -35,6 +35,7 @@ import base64
 import binascii
 import json
 import os
+import secrets
 import time
 from pathlib import Path
 
@@ -125,6 +126,34 @@ PLANES = {
 CLAVE_PUBLICA_EMBEBIDA = "Ba7bsdl1pysbGEuG6wa3fne1PfdsTbkIpo8DD7cIgMg"
 
 
+#: Tokens que se emitieron de verdad —firma válida, clave correcta— pero que
+#: dejaron de valer. Se listan por su FIRMA (la tercera parte del token), que
+#: es lo único que identifica un token sin ambigüedad y que nadie puede cambiar
+#: sin invalidarlo: Ed25519 es determinista (RFC 8032), así que un mismo payload
+#: firmado con una misma clave da siempre exactamente estos bytes.
+#:
+#: Por qué una lista y no rotar el par de claves, que sería lo obvio: rotar
+#: mata TODAS las licencias a la vez —incluidas las que alguien pagó— y obliga
+#: a actualizar el secreto de Vercel y a custodiar una clave privada nueva.
+#: Revocar por firma es quirúrgico: cae el token que se filtró y nada más.
+#:
+#: --- por qué hay una acá ---
+#:
+#: `packaging/OWNER_EDITION` estuvo versionado en un repositorio PÚBLICO con un
+#: token `enterprise` firmado adentro. Se diseñó pensando que el repo era
+#: privado y no lo era. Cualquiera que pasara por el repo podía:
+#:   * pegar esa línea en el campo de licencia y tener el producto pago gratis
+#:     (`estado_acceso()` devolvía modo "licencia", plan enterprise), o
+#:   * copiarla a ~/.mv_project_management/OWNER_EDITION y quedar en modo dueño.
+#: Sacar el archivo del repo no alcanza: el historial de git queda, y quien ya
+#: lo bajó tiene el token para siempre. Lo único que lo mata es que el programa
+#: deje de aceptarlo, que es esto.
+FIRMAS_REVOCADAS = frozenset({
+    # packaging/OWNER_EDITION — enterprise, vieraschiavi@gmail.com, iat 1786131101.
+    "7toxxzkepMP3F1giHxrDlwsiHuSGItLuG56s3aRGOhhjoXElTc9zWP8WexWa8leXFbeYf4zG3m8C57GWlR_YDw",
+})
+
+
 def _b64url(data: bytes) -> str:
     return base64.urlsafe_b64encode(data).rstrip(b"=").decode("ascii")
 
@@ -159,9 +188,15 @@ def _clave_privada() -> Ed25519PrivateKey | None:
         return None
 
 
-def issue_license(plan: str, email: str, payment_id: str | None = None) -> str:
+def issue_license(plan: str, email: str, payment_id: str | None = None,
+                  extra: dict | None = None) -> str:
     """Emite un token de licencia firmado. `payment_id` viene de MercadoPago
     cuando la emisión sigue a un pago verificado; None para el plan demo.
+
+    `extra` agrega campos al payload antes de firmar. Lo usa el marcador del
+    dueño para atar el token a su máquina (`{"maquina": ...}`); las licencias
+    que se venden no lo usan, porque el cliente tiene que poder mover la suya
+    a otra computadora.
 
     Requiere la clave PRIVADA. En la máquina de un cliente no está, así que
     esto no es una forma de fabricarse una licencia: es exactamente el punto
@@ -182,6 +217,8 @@ def issue_license(plan: str, email: str, payment_id: str | None = None) -> str:
         "iat": int(time.time()),
         "cupo_mensual_ia": PLANES[plan]["cupo_mensual_ia"],
     }
+    if extra:
+        payload.update(extra)
     payload_b64 = _b64url(json.dumps(payload, separators=(",", ":")).encode("utf-8"))
     sig = clave.sign(payload_b64.encode("ascii"))
     return f"MVPM2.{payload_b64}.{_b64url(sig)}"
@@ -193,6 +230,9 @@ def verify_license(token: str) -> dict | None:
     Sólo acepta `MVPM2` (Ed25519). Los `MVPM1` viejos (HMAC con secreto que el
     propio cliente se autogeneraba) se rechazan a propósito: aceptarlos sería
     dejar abierta la puerta que este cambio vino a cerrar.
+
+    Un token de FIRMAS_REVOCADAS se rechaza aunque la firma sea perfecta: son
+    tokens que se emitieron bien y después se filtraron.
     """
     clave = _clave_publica()
     if clave is None or not token:
@@ -201,11 +241,68 @@ def verify_license(token: str) -> dict | None:
         prefix, payload_b64, sig_b64 = token.split(".")
         if prefix != "MVPM2":
             return None
+        if sig_b64 in FIRMAS_REVOCADAS:
+            return None
         clave.verify(_b64url_decode(sig_b64), payload_b64.encode("ascii"))
         return json.loads(_b64url_decode(payload_b64))
     except (ValueError, KeyError, TypeError, binascii.Error,
             json.JSONDecodeError, InvalidSignature):
         return None
+
+
+# ------------------------------------------------- tokens atados a una máquina
+
+#: Identificador aleatorio de ESTA máquina. No dice nada de la computadora (no
+#: es el MAC ni el hostname ni el usuario): es un número al azar que se escribe
+#: una vez y no cambia más.
+#:
+#: Se eligió así a propósito por encima de una huella de hardware. Lo que hace
+#: falta es que dos máquinas distintas den valores distintos —y eso lo garantiza
+#: el azar—, no identificar el equipo. Una huella de hardware, en cambio, se
+#: rompe sola el día que cambia la placa de red o se renombra la máquina, y
+#: dejaría al dueño afuera de su propio programa sin ninguna razón visible.
+ARCHIVO_MAQUINA = "maquina_id"
+_RUTA_MAQUINA = Path.home() / rutas.NOMBRE_CARPETA / ARCHIVO_MAQUINA
+
+
+def huella_maquina() -> str:
+    """El id de esta máquina, creándolo la primera vez. "" si no se puede
+    escribir (disco de sólo lectura), y en ese caso ningún token atado vale:
+    se falla cerrado, que es lo mismo que ya pasa si no se puede activar."""
+    try:
+        actual = _RUTA_MAQUINA.read_text(encoding="utf-8").strip()
+        if actual:
+            return actual
+    except OSError:
+        pass
+    nueva = secrets.token_hex(16)
+    try:
+        _RUTA_MAQUINA.parent.mkdir(parents=True, exist_ok=True)
+        _RUTA_MAQUINA.write_text(nueva, encoding="utf-8")
+    except OSError:
+        return ""
+    return nueva
+
+
+def atada_a_esta_maquina(payload: dict | None) -> bool:
+    """¿Este token se puede usar acá?
+
+    Un token SIN campo `maquina` no está atado a ninguna y vale en todas: es el
+    caso de las licencias que se venden, que la persona tiene que poder mover a
+    otra computadora. Uno CON el campo vale sólo donde se emitió.
+
+    Lo usan el marcador del dueño (`mvpm/owner.py`) y `licencia_vigente()`, para
+    que atar signifique lo mismo en los dos lados: si el marcador del dueño se
+    filtrara, no alcanzaría ni para desbloquear otra máquina ni para pegarlo
+    como licencia en el campo de texto de la app.
+    """
+    if not payload:
+        return False
+    atada = payload.get("maquina")
+    if not atada:
+        return True
+    huella = huella_maquina()
+    return bool(huella) and atada == huella
 
 
 def _load_usage() -> dict:
@@ -303,6 +400,8 @@ def licencia_vigente(payload: dict | None, ahora: float | None = None) -> bool:
         return False
     plan = payload.get("plan")
     if plan not in PLANES_PAGOS:
+        return False
+    if not atada_a_esta_maquina(payload):
         return False
     vigencia = PLANES.get(plan, {}).get("vigencia_dias")
     if vigencia is None:  # paga sin vencimiento explícito

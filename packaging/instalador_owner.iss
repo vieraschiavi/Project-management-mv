@@ -1,14 +1,16 @@
 ; Script de Inno Setup 6 — "Owner Edition". Mismo instalador profesional que
 ; packaging/instalador.iss (icono en Menú Inicio + escritorio, elegir
-; carpeta, elegir per-user/per-machine, EULA), con dos diferencias:
-;   1. Empaqueta el .exe compilado desde mvpm_owner.spec, que lleva adentro
-;      el marcador OWNER_EDITION ya FIRMADO por el CI (ver
-;      packaging/firmar_marcador_owner.py) → arranca sin candado de 7 días
-;      ni límite de cupo de IA, y sin que el dueño configure nada en su PC:
-;      instala, abre y ya está.
-;   2. AppId, nombre de carpeta y nombre de .exe distintos — para poder
-;      tener instalada la versión Owner y la versión cliente en la misma
-;      PC al mismo tiempo, sin que una pise a la otra.
+; carpeta, elegir per-user/per-machine, EULA), con una diferencia:
+;   AppId, nombre de carpeta y nombre de .exe distintos — para poder tener
+;   instalada la versión Owner y la versión cliente en la misma PC al mismo
+;   tiempo, sin que una pise a la otra.
+;
+; Antes había una segunda diferencia: el .exe llevaba adentro un marcador
+; OWNER_EDITION firmado y arrancaba sin candado, "sin que el dueño configure
+; nada en su PC". Eso se sacó — ese marcador es una licencia enterprise y este
+; instalador se publicaba en un repo público, así que se lo regalaba a
+; cualquiera. El modo dueño ahora se activa una vez por máquina con la clave
+; privada local (MV_ProjectManagement_OWNER.bat), y queda para siempre.
 ;
 ; Se compila SOLO en .github/workflows/build_windows_owner.yml (disparo
 ; manual o tag owner-v*), nunca en build_windows.yml — y el resultado se

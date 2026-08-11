@@ -11,3 +11,10 @@ node_modules/
 desktop/release/
 desktop/resources/*.exe
 assets/video/demo*.mp4
+
+# El marcador de la Owner Edition es una LICENCIA FIRMADA. Estuvo versionado en
+# packaging/OWNER_EDITION y este repositorio es público: cualquiera podia bajarlo
+# y usar el producto pago gratis. Nunca mas entra al repo.
+OWNER_EDITION
+clave_privada_owner
+clave_owner.txt

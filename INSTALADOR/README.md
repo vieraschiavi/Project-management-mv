@@ -20,19 +20,34 @@ corren en Linux ni en macOS, así que no hay forma de generarlos fuera del CI.
 
 | | CLIENTE | OWNER |
 |---|---|---|
-| Prueba de 7 días | sí | no |
+| Prueba de 7 días | sí | no, una vez activado |
 | Cupo de IA | según el plan | ilimitado |
-| Hay que activar algo | pega el token al pagar | nada, ya viene activado |
-| Quién lo puede usar | cualquiera que lo baje | quien lo tenga desbloquea todo |
+| Hay que activar algo | pega el token al pagar | la clave privada, una vez por máquina |
+| Quién lo puede usar | cualquiera que lo baje | sólo quien tenga la clave privada |
 
 El de CLIENTE se instala en modo demo. Cuando el cliente paga, el token que
 recibe desbloquea **esa misma instalación**: no vuelve a bajar nada, no pierde
 los datos que cargó.
 
-El de OWNER lleva adentro un marcador de licencia **firmado**. Quien tenga ese
-archivo tiene el producto desbloqueado, sin pagar y sin tocar nada. Por eso vive
-en un repositorio privado y no se comparte, no se sube a la landing, no se manda
-por mail. Si se filtra, hay que rotar el par de claves y republicar.
+El de OWNER es el mismo programa, con AppId y carpeta propios para poder
+tenerlo instalado al lado del de cliente. Lo que lo desbloquea no viaja adentro:
+vive en la máquina del dueño (`~/.mv_project_management/clave_privada_owner`).
+Se activa una vez con `MV_ProjectManagement_OWNER.bat` y queda para siempre en
+esa computadora, para todas las formas de abrir el programa.
+
+### Por qué no viene ya activado
+
+Venía. Llevaba adentro un marcador de licencia **firmado**, y quien tuviera ese
+archivo tenía el producto desbloqueado sin pagar. Esto decía que era seguro
+"porque vive en un repositorio privado". **Este repositorio es público**, y
+también lo son los Releases de Actions: o sea que ese instalador —y el
+`packaging/OWNER_EDITION` que estaba versionado— le regalaban el producto pago a
+cualquiera que pasara por acá.
+
+Lo que se hizo: el token filtrado quedó revocado en `mvpm/licensing.py`
+(sacarlo del repo no alcanza — queda en el historial), ningún build empaqueta
+ya un marcador, y los marcadores nuevos se emiten **atados a una máquina**, así
+que uno copiado a otra computadora no desbloquea nada.
 
 ## Los dos instalan igual
 

@@ -14,6 +14,7 @@ Dos cosas que fijar, y la segunda importa más que la primera:
 
 import ast
 import os
+import re
 from pathlib import Path
 
 import pytest
@@ -44,6 +45,9 @@ def sin_marcadores(monkeypatch, tmp_path):
     monkeypatch.delenv("MVPM_OWNER_BYPASS", raising=False)
     rutas = (tmp_path / "datos" / owner.MARCADOR, tmp_path / "programa" / owner.MARCADOR)
     monkeypatch.setattr(owner, "RUTAS_MARCADOR", rutas)
+    # El id de máquina también va a tmp: por el mismo motivo que los marcadores,
+    # y además porque varios tests simulan "otra computadora" cambiándolo.
+    monkeypatch.setattr(licensing, "_RUTA_MAQUINA", tmp_path / "maquina_id")
     return rutas
 
 
@@ -68,12 +72,15 @@ def test_la_env_var_de_bypass_ya_no_activa_nada(sin_marcadores, monkeypatch):
 
 @pytest.mark.parametrize("indice", [0, 1])
 def test_cualquiera_de_los_marcadores_activa_el_modo_owner(sin_marcadores, indice):
-    """Uno vive en los datos del usuario (lo escribe `./run.sh owner`) y el
-    otro junto al programa (lo empaqueta el .exe de la Owner Edition)."""
+    """Uno vive en los datos del usuario (lo escribe `./run.sh owner`) y el otro
+    junto al programa, si se activó ahí. El token va atado a esta máquina, que
+    es como los emite `owner.activar()`."""
     ruta = sin_marcadores[indice]
     ruta.parent.mkdir(parents=True, exist_ok=True)
-    ruta.write_text(licensing.issue_license("enterprise", "dueno@ejemplo.com"),
-                    encoding="utf-8")
+    ruta.write_text(
+        licensing.issue_license("enterprise", "dueno@ejemplo.com",
+                                extra={"maquina": licensing.huella_maquina()}),
+        encoding="utf-8")
     assert owner.es_owner() is True
     assert str(ruta) in owner.motivo()
 
@@ -163,6 +170,119 @@ def test_activar_automatico_no_deja_la_clave_privada_en_el_entorno(maquina_limpi
 
     owner.activar_automatico()
     assert os.environ.get("MVPM_LICENSE_PRIVATE_KEY") is None
+
+
+# ------------------------------------- el marcador está atado a una máquina
+
+def _otra_computadora(monkeypatch, tmp_path):
+    """Simula que el mismo archivo de marcador aparece en OTRA máquina: cambia
+    de dónde sale el id, que es lo único que distingue una computadora de otra."""
+    monkeypatch.setattr(licensing, "_RUTA_MAQUINA", tmp_path / "otra" / "maquina_id")
+
+
+def test_el_marcador_no_sirve_en_otra_computadora(maquina_limpia, monkeypatch, tmp_path):
+    """EL test de esta historia, del lado del código.
+
+    El marcador del dueño estuvo versionado en un repo público y desbloqueaba
+    cualquier máquina donde se lo copiara. Ahora se emite atado a la máquina que
+    lo creó: el mismo archivo, con la misma firma impecable, no vale en otra.
+    """
+    privada, publica = _par_de_claves()
+    monkeypatch.setenv("MVPM_LICENSE_PUBLIC_KEY", publica)
+    owner.guardar_clave_local(privada)
+
+    assert owner.activar_automatico() is not None
+    assert owner.es_owner() is True
+    robado = owner.RUTAS_MARCADOR[0].read_text(encoding="utf-8")
+
+    # Mismo archivo, otra computadora. La firma sigue siendo válida.
+    _otra_computadora(monkeypatch, tmp_path)
+    token = owner._token_del_marcador(owner.RUTAS_MARCADOR[0])
+    assert licensing.verify_license(token) is not None, "la firma tendría que seguir siendo buena"
+    assert owner.es_owner() is False, "un marcador copiado desbloqueó otra máquina"
+    assert robado  # el contenido no cambió: lo que cambió es dónde se lo lee
+
+
+def test_el_marcador_robado_tampoco_sirve_pegado_como_licencia(
+        maquina_limpia, monkeypatch, tmp_path):
+    """La segunda puerta, que es la que casi se pasa por alto: el token del
+    marcador es una licencia `enterprise` válida. De nada serviría bloquear el
+    modo dueño si el mismo texto, pegado en el campo de licencia de la app,
+    diera el producto pago igual."""
+    privada, publica = _par_de_claves()
+    monkeypatch.setenv("MVPM_LICENSE_PUBLIC_KEY", publica)
+    owner.guardar_clave_local(privada)
+    owner.activar_automatico()
+    token = owner._token_del_marcador(owner.RUTAS_MARCADOR[0])
+
+    assert licensing.estado_acceso(token)["modo"] == "licencia"  # en SU máquina, sí
+    _otra_computadora(monkeypatch, tmp_path)
+    assert licensing.estado_acceso(token)["modo"] != "licencia"
+
+
+def test_un_marcador_sin_atar_se_rechaza(maquina_limpia, monkeypatch):
+    """Los marcadores viejos —incluido el que quedó publicado— no llevan el
+    campo `maquina`. Se rechazan de plano, que es lo que mata de una a todas las
+    copias que ya estén dando vueltas."""
+    privada, publica = _par_de_claves()
+    monkeypatch.setenv("MVPM_LICENSE_PUBLIC_KEY", publica)
+    monkeypatch.setenv("MVPM_LICENSE_PRIVATE_KEY", privada)
+
+    viejo = licensing.issue_license("enterprise", owner.EMAIL_OWNER)  # sin extra
+    assert licensing.verify_license(viejo) is not None
+    ruta = owner.RUTAS_MARCADOR[0]
+    ruta.parent.mkdir(parents=True, exist_ok=True)
+    ruta.write_text(owner._TEXTO_MARCADOR.format(token=viejo), encoding="utf-8")
+
+    assert owner.es_owner() is False
+
+
+def test_la_licencia_que_se_vende_no_se_ata_a_ninguna_maquina(
+        maquina_limpia, monkeypatch, tmp_path):
+    """El contrapeso, y es tan importante como lo anterior: al cliente que paga
+    NO se le ata la licencia. Tiene que poder cambiar de computadora, reinstalar
+    Windows o trabajar en dos máquinas sin quedarse afuera de lo que compró.
+    Sólo se ata el marcador del dueño."""
+    privada, publica = _par_de_claves()
+    monkeypatch.setenv("MVPM_LICENSE_PUBLIC_KEY", publica)
+    monkeypatch.setenv("MVPM_LICENSE_PRIVATE_KEY", privada)
+
+    comprada = licensing.issue_license("professional", "cliente@empresa.com",
+                                       payment_id="mp-123")
+    assert licensing.estado_acceso(comprada)["modo"] == "licencia"
+    _otra_computadora(monkeypatch, tmp_path)
+    assert licensing.estado_acceso(comprada)["modo"] == "licencia"
+
+
+def test_el_id_de_maquina_no_cambia_entre_arranques(maquina_limpia):
+    """Si cambiara, el dueño perdería el modo owner cada vez que abre el
+    programa. Por eso es un número al azar guardado en disco y no una huella de
+    hardware, que se rompe sola al cambiar la placa de red o el nombre del equipo."""
+    primero = licensing.huella_maquina()
+    assert primero
+    assert licensing.huella_maquina() == primero
+    assert licensing._RUTA_MAQUINA.read_text(encoding="utf-8").strip() == primero
+
+
+def test_dos_maquinas_distintas_dan_ids_distintos(maquina_limpia, monkeypatch, tmp_path):
+    """Lo único que este id tiene que garantizar. No identifica la computadora
+    —no es el MAC ni el hostname—: sólo tiene que no repetirse."""
+    una = licensing.huella_maquina()
+    _otra_computadora(monkeypatch, tmp_path)
+    assert licensing.huella_maquina() != una
+
+
+def test_sin_poder_escribir_el_id_no_se_activa_nada(maquina_limpia, monkeypatch):
+    """Se falla cerrado. Si no se puede identificar la máquina, un marcador
+    valdría en todas — que es el agujero que esto vino a tapar."""
+    monkeypatch.setattr(licensing, "huella_maquina", lambda: "")
+    privada, publica = _par_de_claves()
+    monkeypatch.setenv("MVPM_LICENSE_PUBLIC_KEY", publica)
+    monkeypatch.setenv("MVPM_LICENSE_PRIVATE_KEY", privada)
+
+    with pytest.raises(RuntimeError, match="atar"):
+        owner.activar()
+    assert owner.es_owner() is False
 
 
 def test_el_email_del_dueno_por_si_solo_no_desbloquea_nada(maquina_limpia):
@@ -265,12 +385,23 @@ def test_el_release_del_dueno_no_queda_como_ultimo_release_del_repo():
     assert "prerelease: true" in workflow
 
 
-def test_el_build_owner_corta_si_falta_la_clave_privada():
-    """Sin el secreto, compilar igual daría un .exe que dice "Owner Edition" y
-    se comporta como el de un cliente: prueba de 7 días incluida."""
-    script = (RAIZ / "packaging" / "firmar_marcador_owner.py").read_text(encoding="utf-8")
-    assert 'if not os.environ.get("MVPM_LICENSE_PRIVATE_KEY", "").strip():' in script
-    assert "return 1" in script
+def test_ningun_build_mete_un_marcador_adentro_del_exe():
+    """El `.exe` de la Owner Edition llevaba adentro un marcador firmado, y se
+    publica como Release de un repo público: era una licencia enterprise para
+    quien lo bajara. Además ya no podría funcionar —el marcador va atado a una
+    máquina y el CI no sabe cuál es la del dueño—, así que reponerlo daría un
+    .exe que dice "Owner Edition" y se comporta como el de cliente."""
+    spec = (RAIZ / "packaging" / "mvpm_owner.spec").read_text(encoding="utf-8")
+    lineas_datas = [ln for ln in spec.splitlines()
+                    if owner.MARCADOR in ln and not ln.lstrip().startswith("#")]
+    assert not lineas_datas, f"mvpm_owner.spec vuelve a empaquetar el marcador: {lineas_datas}"
+
+    workflow = (RAIZ / ".github" / "workflows" / "build_windows_owner.yml").read_text(
+        encoding="utf-8")
+    sin_comentarios = "\n".join(ln for ln in workflow.splitlines()
+                                if not ln.lstrip().startswith("#"))
+    assert "MVPM_LICENSE_PRIVATE_KEY" not in sin_comentarios, (
+        "el build owner volvió a recibir la clave privada: no tiene nada que firmar")
 
 
 @pytest.mark.parametrize("caso, esperado_en_el_motivo", [
@@ -433,42 +564,113 @@ def test_activar_owner_se_niega_sin_checkout_del_repo(tmp_path, monkeypatch):
     assert activar_owner._es_checkout_del_repo() is True
 
 
-def test_el_marcador_versionado_esta_firmado_y_sirve(monkeypatch):
-    """`packaging/OWNER_EDITION` lleva una licencia firmada, a propósito.
+#: Archivos que por su tamaño o su tipo no pueden contener un token pegado a
+#: mano y que costaría minutos escanear en cada corrida.
+_NO_ESCANEAR = {".exe", ".zip", ".png", ".jpg", ".jpeg", ".ico", ".mp4", ".pdf",
+                ".woff", ".woff2", ".ttf"}
 
-    Antes este test exigía lo contrario —que fuera un placeholder— porque la
-    licencia iba a firmarse en el CI con un secreto. La decisión cambió: el
-    marcador vive versionado, y por eso el build de la Owner Edition no
-    necesita ningún secreto configurado y el ZIP del dueño se puede armar en
-    cualquier máquina.
+#: Un token es MVPM2.<payload>.<firma>, todo en base64url.
+_PATRON_TOKEN = re.compile(r"MVPM2\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+")
 
-    Lo que se está aceptando con eso, explícito: la licencia queda en el
-    historial de git para siempre, así que **cualquiera con acceso a este repo
-    tiene el producto desbloqueado**. Es sostenible sólo porque el repo es
-    privado — bajar el archivo ES el control de acceso, el mismo que protege al
-    .exe de la Owner Edition, que lleva ese mismo marcador adentro. Si el repo
-    se hiciera público, o se sumara alguien que no es el dueño, hay que rotar
-    el par de claves y republicar.
 
-    Lo que NO cambió, y está fijado en los tests de acá abajo: nada de esto
-    llega a un artefacto de cliente.
+def _archivos_con_licencia_valida(archivos: list[Path]) -> list[Path]:
+    """Cuáles de estos archivos contienen algo que `verify_license()` acepta."""
+    culpables = []
+    for ruta in archivos:
+        if ruta.suffix.lower() in _NO_ESCANEAR or not ruta.is_file():
+            continue
+        try:
+            texto = ruta.read_text(encoding="utf-8", errors="ignore")
+        except OSError:
+            continue
+        if any(licensing.verify_license(c) is not None
+               for c in _PATRON_TOKEN.findall(texto)):
+            culpables.append(ruta)
+    return culpables
+
+
+def test_el_escaner_de_licencias_encuentra_una_de_verdad(tmp_path, monkeypatch):
+    """Que el escáner de abajo sirva para algo.
+
+    Sin esto sería un test que recorre 300 archivos, no encuentra nada y da
+    verde — y daría exactamente lo mismo si el patrón estuviera mal escrito o si
+    `verify_license()` devolviera None siempre. Se planta una licencia firmada
+    de verdad (con un par efímero) y se exige que la encuentre.
     """
-    from mvpm import licensing
+    privada, publica = _par_de_claves()
+    monkeypatch.setenv("MVPM_LICENSE_PUBLIC_KEY", publica)
+    monkeypatch.setenv("MVPM_LICENSE_PRIVATE_KEY", privada)
+    token = licensing.issue_license("enterprise", "dueno@ejemplo.com")
 
-    # conftest.py inyecta un par de claves efímero por corrida en las variables
-    # de entorno, y ésas le ganan a la embebida. Acá interesa justamente la
-    # embebida: es la que va a tener la copia que se instale.
+    plantado = tmp_path / "cualquier_nombre.txt"
+    plantado.write_text(f"# nota suelta\n{token}\n# fin\n", encoding="utf-8")
+    limpio = tmp_path / "limpio.txt"
+    limpio.write_text("MVPM2.esto-no.es-un-token\n", encoding="utf-8")
+
+    assert _archivos_con_licencia_valida([plantado, limpio]) == [plantado]
+
+
+def test_ningun_archivo_versionado_es_una_licencia_valida(monkeypatch):
+    """EL test de esta historia. Ningún archivo del repo puede contener algo que
+    `verify_license()` acepte.
+
+    Acá vivía el test contrario. Decía, textual, que tener una licencia firmada
+    versionada "es sostenible sólo porque el repo es privado". El repo es
+    PÚBLICO, y lo fue todo el tiempo. Así que `packaging/OWNER_EDITION` —un
+    token `enterprise` a nombre del dueño— estuvo descargable por cualquiera,
+    sirviendo para las dos cosas a la vez: pegado en el campo de licencia daba
+    `estado_acceso() -> modo "licencia"`, y copiado al perfil del usuario daba
+    modo dueño.
+
+    Por eso este test no comprueba una premisa (¿el repo es privado?) sino un
+    hecho verificable acá adentro: que no haya un token válido en ningún lado.
+    Un test que se apoya en una condición que no puede medir no protege nada —
+    lo demostró el que reemplazó.
+
+    Se escanea el contenido, no los nombres: el archivo podría llamarse
+    cualquier cosa.
+    """
+    import subprocess
+
+    # conftest.py inyecta un par de claves efímero por corrida y ése le gana a
+    # la embebida. Acá interesa la EMBEBIDA: es la que trae la copia instalada,
+    # y por lo tanto la única contra la que un token filtrado valdría de verdad.
     monkeypatch.delenv("MVPM_LICENSE_PUBLIC_KEY", raising=False)
 
-    ruta = RAIZ / "packaging" / "OWNER_EDITION"
-    token = owner._token_del_marcador(ruta)
-    assert token, "packaging/OWNER_EDITION quedó sin token: el build saldría con candado"
-    payload = licensing.verify_license(token)
-    assert payload is not None, (
-        "el token de packaging/OWNER_EDITION no valida contra "
-        "CLAVE_PUBLICA_EMBEBIDA: son de pares de claves distintos")
-    assert payload["plan"] in licensing.PLANES_PAGOS
-    assert payload["email"] == owner.EMAIL_OWNER
+    if not (RAIZ / ".git").exists():
+        pytest.skip("no es un checkout del repo: no hay archivos versionados que revisar")
+
+    salida = subprocess.run(
+        ["git", "ls-files", "-z"], cwd=RAIZ, capture_output=True, text=True, check=True)
+    archivos = [RAIZ / n for n in salida.stdout.split("\0") if n]
+    assert archivos, "git ls-files no devolvió nada: el test no estaría revisando nada"
+
+    culpables = [r.relative_to(RAIZ) for r in _archivos_con_licencia_valida(archivos)]
+    assert not culpables, (
+        f"Hay una licencia FIRMADA Y VÁLIDA versionada en: {culpables}.\n"
+        "Este repositorio es público: eso es regalar el producto pago. Sacá el "
+        "archivo, agregá su firma a licensing.FIRMAS_REVOCADAS (borrarlo no "
+        "alcanza: queda en el historial y quien ya lo bajó lo tiene para "
+        "siempre) y revisá qué lo generó.")
+
+
+def test_el_token_que_se_filtro_ya_no_vale(monkeypatch):
+    """El token que estuvo en `packaging/OWNER_EDITION`, contra la clave pública
+    embebida. Sacarlo del repo no lo mata —el historial de git queda, y quien lo
+    bajó lo tiene—; lo único que lo mata es que el programa lo rechace."""
+    from mvpm import licensing
+
+    monkeypatch.delenv("MVPM_LICENSE_PUBLIC_KEY", raising=False)
+
+    filtrado = (
+        "MVPM2.eyJwbGFuIjoiZW50ZXJwcmlzZSIsImVtYWlsIjoidmllcmFzY2hpYXZpQGdtYWlsLmNvbSIsInBheW1"
+        "lbnRfaWQiOm51bGwsImlhdCI6MTc4NjEzMTEwMSwiY3Vwb19tZW5zdWFsX2lhIjpudWxsfQ.7toxxzkepMP3F"
+        "1giHxrDlwsiHuSGItLuG56s3aRGOhhjoXElTc9zWP8WexWa8leXFbeYf4zG3m8C57GWlR_YDw")
+
+    assert licensing.verify_license(filtrado) is None, "el token filtrado sigue validando"
+    # Las dos puertas que abría, cerradas por separado.
+    assert licensing.estado_acceso(filtrado)["modo"] != "licencia"
+    assert filtrado.split(".")[2] in licensing.FIRMAS_REVOCADAS
 
 
 def test_el_zip_del_cliente_no_lleva_el_marcador_ni_por_accidente():
@@ -495,17 +697,45 @@ def test_el_zip_del_cliente_no_lleva_el_marcador_ni_por_accidente():
         zip_path.unlink(missing_ok=True)
 
 
-def test_el_zip_del_dueno_si_lleva_el_marcador_y_en_la_raiz():
-    """En la raíz y no en packaging/: `mvpm/owner.py` busca en la raíz del
-    programa, así que en cualquier otro lado el ZIP del dueño saldría con el
-    candado de cliente puesto sin que nada lo avise."""
+def test_el_zip_del_dueno_tampoco_lleva_el_marcador():
+    """Este ZIP está commiteado en un repo público, así que vale lo mismo que
+    para el del cliente: adentro no puede haber nada firmado.
+
+    Antes este test exigía lo CONTRARIO —que el marcador estuviera en la raíz
+    del ZIP— porque el paquete venía ya activado. Eso es exactamente lo que
+    hacía que bajarlo le diera el producto pago a cualquiera.
+
+    Lo que hace distinto a este paquete ahora son herramientas, no credenciales:
+    se comprueba en `test_el_zip_del_dueno_lleva_con_que_activar`.
+    """
     import zipfile
 
     ruta = RAIZ / "owner" / "MV_Project_Management_OWNER.zip"
     if not ruta.exists():
         pytest.skip("owner/ no viaja en el paquete: es del repositorio")
     with zipfile.ZipFile(ruta) as zf:
-        assert owner.MARCADOR in zf.namelist()
+        nombres = zf.namelist()
+        assert owner.MARCADOR not in nombres
+        assert not any(n.endswith("/" + owner.MARCADOR) for n in nombres)
+
+
+def test_el_zip_del_dueno_lleva_con_que_activar():
+    """Sin esto sería idéntico al del cliente y el dueño no tendría con qué
+    activar su máquina — que es el único paso que hoy separa una cosa de la
+    otra. Ninguno de estos archivos sirve sin la clave privada."""
+    import sys as _sys
+    import zipfile
+
+    _sys.path.insert(0, str(RAIZ / "packaging"))
+    import build_release
+
+    ruta = RAIZ / "owner" / "MV_Project_Management_OWNER.zip"
+    if not ruta.exists():
+        pytest.skip("owner/ no viaja en el paquete: es del repositorio")
+    with zipfile.ZipFile(ruta) as zf:
+        nombres = set(zf.namelist())
+    for extra in build_release.EXTRAS_OWNER:
+        assert extra in nombres, f"el paquete del dueño salió sin {extra}"
 
 
 def test_el_zip_del_dueno_esta_actualizado():
@@ -515,8 +745,8 @@ def test_el_zip_del_dueno_esta_actualizado():
     con la diferencia de que acá el perjudicado es el dueño, que abriría una
     build vieja creyendo que tiene la última.
 
-    Se compara contra lo que saldría del código actual, salvo el marcador (que
-    es lo único que el paquete del dueño agrega). Si falla:
+    Se compara contra lo que saldría del código actual, salvo los extras del
+    dueño (que es lo único que este paquete agrega). Si falla:
     `python packaging/build_release.py --owner`.
     """
     import sys as _sys
@@ -533,9 +763,9 @@ def test_el_zip_del_dueno_esta_actualizado():
     fresco = build_release.build_portable_zip(version="freshness-owner")
     try:
         with zipfile.ZipFile(publico) as zf_pub, zipfile.ZipFile(fresco) as zf_new:
-            # El marcador es lo único que este paquete suma; el resto tiene que
+            # Los extras son lo único que este paquete suma; el resto tiene que
             # ser idéntico al portable armado con el código de hoy.
-            nombres_pub = set(zf_pub.namelist()) - {owner.MARCADOR}
+            nombres_pub = set(zf_pub.namelist()) - set(build_release.EXTRAS_OWNER)
             nombres_new = set(zf_new.namelist())
             faltan = sorted(nombres_new - nombres_pub)
             sobran = sorted(nombres_pub - nombres_new)
@@ -553,8 +783,8 @@ def test_el_zip_del_dueno_esta_actualizado():
 
 
 def test_el_zip_del_dueno_no_se_publica_en_la_web():
-    """Vive en el repo privado. La carpeta que se publica es landing/, y ahí no
-    puede aparecer."""
+    """La carpeta que se publica en la web es landing/, y ahí no puede
+    aparecer: el paquete del dueño no es un producto que se venda."""
     if not (RAIZ / "landing").exists():
         pytest.skip("landing/ no viaja en el paquete: es del repositorio")
     publicados = list((RAIZ / "landing").rglob("*.zip"))

@@ -51,39 +51,54 @@ def build_portable_zip(version: str = "0.1.0") -> Path:
     return zip_path
 
 
-#: Dónde queda el ZIP del dueño dentro del repo. Va versionado a propósito:
-#: el repo es privado, así que "bajarlo de GitHub" ES el control de acceso.
+#: Dónde queda el ZIP del dueño dentro del repo.
 ZIP_OWNER = ROOT / "owner" / "MV_Project_Management_OWNER.zip"
+
+#: Lo que este paquete tiene de más. Ninguno es un secreto — ver el docstring.
+EXTRAS_OWNER = [
+    "MV_ProjectManagement_OWNER.bat",
+    "packaging/generar_claves_licencia.py",
+]
 
 
 def build_owner_zip(version: str = "0.1.0") -> Path:
-    """El mismo paquete portable, más el marcador firmado en la raíz.
+    """El paquete portable más las herramientas de activación del dueño.
 
-    Es la versión del dueño: se descarga del repo privado, se descomprime y se
-    abre — sin pegar claves, sin cargar secretos y sin esperar un build de
-    Windows. El marcador va en la RAÍZ del paquete porque es una de las rutas
-    donde `mvpm/owner.py` busca (`_RAIZ_PROGRAMA / MARCADOR`); en
-    `packaging/OWNER_EDITION` no lo encontraría.
+    ## Qué cambió, y por qué
 
-    Por qué esto no afloja el candado de nadie: lo único que hace distinto a
-    este ZIP es un archivo que NO está en INCLUDE_FILES, así que el paquete de
-    cliente —el que se publica en la web— no lo lleva ni puede llevarlo por
-    accidente. Los tests de tests/test_owner.py lo fijan.
+    Antes este ZIP llevaba el marcador FIRMADO en la raíz: se descomprimía y ya
+    estaba activado, sin pegar nada. Se diseñó así dando por sentado que el
+    repositorio era privado. No lo era. El resultado fue que el producto pago
+    quedó descargable por cualquiera —y no sólo en modo dueño: ese token pegado
+    en el campo de licencia daba una licencia `enterprise` válida—.
+
+    Así que el paquete del dueño ya no lleva ningún secreto adentro. Lo que lo
+    hace distinto del de cliente son dos archivos que no le sirven a nadie sin
+    la clave privada:
+
+    * `MV_ProjectManagement_OWNER.bat` — el doble clic que activa la máquina.
+    * `packaging/generar_claves_licencia.py` — para generar el par la primera
+      vez. Ojo: `activar_owner.py` sólo genera desde un checkout del repo (pide
+      `.git/`), así que incluirlo acá no habilita a un cliente a fabricarse un
+      par; es para que el dueño lo tenga a mano.
+
+    La activación pasó a ser una vez por máquina: se pega la clave privada, se
+    guarda en el perfil del usuario, y desde ahí TODAS las formas de abrir el
+    programa —este ZIP, el `.exe`, `run.sh`, el `.bat` de cliente— se activan
+    solas vía `owner.activar_automatico()`. Es un paso más que antes; a cambio,
+    lo que se publica no desbloquea el producto de nadie.
     """
-    marcador = ROOT / "packaging" / "OWNER_EDITION"
-    contenido = marcador.read_text(encoding="utf-8")
-    if not [ln for ln in contenido.splitlines()
-            if ln.strip() and not ln.strip().startswith("#")]:
-        raise RuntimeError(
-            "packaging/OWNER_EDITION no tiene un token firmado: el ZIP del "
-            "dueño saldría con el candado de cliente puesto. Firmalo con "
-            "packaging/firmar_marcador_owner.py (necesita MVPM_LICENSE_PRIVATE_KEY).")
-
     base = build_portable_zip(version=version)
     ZIP_OWNER.parent.mkdir(parents=True, exist_ok=True)
     shutil.copyfile(base, ZIP_OWNER)
     with zipfile.ZipFile(ZIP_OWNER, "a", zipfile.ZIP_DEFLATED) as zf:
-        zf.writestr("OWNER_EDITION", contenido)
+        for extra in EXTRAS_OWNER:
+            src = ROOT / extra
+            if not src.exists():
+                raise RuntimeError(
+                    f"Falta {extra}: el paquete del dueño saldría sin con qué "
+                    "activar y no se distinguiría del de cliente.")
+            zf.write(src, extra)
     base.unlink(missing_ok=True)
     return ZIP_OWNER
 
