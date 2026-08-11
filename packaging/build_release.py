@@ -81,8 +81,14 @@ EXTRAS_OWNER = [
 ]
 
 
-def build_owner_zip(version: str = "0.1.0") -> Path:
+def build_owner_zip(version: str = "0.1.0", destino: Path | None = None) -> Path:
     """El paquete portable más las herramientas de activación del dueño.
+
+    `destino` es para los tests. Sin él escribe en `ZIP_OWNER`, que es un archivo
+    VERSIONADO: un test que llame a esto sin destino deja el repositorio sucio en
+    cada corrida de la suite, con un ZIP que sólo difiere en los timestamps
+    internos. Pasó, y el riesgo real no es el ruido en `git status` sino que
+    alguien commitee un paquete armado desde un árbol a medio editar.
 
     Abre sin candado y sin pedir nada: ni clave, ni token, ni archivo al lado.
     Lo consigue con `ES_OWNER_BUILD = True` en `mvpm/edicion.py`, escrito
@@ -120,9 +126,10 @@ def build_owner_zip(version: str = "0.1.0") -> Path:
 
     base = build_portable_zip(version=version,
                               reemplazos={"mvpm/edicion.py": edicion_owner})
-    ZIP_OWNER.parent.mkdir(parents=True, exist_ok=True)
-    shutil.copyfile(base, ZIP_OWNER)
-    with zipfile.ZipFile(ZIP_OWNER, "a", zipfile.ZIP_DEFLATED) as zf:
+    salida = Path(destino) if destino is not None else ZIP_OWNER
+    salida.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copyfile(base, salida)
+    with zipfile.ZipFile(salida, "a", zipfile.ZIP_DEFLATED) as zf:
         for extra in EXTRAS_OWNER:
             src = ROOT / extra
             if not src.exists():
@@ -131,7 +138,7 @@ def build_owner_zip(version: str = "0.1.0") -> Path:
                     "activar y no se distinguiría del de cliente.")
             zf.write(src, extra)
     base.unlink(missing_ok=True)
-    return ZIP_OWNER
+    return salida
 
 
 if __name__ == "__main__":
