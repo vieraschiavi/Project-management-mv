@@ -71,6 +71,11 @@ ZIP_OWNER = ROOT / "owner" / "MV_Project_Management_OWNER.zip"
 
 #: Lo que este paquete tiene de más. Ninguno es un secreto — ver el docstring.
 EXTRAS_OWNER = [
+    # El instalador: copia esto a una carpeta, arma el entorno y deja icono en
+    # el escritorio y en el menú Inicio, más un desinstalador.
+    "INSTALAR_OWNER.bat",
+    # Sin el icono, el acceso directo sale con el de la consola de Windows.
+    "packaging/assets/icon.ico",
     "MV_ProjectManagement_OWNER.bat",
     "packaging/generar_claves_licencia.py",
 ]
