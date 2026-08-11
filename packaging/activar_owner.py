@@ -136,9 +136,10 @@ def _pedir_clave() -> str:
     print("La generó packaging/generar_claves_licencia.py y quedó guardada en")
     print("tu gestor de contraseñas.")
     print()
-    print("(Si no la tenés a mano, dejá vacío y Enter. Más fácil todavía:")
-    print(" bajá owner/MV_Project_Management_OWNER.zip del repo, que ya viene")
-    print(" activado y no pide nada.)")
+    print("(Si no la tenés a mano, dejá vacío y Enter y volvé cuando la tengas.")
+    print(" No hay ningún paquete que venga ya activado: eso existió y era el")
+    print(" agujero — el archivo que lo activaba quedó en un repo público y le")
+    print(" daba el producto pago a cualquiera. Se paga una vez por máquina.)")
     print()
     for intento in range(3):
         try:
@@ -209,9 +210,8 @@ def _avisos_de_publicacion(privada: str) -> None:
     print("  1. Commiteá el cambio de mvpm/licensing.py (la clave pública).")
     print("  2. Cargá esta misma clave privada como MVPM_LICENSE_PRIVATE_KEY en:")
     print("       - Vercel  -> Settings -> Environment Variables")
-    print("       - GitHub  -> Settings -> Secrets and variables -> Actions")
-    print("     Sin eso, el checkout no puede emitir licencias al cobrar y el")
-    print("     build de la Owner Edition no puede firmar su marcador.")
+    print("     Sin eso, el checkout no puede emitir licencias al cobrar.")
+    print("     En GitHub NO hace falta cargar nada: ningún build firma nada.")
     print(f"  MVPM_LICENSE_PRIVATE_KEY={privada}")
     print("-" * 68)
 

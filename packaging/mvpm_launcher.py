@@ -44,15 +44,21 @@ def main() -> None:
 
     sys.path.insert(0, str(base_dir))
 
-    # El build "Owner Edition" (packaging/mvpm_owner.spec, nunca el que baja un
-    # cliente) empaqueta este marcador junto al .exe. Cuando el programa corre
-    # congelado, sys._MEIPASS no es la raíz que ve mvpm/owner.py, así que se le
-    # pasa la RUTA del archivo por env var — no un "está activado: sí".
-    # La decisión en sí vive en mvpm/owner.py, que verifica la firma del token
-    # que hay adentro: acá no se duplica la regla ni se puede saltear. Antes
-    # esto seteaba MVPM_OWNER_BYPASS=1, que desbloqueaba el producto por el
-    # solo hecho de existir la variable — cualquiera que leyera este archivo
-    # (viaja en el ZIP portable) se saltaba el candado exportándola.
+    # Si el dueño activó ESTA instalación, el marcador puede haber quedado junto
+    # al programa. Cuando el programa corre congelado, sys._MEIPASS no es la raíz
+    # que ve mvpm/owner.py, así que se le pasa la RUTA del archivo por env var —
+    # no un "está activado: sí".
+    #
+    # La decisión en sí vive en mvpm/owner.py, que verifica la firma del token y
+    # que esté emitido para esta máquina: acá no se duplica la regla ni se puede
+    # saltear. Apuntar esto a un archivo cualquiera no desbloquea nada, y un
+    # marcador traído de otra computadora tampoco.
+    #
+    # Ningún build empaqueta ya un marcador: el .exe de la Owner Edition lo hacía
+    # y era una licencia enterprise regalada a quien bajara el instalador de un
+    # repo público (ver packaging/mvpm_owner.spec). Antes de eso, esto seteaba
+    # MVPM_OWNER_BYPASS=1, que desbloqueaba el producto por el solo hecho de
+    # existir la variable. Van dos.
     marcador_owner = base_dir / "OWNER_EDITION"
     if marcador_owner.exists():
         os.environ.setdefault("MVPM_OWNER_MARCADOR", str(marcador_owner))

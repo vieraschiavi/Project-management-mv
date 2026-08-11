@@ -1,11 +1,21 @@
 # -*- mode: python ; coding: utf-8 -*-
 # Spec de PyInstaller para el build "Owner Edition" — mismo motor que
-# packaging/mvpm.spec (el que baja un cliente), con una sola diferencia:
-# empaqueta packaging/OWNER_EDITION junto al .exe, que mvpm_launcher.py usa
-# como marcador para activar MVPM_OWNER_BYPASS automáticamente (sin licencia,
-# sin cupo de IA). Este build NUNCA se publica en la landing ni en Vercel
-# Blob — sólo se sube como artefacto/Release de GitHub, visible únicamente
-# para quien tiene acceso al repo privado. Ver .github/workflows/build_windows_owner.yml.
+# packaging/mvpm.spec (el que baja un cliente).
+#
+# Antes empaquetaba packaging/OWNER_EDITION junto al .exe: un marcador firmado
+# que desbloqueaba el producto con sólo estar ahí. Eso se sacó. Dos razones, y
+# la segunda sola ya alcanza:
+#
+#   1. El marcador ahora se emite atado a UNA máquina (ver mvpm/owner.py), y el
+#      CI no puede saber cuál es la del dueño. Un marcador firmado en el build
+#      o no valdría en ningún lado, o valdría en todos.
+#   2. Este build se subía como Release de GitHub "visible sólo para quien tiene
+#      acceso al repo privado". El repo es PÚBLICO. O sea que el marcador —una
+#      licencia enterprise firmada— era descargable por cualquiera.
+#
+# Lo que queda es un .exe idéntico al del cliente, que se activa solo en la
+# máquina del dueño porque ahí está la clave privada local
+# (owner.activar_automatico()). Ver .github/workflows/build_windows_owner.yml.
 #
 # Se mantiene deliberadamente como copia de mvpm.spec en vez de compartir
 # código: son ~90 líneas de configuración declarativa de PyInstaller, y una
@@ -25,7 +35,6 @@ ICON = str(ROOT / 'packaging' / 'assets' / 'icon.ico')
 datas = [
     (str(ROOT / 'app'), 'app'),
     (str(ROOT / 'mvpm'), 'mvpm'),
-    (str(ROOT / 'packaging' / 'OWNER_EDITION'), '.'),
 ]
 binaries = []
 hiddenimports = [

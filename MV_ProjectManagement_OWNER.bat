@@ -30,8 +30,9 @@ rem si esto es una copia del repositorio- y activa. Una sola vez por maquina.
 "%PY%" packaging\activar_owner.py
 if errorlevel 1 (
     echo.
-    echo No se pudo activar. Si es una instalacion de cliente, usa el
-    echo instalador Owner Edition, que ya trae el modo dueno adentro.
+    echo No se pudo activar. Hace falta tu clave privada de licencias:
+    echo se pega UNA vez por maquina y queda guardada para siempre.
+    echo Ningun paquete viene ya activado - eso existia y era una fuga.
     echo Si faltan dependencias, corre antes MV_ProjectManagement.bat una vez.
     pause
     exit /b 1

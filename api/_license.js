@@ -87,10 +87,20 @@ function issueLicense(plan, email, paymentId = null) {
   return `MVPM2.${payloadB64}.${b64url(sig)}`;
 }
 
+// Tokens emitidos de verdad que dejaron de valer, por su firma. Tiene que
+// decir exactamente lo mismo que FIRMAS_REVOCADAS en mvpm/licensing.py: si las
+// dos listas se desincronizan, el servidor sigue aceptando un token que el
+// programa ya rechaza (o al revés). Lo fija tests/test_licencias_js.test.js.
+const FIRMAS_REVOCADAS = new Set([
+  // packaging/OWNER_EDITION — enterprise, quedó versionado en un repo público.
+  '7toxxzkepMP3F1giHxrDlwsiHuSGItLuG56s3aRGOhhjoXElTc9zWP8WexWa8leXFbeYf4zG3m8C57GWlR_YDw',
+]);
+
 function verifyLicense(token) {
   try {
     const [prefix, payloadB64, sigB64] = token.split('.');
     if (prefix !== 'MVPM2') return null;
+    if (FIRMAS_REVOCADAS.has(sigB64)) return null;
     const ok = crypto.verify(
       null, Buffer.from(payloadB64, 'ascii'), clavePublica(), b64urlDecode(sigB64));
     if (!ok) return null;
@@ -100,4 +110,4 @@ function verifyLicense(token) {
   }
 }
 
-module.exports = { PLANES, issueLicense, verifyLicense };
+module.exports = { PLANES, issueLicense, verifyLicense, FIRMAS_REVOCADAS };

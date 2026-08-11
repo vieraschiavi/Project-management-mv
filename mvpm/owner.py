@@ -23,8 +23,10 @@ archivo exista: se verifica la firma en cada arranque.
    para poder firmarlo—, y el único que se puede activar sin tocar la carpeta
    de instalación: se escribe una vez y vale para siempre en esa máquina.
 2. **Marcador junto al programa** (`<raíz o carpeta de datos del proceso que
-   pregunta>/OWNER_EDITION`). Es el que empaqueta `packaging/mvpm_owner.spec`
-   al lado del `.exe` de la Owner Edition, ya firmado desde el build.
+   pregunta>/OWNER_EDITION`), para una instalación que se activó ahí.
+
+Lo que ya NO existe es un marcador firmado en el momento del build y metido
+adentro del `.exe`. Ver "Por qué el marcador está atado a la máquina".
 
 ## Por qué no alcanza con que el archivo exista
 
@@ -53,15 +55,36 @@ Por eso acá se pregunta SIEMPRE en el perfil del usuario (fijo, sin pasar por
 `./run.sh owner`/el `.bat` y el `.exe` instalado terminan mirando el mismo
 archivo pase lo que pase con el disco elegido.
 
+## Por qué el marcador está atado a la máquina
+
+Porque el diseño anterior se apoyaba en que el repositorio era privado, y no lo
+era. `packaging/OWNER_EDITION` —un token `enterprise` firmado— quedó versionado
+en un repositorio PÚBLICO, y con él cualquiera podía pegarlo en el campo de
+licencia de la app y usar el producto pago gratis, o copiarlo a su perfil y
+quedar en modo dueño.
+
+De ahí salen las tres decisiones de este módulo:
+
+* El token del marcador se emite **atado a esta máquina** (`activar()`), y
+  `_marcador_valido()` lo exige. Un marcador copiado a otra computadora no
+  desbloquea nada.
+* Un marcador SIN ese campo se rechaza. Eso mata de una a todas las copias del
+  marcador viejo que ya estén dando vueltas.
+* El `.exe` de la Owner Edition dejó de llevar un marcador firmado adentro. El
+  CI no puede saber la máquina del dueño, así que un marcador firmado en el
+  build o no vale en ningún lado, o vale en todos — y "vale en todos" es
+  exactamente el agujero que estamos tapando. La Owner Edition se activa sola
+  en la máquina del dueño vía `activar_automatico()`, que usa la clave privada
+  local, y esa clave nunca viaja en ningún paquete.
+
 ## Por qué esto no afloja la licencia de nadie más
 
-Ninguno de los tres viaja en lo que recibe un cliente, y hay tests que lo fijan
+El marcador no viaja en lo que recibe un cliente, y hay tests que lo fijan
 (`tests/test_owner.py`): ni el instalador de cliente (`packaging/mvpm.spec`) ni
-el ZIP portable (`packaging/build_release.py`) incluyen el marcador, y este
-módulo no toca `licensing.py` — el candado de 7 días y la verificación de firma
-de los tokens quedan exactamente igual. Una instalación de cliente no tiene
-forma de activarse sola: alguien tiene que crear el archivo a mano en su propia
-máquina, que es lo mismo que decir que tiene que editar el código.
+el ZIP portable (`packaging/build_release.py`) lo incluyen. El candado de 7 días
+queda igual, y las licencias que se venden NO se atan a una máquina —el cliente
+tiene que poder cambiar de computadora—: sólo se ata el marcador del dueño.
+Una instalación de cliente no tiene forma de activarse sola.
 """
 
 from __future__ import annotations
@@ -129,9 +152,9 @@ _TEXTO_MARCADOR = (
     "# Este archivo marca esta instalación como la del DUEÑO del producto:\n"
     "# el programa corre sin el candado de la prueba de 7 días.\n"
     "#\n"
-    "# La primera línea es un token firmado con la clave privada del dueño.\n"
-    "# Sin esa firma el archivo no sirve: copiarlo, vaciarlo o escribir\n"
-    "# cualquier cosa acá no desbloquea nada.\n"
+    "# La primera línea es un token firmado con la clave privada del dueño y\n"
+    "# emitido para ESTA maquina en particular. Sin esa firma el archivo no\n"
+    "# sirve, y copiado a otra computadora tampoco: alla no desbloquea nada.\n"
     "#\n"
     "# Borralo para volver al comportamiento normal (prueba + licencia).\n"
     "# Nunca se incluye en lo que se le entrega a un cliente.\n"
@@ -153,18 +176,26 @@ def _token_del_marcador(ruta: Path) -> str | None:
 
 
 def _marcador_valido() -> tuple[Path, dict] | None:
-    """El primer marcador cuyo contenido tenga una firma válida del dueño.
+    """El primer marcador cuyo contenido tenga una firma válida del dueño **y**
+    esté emitido para esta máquina.
 
     Un archivo vacío, con texto cualquiera o firmado con otra clave no sirve:
     la verificación es criptográfica, no de existencia.
+
+    Lo de la máquina se exige, no se tolera: un marcador sin el campo `maquina`
+    se rechaza aunque la firma sea impecable. Ver `activar()` para por qué.
     """
+    huella = licensing.huella_maquina()
     for ruta in RUTAS_MARCADOR:
         token = _token_del_marcador(ruta)
         if not token:
             continue
         payload = licensing.verify_license(token)
-        if payload and payload.get("plan") in licensing.PLANES_PAGOS:
-            return ruta, payload
+        if not payload or payload.get("plan") not in licensing.PLANES_PAGOS:
+            continue
+        if not huella or payload.get("maquina") != huella:
+            continue
+        return ruta, payload
     return None
 
 
@@ -188,14 +219,29 @@ def activar(email: str = EMAIL_OWNER) -> Path:
 
     Necesita la clave privada de licencias (`MVPM_LICENSE_PRIVATE_KEY`): el
     marcador es un token firmado, así que sólo el dueño —que es quien tiene esa
-    clave— puede crear uno que `es_owner()` acepte. Un cliente no puede
-    activarse solo ni copiando el archivo de otra máquina a mano.
+    clave— puede crear uno que `es_owner()` acepte.
+
+    El token se emite **atado a esta máquina** (`maquina` en el payload). Esa
+    es la diferencia con la versión anterior, y viene de un error concreto:
+    `packaging/OWNER_EDITION` quedó versionado en un repositorio público con un
+    marcador adentro, y como el token no estaba atado a nada, cualquiera que lo
+    copiara tenía el producto pago —de las dos formas, como marcador y pegándolo
+    como licencia—. Atado, un marcador filtrado no sirve en ninguna otra
+    computadora, así que el peor caso deja de ser "se regala el producto" y pasa
+    a ser "hay que activar de nuevo acá".
 
     Escribe en los datos del usuario y no junto al programa: así sobrevive a
     reinstalar o mover la carpeta, y no hay riesgo de que se cuele en un ZIP
     armado desde el repo.
     """
-    token = licensing.issue_license("enterprise", email)
+    huella = licensing.huella_maquina()
+    if not huella:
+        raise RuntimeError(
+            "No se pudo identificar esta máquina para atar el marcador: no hay "
+            f"dónde escribir {licensing._RUTA_MAQUINA}. Un marcador sin atar "
+            "valdría en cualquier computadora, así que no se emite."
+        )
+    token = licensing.issue_license("enterprise", email, extra={"maquina": huella})
     ruta = RUTAS_MARCADOR[0]
     ruta.parent.mkdir(parents=True, exist_ok=True)
     ruta.write_text(_TEXTO_MARCADOR.format(token=token), encoding="utf-8")
