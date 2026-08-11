@@ -1,10 +1,50 @@
 name: Build Electron desktop installer
 
+# El instalador de escritorio: ventana nativa propia (Electron + NSIS) sobre el
+# mismo motor Python. NSIS da elegir carpeta, icono en el escritorio, entrada en
+# el menu Inicio y desinstalador (ver `build.nsis` en desktop/package.json).
+#
+# ## Por que este .exe no existia
+#
+# Este workflow SOLO corria con un tag `v*` o a mano, asi que en toda una serie
+# de cambios al producto no se disparo ni una vez: el instalador de escritorio
+# nunca se llego a construir. Los otros dos builds si escuchan push a main.
+# Ahora este tambien.
+#
+# ## Por que no se commitea en INSTALADOR/
+#
+# A diferencia de los otros dos, este empaqueta el .exe de PyInstaller (~98 MB)
+# MAS el runtime de Electron, asi que queda muy por encima de los 100 MiB que
+# GitHub rechaza sin forma de forzarlo. Sale como artefacto de Actions y, en
+# tags, como asset de un Release — que no tienen ese limite.
+
 on:
   push:
+    branches:
+      - main
     tags:
       - "v*"
-  workflow_dispatch: {}
+    # Lo que termina adentro del instalador. Misma lista que build_windows.yml.
+    paths:
+      - "packaging/**"
+      - "mvpm/**"
+      - "app/**"
+      - "requirements.txt"
+      - "desktop/**"
+      - ".github/workflows/build_electron.yml"
+  workflow_dispatch:
+    inputs:
+      edicion:
+        description: "cliente (con prueba de 7 dias) u owner (sin candado)"
+        type: choice
+        options: [cliente, owner]
+        default: cliente
+
+# Runner de Windows: se cobra al doble y este build tarda mas que los otros
+# porque encima compila Electron. Dos pushes seguidos no pagan dos veces.
+concurrency:
+  group: build-electron-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   build:
@@ -27,6 +67,18 @@ jobs:
       # el motor que después Electron empaqueta — el .asar de Electron no
       # cifra nada por sí solo, así que sin este paso el código fuente
       # también quedaría a la vista en el instalador de escritorio.
+      # Owner Edition a pedido: se dispara este workflow a mano eligiendo
+      # "owner" y sale el mismo instalador de escritorio, pero abriendo sin la
+      # prueba de 7 dias y sin pedir ninguna clave. Va ANTES de Cython para que
+      # la constante quede adentro del .pyd (ver packaging/marcar_build_owner.py).
+      #
+      # No se hace en cada push a main a proposito: duplicaria los minutos de
+      # runner de Windows, que se cobran al doble, para un instalador que usa
+      # una sola persona.
+      - name: Marcar como Owner Edition (solo si se pidio)
+        if: inputs.edicion == 'owner'
+        run: python packaging/marcar_build_owner.py
+
       - name: Compilar mvpm/ a binario nativo (Cython)
         run: |
           python packaging/setup_cython.py build_ext --inplace
@@ -50,14 +102,21 @@ jobs:
         working-directory: desktop
         run: npm run dist
 
+      # El nombre lleva la edicion. Los dos .exe se llaman igual adentro, asi que
+      # sin esto un instalador SIN candado quedaria indistinguible del de cliente
+      # en la lista de artefactos, y es cuestion de tiempo mandar el equivocado.
       - name: Subir instalador como artefacto
         uses: actions/upload-artifact@v4
         with:
-          name: MVProjectManagement-Desktop-Windows
+          name: MVProjectManagement-Desktop-Windows-${{ inputs.edicion || 'cliente' }}
           path: desktop/release/*.exe
 
-      - name: Publicar en el release (solo en tags)
-        if: startsWith(github.ref, 'refs/tags/v')
+      # Solo en tags, y NUNCA la Owner Edition. Hoy no puede pasar —un
+      # workflow_dispatch no es un push de tag, asi que las dos condiciones no se
+      # dan juntas—, pero se deja explicito: un Release es el canal por el que
+      # sale lo que se le entrega a la gente, y ahi no va un build sin candado.
+      - name: Publicar en el release (solo en tags, solo cliente)
+        if: startsWith(github.ref, 'refs/tags/v') && inputs.edicion != 'owner'
         uses: softprops/action-gh-release@v2
         with:
           files: desktop/release/*.exe

@@ -285,3 +285,55 @@ def test_cada_build_de_windows_tiene_su_propio_grupo_de_concurrencia():
         assert m, f"{workflow} no declara group:"
         grupos[workflow] = m.group(1).strip()
     assert len(set(grupos.values())) == 2, f"los dos builds comparten grupo: {grupos}"
+
+
+# --------------------------------------- el instalador de escritorio (Electron)
+
+def test_el_instalador_de_escritorio_se_reconstruye_al_cambiar_el_producto():
+    """Corría SOLO con un tag `v*` o a mano, así que en toda una serie de
+    cambios al producto no se disparó ni una vez: el instalador de escritorio
+    —el que da ventana nativa, elegir carpeta, icono en escritorio y menú
+    Inicio— nunca se llegó a construir. Los otros dos builds sí escuchan push a
+    main; éste quedó afuera y nada lo avisaba, porque un workflow que no corre
+    no falla."""
+    wf = _sin_comentarios("build_electron.yml")
+    assert "branches:" in wf and "- main" in wf
+    assert "paths:" in wf
+    for ruta in RUTAS_DE_PRODUCTO:
+        esperado = f'"{ruta}**"' if ruta.endswith("/") else f'"{ruta}"'
+        assert esperado in wf, f"build_electron.yml no se reconstruye al cambiar {ruta}"
+    assert '"desktop/**"' in wf, "no se reconstruye al cambiar el propio Electron"
+
+
+def test_el_instalador_de_escritorio_puede_salir_en_edicion_owner():
+    """La Owner Edition a pedido: se dispara a mano eligiendo "owner" y sale el
+    mismo instalador abriendo sin la prueba de 7 días y sin pedir clave."""
+    wf = _sin_comentarios("build_electron.yml")
+    assert "marcar_build_owner.py" in wf
+    assert "inputs.edicion == 'owner'" in wf
+
+
+def test_el_instalador_de_escritorio_owner_no_sale_por_un_release():
+    """Un Release es el canal por el que sale lo que se le entrega a la gente, y
+    ahí no va un build sin candado."""
+    wf = _sin_comentarios("build_electron.yml")
+    bloque = wf[wf.index("action-gh-release"):]
+    assert "inputs.edicion != 'owner'" in wf[:wf.index("action-gh-release")], (
+        "el paso de Release no excluye la Owner Edition")
+    assert bloque  # el paso sigue existiendo para el build de cliente
+
+
+def test_los_dos_instaladores_de_escritorio_no_se_confunden_en_la_lista():
+    """Los dos .exe se llaman igual adentro. Sin la edición en el nombre del
+    artefacto, uno SIN candado queda indistinguible del de cliente en la lista
+    de Actions, y es cuestión de tiempo mandar el equivocado."""
+    wf = _sin_comentarios("build_electron.yml")
+    assert "inputs.edicion || 'cliente' }}" in wf
+
+
+def test_el_instalador_de_escritorio_no_se_commitea_en_el_repo():
+    """Empaqueta el .exe de PyInstaller (~98 MB) MÁS el runtime de Electron, así
+    que queda por encima de los 100 MiB que GitHub rechaza sin forma de forzarlo.
+    Sale por artefacto y por Release, que no tienen ese límite."""
+    wf = _sin_comentarios("build_electron.yml")
+    assert "publicar_en_carpeta_instalador.ps1" not in wf
