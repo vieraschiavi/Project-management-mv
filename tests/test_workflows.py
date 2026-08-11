@@ -216,6 +216,55 @@ def test_el_push_del_instalador_reintenta():
         "curso y falla siempre")
 
 
+def test_el_publicador_limpia_el_arbol_antes_de_rebasar():
+    """`git pull --rebase` se niega a correr con cambios sin commitear:
+
+        error: cannot pull with rebase: You have unstaged changes.
+
+    y los reintentos no limpian nada, así que los cinco fallaban idénticos y el
+    .exe recién compilado se perdía. No era la carrera entre los dos builds
+    —eso es lo que arregla el reintento— sino el árbol sucio.
+
+    Quién lo ensucia: packaging/marcar_build_owner.py reescribe mvpm/edicion.py,
+    que está versionado. Por eso fallaba SÓLO el build del dueño, y por eso
+    INSTALADOR/CLIENTE existía desde hacía tiempo mientras INSTALADOR/OWNER no
+    llegó a existir nunca.
+    """
+    ps = _publicador()
+    assert "git checkout -- ." in ps, (
+        "el publicador no limpia el árbol antes del rebase: con mvpm/edicion.py "
+        "modificado por marcar_build_owner.py, `git pull --rebase` falla siempre")
+    assert ps.index("git checkout -- .") < ps.index("git pull --rebase origin main"), (
+        "la limpieza tiene que ir ANTES del primer pull, no adentro del bucle")
+    assert ps.index("git commit -m") < ps.index("git checkout -- ."), (
+        "limpiar ANTES de commitear borraría el .exe que se acaba de copiar")
+
+
+def test_marcar_build_owner_toca_un_archivo_versionado():
+    """Fija la razón de ser del test de arriba. Si algún día el marcado dejara
+    de escribir un archivo versionado, la limpieza pasa a ser innecesaria; y si
+    en cambio se agregan más archivos así, `git checkout -- .` los cubre igual.
+
+    Se comprueba contra git, no contra una lista escrita a mano: es lo que
+    decide si el árbol queda sucio.
+    """
+    import subprocess
+
+    destino = RAIZ / "packaging" / "marcar_build_owner.py"
+    fuente = destino.read_text(encoding="utf-8")
+    assert 'ROOT / "mvpm" / "edicion.py"' in fuente, (
+        "cambió el archivo que marca la Owner Edition: revisar si sigue estando "
+        "versionado, que es lo que ensucia el árbol del build")
+
+    versionado = subprocess.run(
+        ["git", "ls-files", "--error-unmatch", "mvpm/edicion.py"],
+        cwd=RAIZ, capture_output=True, text=True,
+    )
+    assert versionado.returncode == 0, (
+        "mvpm/edicion.py dejó de estar versionado: el publicador ya no "
+        "necesitaría limpiar el árbol antes del rebase")
+
+
 def test_el_publicador_corta_antes_del_limite_de_github():
     """GitHub rechaza todo archivo de 100 MiB o más, y no hay forma de forzarlo:
     el push muere del lado del servidor DESPUÉS de subir el archivo entero. El

@@ -71,6 +71,31 @@ if ($LASTEXITCODE -eq 0) {
 
 git commit -m "Instalador $Subcarpeta actualizado ($($exe.Name))"
 
+# El error de stderr de git no puede abortar el script de acá en adelante: hace
+# falta poder mirar $LASTEXITCODE y decidir.
+$ErrorActionPreference = "Continue"
+
+# --------------------------------------------------- dejar el árbol limpio
+#
+# `git pull --rebase` se NIEGA a correr con cambios sin commitear:
+#
+#     error: cannot pull with rebase: You have unstaged changes.
+#     error: Please commit or stash them.
+#
+# y como los reintentos de abajo no limpian nada, los cinco fallaban idénticos y
+# el .exe recién compilado se perdía. No es la carrera entre los dos builds: es
+# el árbol sucio, que ningún reintento arregla.
+#
+# Quién lo ensucia: packaging/marcar_build_owner.py reescribe mvpm/edicion.py
+# —que está VERSIONADO— para dejar ES_OWNER_BUILD = True adentro del binario.
+# Por eso fallaba SÓLO el build del dueño: el de cliente no pasa por ese paso y
+# encontraba el árbol limpio. Es la razón por la que INSTALADOR/CLIENTE existe
+# desde hace tiempo y INSTALADOR/OWNER nunca llegó a existir.
+#
+# Se descarta todo lo demás: a esta altura el .exe ya está commiteado, y lo que
+# queda en el árbol es residuo de compilación que no tiene que viajar a main.
+git checkout -- .
+
 # ---------------------------------------------------------------- el push
 #
 # Con reintentos, y no por paranoia de red: los dos builds de instalador
@@ -82,10 +107,6 @@ git commit -m "Instalador $Subcarpeta actualizado ($($exe.Name))"
 #
 # Un solo `pull --rebase` no alcanza justamente porque la ventana es esa: entre
 # el pull y el push. Lo que cierra el caso es reintentar el par completo.
-#
-# El error de stderr de git no puede abortar el script acá: hace falta poder
-# mirar $LASTEXITCODE y decidir si se reintenta.
-$ErrorActionPreference = "Continue"
 
 $maxIntentos = 5
 for ($intento = 1; $intento -le $maxIntentos; $intento++) {
