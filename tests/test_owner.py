@@ -773,7 +773,12 @@ def test_el_zip_del_dueno_esta_actualizado():
                 "owner/MV_Project_Management_OWNER.zip desactualizado — "
                 f"faltan: {faltan[:10]}, sobran: {sobran[:10]}. Regenerar con "
                 "`python packaging/build_release.py --owner`.")
-            distintos = [n for n in nombres_new if zf_pub.read(n) != zf_new.read(n)]
+            # mvpm/edicion.py difiere A PROPÓSITO: es la línea que marca este
+            # paquete como el del dueño. Que sea distinta la fijan
+            # test_el_zip_del_dueno_sale_desbloqueado y
+            # test_el_zip_del_cliente_sale_con_el_candado_puesto.
+            distintos = [n for n in nombres_new - {"mvpm/edicion.py"}
+                         if zf_pub.read(n) != zf_new.read(n)]
             assert not distintos, (
                 "owner/MV_Project_Management_OWNER.zip tiene contenido viejo en: "
                 f"{distintos[:10]}. Regenerar con "
@@ -1017,3 +1022,219 @@ def test_activar_no_congelado_y_es_owner_congelado_apuntan_al_mismo_archivo(monk
         monkeypatch.delattr(sys, "frozen", raising=False)
         importlib.reload(rutas_mod)
         importlib.reload(owner_mod)
+
+
+# ------------------------------------ la Owner Edition compilada (sin clave)
+
+def test_el_repositorio_nunca_esta_marcado_como_owner():
+    """EL test de este mecanismo, y el único que de verdad importa.
+
+    `ES_OWNER_BUILD` se pone en True durante el build del dueño. Si esa línea se
+    commitea en True —por un merge mal resuelto, por probar algo y olvidarse—,
+    TODA copia del programa queda sin candado: el instalador de cliente, el ZIP
+    de la landing y el repositorio. El producto pasa a ser gratis para todo el
+    mundo y nada lo avisa, porque compila y funciona perfecto.
+
+    Se lee el ARCHIVO, no el módulo importado: un test que mirara
+    `edicion.ES_OWNER_BUILD` podría estar viendo un valor que otro test
+    monkeypatcheó.
+    """
+    texto = (RAIZ / "mvpm" / "edicion.py").read_text(encoding="utf-8")
+    assert "ES_OWNER_BUILD = False" in texto
+    assert "ES_OWNER_BUILD = True" not in texto, (
+        "mvpm/edicion.py quedó commiteado como Owner Edition: el programa sale "
+        "sin candado para todo el mundo. Lo pone en True el build "
+        "(packaging/marcar_build_owner.py), nunca el repositorio.")
+
+
+def test_un_build_marcado_abre_sin_pedir_nada(sin_marcadores, monkeypatch):
+    """Lo que el dueño pidió: instalar el .exe y que abra, sin clave, sin token
+    y sin archivo al lado. Sin marcador de ningún tipo en la máquina."""
+    from mvpm import edicion
+
+    monkeypatch.setattr(edicion, "ES_OWNER_BUILD", True)
+    assert owner.es_owner() is True
+    assert owner.estado_acceso()["acceso"] is True
+    assert "Owner Edition" in owner.motivo()
+
+
+def test_sin_marcar_el_mismo_codigo_tiene_el_candado_puesto(sin_marcadores, monkeypatch):
+    """La otra mitad: es la MISMA base de código. Lo único que separa al binario
+    del dueño del de un cliente es esa constante."""
+    from mvpm import edicion
+
+    monkeypatch.setattr(edicion, "ES_OWNER_BUILD", False)
+    assert owner.es_owner() is False
+    assert owner.motivo() is None
+
+
+def test_marcar_el_build_falla_si_no_encuentra_la_linea(tmp_path, monkeypatch):
+    """Si el reemplazo no se hace y el build sigue, sale un .exe que dice "Owner
+    Edition" y se comporta como el de un cliente, con prueba de 7 días. Es el
+    modo de fallar más caro, porque no se nota hasta que el dueño instala."""
+    import sys as _sys
+
+    _sys.path.insert(0, str(RAIZ / "packaging"))
+    import marcar_build_owner
+
+    roto = tmp_path / "edicion.py"
+    roto.write_text("ES_OWNER_BUILD=False  # sin espacios\n", encoding="utf-8")
+    monkeypatch.setattr(marcar_build_owner, "ARCHIVO", roto)
+    monkeypatch.setattr(marcar_build_owner, "ROOT", tmp_path)
+
+    assert marcar_build_owner.main() == 1
+
+
+def test_marcar_el_build_deja_la_constante_en_true(tmp_path, monkeypatch):
+    import sys as _sys
+
+    _sys.path.insert(0, str(RAIZ / "packaging"))
+    import marcar_build_owner
+
+    copia = tmp_path / "edicion.py"
+    copia.write_text((RAIZ / "mvpm" / "edicion.py").read_text(encoding="utf-8"),
+                     encoding="utf-8")
+    monkeypatch.setattr(marcar_build_owner, "ARCHIVO", copia)
+    monkeypatch.setattr(marcar_build_owner, "ROOT", tmp_path)
+
+    assert marcar_build_owner.main() == 0
+    assert "ES_OWNER_BUILD = True" in copia.read_text(encoding="utf-8")
+
+
+def test_solo_el_build_del_dueno_marca_la_edicion():
+    """Si el build de CLIENTE llamara a este script, el instalador que se publica
+    en la web saldría desbloqueado."""
+    wf_owner = (RAIZ / ".github" / "workflows" / "build_windows_owner.yml").read_text(
+        encoding="utf-8")
+    wf_cliente = (RAIZ / ".github" / "workflows" / "build_windows.yml").read_text(
+        encoding="utf-8")
+    assert "marcar_build_owner.py" in wf_owner
+    assert "marcar_build_owner.py" not in wf_cliente
+
+
+def test_el_zip_del_cliente_sale_con_el_candado_puesto():
+    """El ZIP que se publica en la landing. Los dos paquetes se arman con la
+    misma función y difieren en esta línea: si el reemplazo se filtrara al
+    portable, el producto sería gratis para cualquiera que lo baje."""
+    import sys as _sys
+    import zipfile
+
+    _sys.path.insert(0, str(RAIZ / "packaging"))
+    import build_release
+
+    zip_path = build_release.build_portable_zip(version="candado")
+    try:
+        with zipfile.ZipFile(zip_path) as zf:
+            contenido = zf.read("mvpm/edicion.py").decode("utf-8")
+        assert "ES_OWNER_BUILD = False" in contenido
+        assert "ES_OWNER_BUILD = True" not in contenido
+    finally:
+        zip_path.unlink(missing_ok=True)
+
+
+def test_el_zip_del_dueno_sale_desbloqueado():
+    """Y el del dueño, al revés: se descomprime y abre, sin pegar nada."""
+    import zipfile
+
+    ruta = RAIZ / "owner" / "MV_Project_Management_OWNER.zip"
+    if not ruta.exists():
+        pytest.skip("owner/ no viaja en el paquete: es del repositorio")
+    with zipfile.ZipFile(ruta) as zf:
+        assert "ES_OWNER_BUILD = True" in zf.read("mvpm/edicion.py").decode("utf-8")
+
+
+def test_marcar_el_zip_del_dueno_no_toca_el_arbol_de_trabajo():
+    """El accidente que hay que hacer imposible: que armar el paquete del dueño
+    deje `mvpm/edicion.py` en True en el repositorio. Commitear eso deja sin
+    candado a todas las copias, incluida la del cliente."""
+    import sys as _sys
+
+    _sys.path.insert(0, str(RAIZ / "packaging"))
+    import build_release
+
+    archivo = RAIZ / "mvpm" / "edicion.py"
+    antes = archivo.read_text(encoding="utf-8")
+    build_release.build_owner_zip(version="no-toca-nada")
+    assert archivo.read_text(encoding="utf-8") == antes
+    assert "ES_OWNER_BUILD = False" in archivo.read_text(encoding="utf-8")
+
+
+# --------------------------------------- el instalador del paquete del dueño
+
+def _instalador_owner() -> str:
+    return (RAIZ / "INSTALAR_OWNER.bat").read_text(encoding="ascii")
+
+
+def test_el_instalador_owner_no_desbloquea_una_copia_ajena():
+    """Lo que este instalador NO es, y es lo que lo separa de un crack.
+
+    Instala ESTE paquete, que ya viene con ES_OWNER_BUILD = True desde que se
+    armó el ZIP. No toca ninguna otra instalación ni convierte una copia de
+    cliente en la del dueño: una herramienta que hiciera eso funcionaría igual
+    en la máquina de cualquier cliente, y ahí el candado deja de existir para
+    todos. Sería el cuarto intento del mismo agujero, después de
+    MVPM_OWNER_BYPASS, del marcador vacío y del marcador filtrado.
+    """
+    bat = _instalador_owner()
+    # Copia desde donde está parado hacia el destino, y nada más.
+    assert "robocopy" in bat
+    for prohibido in ("edicion.json", "> mvpm\\edicion.py", "OWNER_EDITION"):
+        assert prohibido not in bat, (
+            f"INSTALAR_OWNER.bat escribe {prohibido}: eso desbloquearía copias ajenas")
+
+
+def test_el_instalador_owner_se_niega_a_instalar_el_paquete_de_cliente():
+    """Sin este corte, correrlo sobre el ZIP equivocado deja un programa que se
+    llama "Owner" y se comporta como el de un cliente: prueba de 7 días
+    incluida, icono en el escritorio y el instalador diciendo que todo salió
+    bien. Es el modo de fallar que más tarda en notarse."""
+    bat = _instalador_owner()
+    assert 'findstr /C:"ES_OWNER_BUILD = True"' in bat
+    # La cadena que busca tiene que ser EXACTAMENTE la que escribe el build; si
+    # una de las dos cambia sola, el instalador rechaza el paquete correcto.
+    import sys as _sys
+
+    _sys.path.insert(0, str(RAIZ / "packaging"))
+    import build_release
+
+    assert 'ES_OWNER_BUILD = True' in (
+        (RAIZ / "mvpm" / "edicion.py").read_text(encoding="utf-8").replace(
+            "ES_OWNER_BUILD = False", "ES_OWNER_BUILD = True"))
+    assert build_release.EXTRAS_OWNER  # el paquete del dueño existe como concepto
+
+
+def test_el_instalador_owner_verifica_antes_de_dejar_el_icono():
+    """Comprueba `owner.es_owner()` sobre la copia YA instalada antes de crear
+    accesos directos. Un icono que abre un programa con candado es peor que no
+    tener icono: parece que funcionó."""
+    bat = _instalador_owner()
+    assert "owner.es_owner()" in bat
+    assert bat.index("owner.es_owner()") < bat.index("Creando accesos directos")
+
+
+def test_el_instalador_owner_deja_desinstalador_y_no_borra_los_datos():
+    """El desinstalador borra el programa, nunca la carpeta de datos: ahí está
+    el portafolio del usuario."""
+    bat = _instalador_owner()
+    assert "DESINSTALAR.bat" in bat
+    assert "rmdir /s /q" in bat
+    assert ".mv_project_management" in bat, (
+        "el desinstalador no aclara dónde quedan los datos")
+
+
+def test_el_instalador_owner_no_viaja_en_el_paquete_del_cliente():
+    """Si se colara en el ZIP de la landing, cualquiera que lo corriera...
+    se encontraría con el corte del test de arriba. Igual no tiene nada que
+    hacer ahí: es del paquete del dueño."""
+    import sys as _sys
+    import zipfile
+
+    _sys.path.insert(0, str(RAIZ / "packaging"))
+    import build_release
+
+    zip_path = build_release.build_portable_zip(version="sin-instalador-owner")
+    try:
+        with zipfile.ZipFile(zip_path) as zf:
+            assert "INSTALAR_OWNER.bat" not in zf.namelist()
+    finally:
+        zip_path.unlink(missing_ok=True)

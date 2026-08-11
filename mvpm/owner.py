@@ -73,9 +73,11 @@ De ahí salen las tres decisiones de este módulo:
 * El `.exe` de la Owner Edition dejó de llevar un marcador firmado adentro. El
   CI no puede saber la máquina del dueño, así que un marcador firmado en el
   build o no vale en ningún lado, o vale en todos — y "vale en todos" es
-  exactamente el agujero que estamos tapando. La Owner Edition se activa sola
-  en la máquina del dueño vía `activar_automatico()`, que usa la clave privada
-  local, y esa clave nunca viaja en ningún paquete.
+  exactamente el agujero que estamos tapando. Lo que hace distinto a ese `.exe`
+  es una constante compilada (`mvpm/edicion.py`): no es un token que se pueda
+  pegar en otra copia, ni un archivo que se pueda copiar a la instalación de un
+  cliente. Eso se apoya en que el `.exe` no sea descargable por cualquiera; el
+  marcador de acá abajo no se apoya en nada de eso, y por eso conviven.
 
 ## Por qué esto no afloja la licencia de nadie más
 
@@ -93,7 +95,7 @@ import os
 import stat
 from pathlib import Path
 
-from mvpm import licensing, rutas
+from mvpm import edicion, licensing, rutas
 
 MARCADOR = "OWNER_EDITION"
 
@@ -200,13 +202,26 @@ def _marcador_valido() -> tuple[Path, dict] | None:
 
 
 def es_owner() -> bool:
-    """¿Esta instalación es la del dueño del producto?"""
-    return _marcador_valido() is not None
+    """¿Esta instalación es la del dueño del producto?
+
+    Dos caminos independientes, y el orden importa poco porque no se pisan:
+
+    1. **El binario ES la Owner Edition** (`mvpm/edicion.py`), decidido al
+       compilar. Es el caso del `.exe` que el dueño instala: abre desbloqueado
+       sin pedir nada, sin clave y sin archivo al lado.
+    2. **Esta máquina se activó** con un marcador firmado y atado a ella. Es el
+       caso de cualquier otra forma de arrancar —el `.bat`, el portable,
+       `run.sh`— y el que sigue valiendo si el `.exe` alguna vez volviera a ser
+       descargable por cualquiera.
+    """
+    return edicion.ES_OWNER_BUILD or _marcador_valido() is not None
 
 
 def motivo() -> str | None:
     """De dónde salió el modo owner. Sirve para mostrarlo y para diagnosticar
     por qué una instalación quedó (o no quedó) desbloqueada."""
+    if edicion.ES_OWNER_BUILD:
+        return "build Owner Edition (compilado sin candado)"
     encontrado = _marcador_valido()
     if encontrado is None:
         return None

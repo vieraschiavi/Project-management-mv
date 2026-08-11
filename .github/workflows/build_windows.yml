@@ -14,6 +14,14 @@ on:
       - ".github/workflows/build_windows.yml"
   workflow_dispatch: {}
 
+# Los runners de Windows se cobran al DOBLE que los de Linux, y este build tarda
+# unos cinco minutos. Dos pushes seguidos a main pagaban dos compilaciones
+# completas para quedarse con la segunda. El de la Owner Edition ya tenía esto;
+# éste no, que es el que más corre.
+concurrency:
+  group: build-cliente-${{ github.ref }}
+  cancel-in-progress: true
+
 permissions:
   contents: write   # commitear el .exe en INSTALADOR/
 

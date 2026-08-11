@@ -34,6 +34,29 @@ Copy-Item $exe.FullName -Destination $destino
 $mb = [math]::Round($exe.Length / 1MB, 1)
 Write-Host "Instalador copiado: $destino\$($exe.Name) ($mb MB)"
 
+# GitHub RECHAZA cualquier archivo de 100 MiB o más, y no hay forma de forzarlo:
+# el push muere del lado del servidor después de subir el archivo entero. El
+# instalador de cliente viene rondando los 98 MiB, así que el margen es de un par
+# de MB. Se corta acá, con el tamaño a la vista, en vez de dejar que falle un
+# push de 15 minutos con un error remoto que no dice cuál archivo fue.
+$limiteGitHub = 100MB
+if ($exe.Length -ge $limiteGitHub) {
+    Write-Error @"
+$($exe.Name) pesa $mb MB y GitHub rechaza todo archivo de 100 MiB o más.
+No se puede commitear en INSTALADOR/: el push va a fallar del lado del servidor.
+
+Opciones, de menor a mayor cambio:
+  * Achicar el .exe (revisar qué está metiendo PyInstaller en el bundle).
+  * Publicarlo como asset de un Release en vez de versionarlo — misma descarga
+    directa, sin el límite de 100 MiB y sin inflar el historial del repo.
+Ver la nota de tamaño en INSTALADOR/README.md.
+"@
+    exit 1
+}
+if ($exe.Length -ge 50MB) {
+    Write-Host "AVISO: $mb MB. GitHub avisa a partir de 50 MiB y corta en 100 MiB."
+}
+
 git config user.name  "github-actions[bot]"
 git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 git add INSTALADOR
@@ -47,6 +70,46 @@ if ($LASTEXITCODE -eq 0) {
 }
 
 git commit -m "Instalador $Subcarpeta actualizado ($($exe.Name))"
-git pull --rebase origin main
-git push origin HEAD:main
-Write-Host "INSTALADOR/$Subcarpeta actualizado en main."
+
+# ---------------------------------------------------------------- el push
+#
+# Con reintentos, y no por paranoia de red: los dos builds de instalador
+# —cliente y dueño— se disparan con el MISMO push a main, corren en paralelo en
+# runners distintos y terminan los dos acá, pusheando a la misma rama. El que
+# llega segundo se encuentra con que main avanzó entre su `pull --rebase` y su
+# `push`, y muere con "cannot lock ref 'refs/heads/main'". Ya pasó: el build de
+# cliente entró y el del dueño quedó en rojo con el .exe compilado y tirado.
+#
+# Un solo `pull --rebase` no alcanza justamente porque la ventana es esa: entre
+# el pull y el push. Lo que cierra el caso es reintentar el par completo.
+#
+# El error de stderr de git no puede abortar el script acá: hace falta poder
+# mirar $LASTEXITCODE y decidir si se reintenta.
+$ErrorActionPreference = "Continue"
+
+$maxIntentos = 5
+for ($intento = 1; $intento -le $maxIntentos; $intento++) {
+    git pull --rebase origin main
+    if ($LASTEXITCODE -ne 0) {
+        # Rebase a medio hacer: se deja el árbol limpio antes de reintentar, si
+        # no el próximo pull se encuentra un rebase en curso y falla siempre.
+        git rebase --abort 2>&1 | Out-Null
+        Write-Host "El rebase falló (intento $intento de $maxIntentos)."
+    }
+    else {
+        git push origin HEAD:main
+        if ($LASTEXITCODE -eq 0) {
+            Write-Host "INSTALADOR/$Subcarpeta actualizado en main (intento $intento)."
+            exit 0
+        }
+        Write-Host "El push falló (intento $intento de $maxIntentos): main avanzó."
+    }
+    if ($intento -lt $maxIntentos) {
+        $espera = 5 * $intento
+        Write-Host "Reintentando en $espera segundos..."
+        Start-Sleep -Seconds $espera
+    }
+}
+
+Write-Error "No se pudo pushear INSTALADOR/$Subcarpeta después de $maxIntentos intentos."
+exit 1

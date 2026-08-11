@@ -143,9 +143,14 @@ def test_automerge_y_los_builds_coinciden_en_que_es_el_producto():
 # ---------------------------------------------- lo que no puede cambiar
 
 def test_el_build_del_dueno_sigue_sin_publicarse_en_ningun_canal_publico():
-    """El .exe del dueño lleva un marcador firmado adentro: quien lo tenga tiene
-    el producto desbloqueado. Automatizar su build no puede haber cambiado por
-    dónde sale."""
+    """El canal del dueño es el canal del dueño: no se linkea desde la landing
+    ni se sube a Vercel Blob, y su Release nunca queda como "Latest".
+
+    Ojo con por qué esto ya NO es lo que protege el producto. Lo era cuando el
+    .exe llevaba un marcador firmado adentro, y ese razonamiento resultó falso:
+    el repositorio era público, así que ese canal "privado" no lo era. Hoy el
+    .exe del dueño no lleva nada que desbloquee nada (ver packaging/mvpm_owner.spec)
+    y esto queda como higiene, no como candado."""
     wf = _sin_comentarios("build_windows_owner.yml")
     assert "publish_blob" not in wf.lower()
     assert "blob_read_write_token" not in wf.lower()
@@ -182,3 +187,101 @@ def test_el_instalador_del_dueno_y_el_del_cliente_no_se_pisan():
     owner = _sin_comentarios("build_windows_owner.yml")
     assert "-Subcarpeta CLIENTE" in cliente and "-Subcarpeta OWNER" not in cliente
     assert "-Subcarpeta OWNER" in owner and "-Subcarpeta CLIENTE" not in owner
+
+
+# ------------------------------ el push de los dos builds a la misma rama
+
+def _publicador() -> str:
+    return (RAIZ / "packaging" / "publicar_en_carpeta_instalador.ps1").read_text(
+        encoding="utf-8")
+
+
+def test_el_push_del_instalador_reintenta():
+    """Los dos builds —cliente y dueño— se disparan con el MISMO push a main,
+    corren en paralelo y terminan los dos pusheando a esa misma rama. El que
+    llega segundo se encuentra con que main avanzó entre su `pull --rebase` y su
+    `push`, y muere con "cannot lock ref 'refs/heads/main'".
+
+    Ya pasó una vez: el build de cliente entró y el del dueño quedó en rojo con
+    el .exe compilado y tirado. Un solo `pull --rebase` no cierra el caso porque
+    la ventana es justamente la que hay entre el pull y el push: lo que lo cierra
+    es reintentar el par completo.
+    """
+    ps = _publicador()
+    assert "git pull --rebase origin main" in ps
+    assert "git push origin HEAD:main" in ps
+    assert "maxIntentos" in ps, "el push no reintenta: la carrera entre los dos builds vuelve"
+    assert "git rebase --abort" in ps, (
+        "sin abortar el rebase a medio hacer, el reintento se encuentra uno en "
+        "curso y falla siempre")
+
+
+def test_el_publicador_corta_antes_del_limite_de_github():
+    """GitHub rechaza todo archivo de 100 MiB o más, y no hay forma de forzarlo:
+    el push muere del lado del servidor DESPUÉS de subir el archivo entero. El
+    instalador de cliente ronda los 98 MiB, así que el margen es de un par de MB.
+    Sin este corte, el día que se pase, el build falla con un error remoto que no
+    dice cuál archivo fue, al final de quince minutos de compilación."""
+    ps = _publicador()
+    assert "100MB" in ps
+    assert "exit 1" in ps
+
+
+def test_el_publicador_no_deja_pasar_un_push_fallido_como_exito():
+    """Si el bucle se queda sin intentos tiene que terminar en rojo. Salir 0 con
+    el instalador sin pushear es el peor caso: el build queda en verde y la
+    carpeta INSTALADOR/ se queda con el .exe viejo sin que nada lo avise."""
+    ps = _publicador()
+    assert "for (" in ps, "no hay bucle de reintentos que revisar"
+    cola = ps[ps.rindex("for ("):]
+    assert "Write-Error" in cola, "quedarse sin intentos no reporta nada"
+    assert cola.rstrip().endswith("exit 1"), (
+        "el script termina en verde después de agotar los reintentos: el build "
+        "quedaría en verde con INSTALADOR/ sin actualizar")
+
+
+# ------------------------------------------- lo que cuesta correr el CI
+
+def test_la_suite_no_corre_dos_veces_sobre_el_mismo_commit():
+    """`push:` a secas junto con `pull_request:` disparaba la suite DOS veces
+    sobre el MISMO sha: dos corridas idénticas, mismo resultado, las dos
+    cobrando.
+
+    No se notaba porque el repositorio era público, y GitHub no cobra minutos de
+    Actions en repos públicos. Al pasarlo a privado esos minutos empezaron a
+    descontar de la cuota de la cuenta.
+
+    La cobertura no cambia: `pull_request` cubre cualquier rama que vaya a
+    mergearse y `push` a main cubre lo que entra directo.
+    """
+    wf = _sin_comentarios("tests.yml")
+    assert "pull_request:" in wf
+    push = wf[wf.index("push:"):wf.index("pull_request:")]
+    assert "branches:" in push and "- main" in push, (
+        "tests.yml volvió a correr en push de cualquier rama: con pull_request "
+        "también activo, cada commit paga la suite dos veces")
+
+
+@pytest.mark.parametrize("workflow", ["tests.yml", "build_windows.yml",
+                                      "build_windows_owner.yml"])
+def test_un_push_nuevo_cancela_la_corrida_que_quedo_vieja(workflow):
+    """Tres pushes seguidos pagaban tres corridas completas y se quedaban con la
+    última: las dos primeras se descartan igual, pero se cobran. Pesa el doble en
+    los builds de Windows, que se facturan a 2x y tardan unos cinco minutos."""
+    wf = _sin_comentarios(workflow)
+    assert "concurrency:" in wf, f"{workflow} no cancela las corridas superadas"
+    assert "cancel-in-progress: true" in wf
+
+
+def test_cada_build_de_windows_tiene_su_propio_grupo_de_concurrencia():
+    """Si compartieran grupo, el build de cliente cancelaría al del dueño (o al
+    revés) y uno de los dos instaladores nunca se reconstruiría."""
+    import re
+
+    grupos = {}
+    for workflow in ("build_windows.yml", "build_windows_owner.yml"):
+        m = re.search(r"^concurrency:\s*\n\s*group:\s*(.+)$",
+                      _texto(workflow), re.MULTILINE)
+        assert m, f"{workflow} no declara group:"
+        grupos[workflow] = m.group(1).strip()
+    assert len(set(grupos.values())) == 2, f"los dos builds comparten grupo: {grupos}"

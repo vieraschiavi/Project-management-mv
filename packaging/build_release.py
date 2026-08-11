@@ -33,16 +33,31 @@ def _should_skip(path: Path) -> bool:
     return any(part in EXCLUDE_NAMES for part in path.parts)
 
 
-def build_portable_zip(version: str = "0.1.0") -> Path:
+def build_portable_zip(version: str = "0.1.0",
+                       reemplazos: dict[str, str] | None = None) -> Path:
+    """El ZIP portable. `reemplazos` cambia el contenido de un archivo puntual
+    (ruta relativa -> texto) SIN tocar el árbol de trabajo.
+
+    Lo de "sin tocar el árbol" no es un detalle de estilo: lo usa el paquete del
+    dueño para poner `ES_OWNER_BUILD = True` adentro del ZIP, y si eso se
+    hiciera escribiendo el archivo real, un error a mitad de camino dejaría el
+    repositorio con la constante en True. Commitear eso deja SIN CANDADO a todas
+    las copias, incluida la que baja un cliente.
+    """
     DIST_DIR.mkdir(exist_ok=True)
     zip_path = DIST_DIR / f"MVProjectManagement_portable_v{version}.zip"
+    reemplazos = reemplazos or {}
 
     with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as zf:
         for dirname in INCLUDE_DIRS:
             src_dir = ROOT / dirname
             for path in src_dir.rglob("*"):
                 if path.is_file() and not _should_skip(path.relative_to(ROOT)):
-                    zf.write(path, path.relative_to(ROOT))
+                    interno = path.relative_to(ROOT).as_posix()
+                    if interno in reemplazos:
+                        zf.writestr(interno, reemplazos[interno])
+                    else:
+                        zf.write(path, path.relative_to(ROOT))
         for filename in INCLUDE_FILES:
             src = ROOT / filename
             if src.exists():
@@ -56,6 +71,11 @@ ZIP_OWNER = ROOT / "owner" / "MV_Project_Management_OWNER.zip"
 
 #: Lo que este paquete tiene de más. Ninguno es un secreto — ver el docstring.
 EXTRAS_OWNER = [
+    # El instalador: copia esto a una carpeta, arma el entorno y deja icono en
+    # el escritorio y en el menú Inicio, más un desinstalador.
+    "INSTALAR_OWNER.bat",
+    # Sin el icono, el acceso directo sale con el de la consola de Windows.
+    "packaging/assets/icon.ico",
     "MV_ProjectManagement_OWNER.bat",
     "packaging/generar_claves_licencia.py",
 ]
@@ -64,31 +84,42 @@ EXTRAS_OWNER = [
 def build_owner_zip(version: str = "0.1.0") -> Path:
     """El paquete portable más las herramientas de activación del dueño.
 
+    Abre sin candado y sin pedir nada: ni clave, ni token, ni archivo al lado.
+    Lo consigue con `ES_OWNER_BUILD = True` en `mvpm/edicion.py`, escrito
+    ADENTRO del ZIP y nunca en el árbol de trabajo (ver `build_portable_zip`).
+
     ## Qué cambió, y por qué
 
-    Antes este ZIP llevaba el marcador FIRMADO en la raíz: se descomprimía y ya
-    estaba activado, sin pegar nada. Se diseñó así dando por sentado que el
-    repositorio era privado. No lo era. El resultado fue que el producto pago
-    quedó descargable por cualquiera —y no sólo en modo dueño: ese token pegado
-    en el campo de licencia daba una licencia `enterprise` válida—.
+    Antes esto se lograba metiendo el marcador FIRMADO en la raíz del ZIP. Se
+    sacó: ese archivo se podía copiar a cualquier otra instalación y, peor,
+    pegado en el campo de licencia de la app era una licencia `enterprise`
+    válida. Y estuvo versionado en un repositorio que resultó ser público.
 
-    Así que el paquete del dueño ya no lleva ningún secreto adentro. Lo que lo
-    hace distinto del de cliente son dos archivos que no le sirven a nadie sin
-    la clave privada:
+    La constante no tiene ninguna de esas dos formas de escaparse: no es un
+    token que se pueda pegar en ningún lado, y no desbloquea ninguna copia que
+    no sea ésta.
 
-    * `MV_ProjectManagement_OWNER.bat` — el doble clic que activa la máquina.
-    * `packaging/generar_claves_licencia.py` — para generar el par la primera
-      vez. Ojo: `activar_owner.py` sólo genera desde un checkout del repo (pide
-      `.git/`), así que incluirlo acá no habilita a un cliente a fabricarse un
-      par; es para que el dueño lo tenga a mano.
+    ## En qué se apoya
 
-    La activación pasó a ser una vez por máquina: se pega la clave privada, se
-    guarda en el perfil del usuario, y desde ahí TODAS las formas de abrir el
-    programa —este ZIP, el `.exe`, `run.sh`, el `.bat` de cliente— se activan
-    solas vía `owner.activar_automatico()`. Es un paso más que antes; a cambio,
-    lo que se publica no desbloquea el producto de nadie.
+    En que este ZIP no sea descargable por cualquiera — o sea, en que el
+    repositorio sea PRIVADO, que es lo que hoy es. Un ZIP con `mvpm/` en texto
+    plano no puede sostener nada más fuerte: cualquiera que lo tenga puede
+    editar esa línea. Por eso el candado de verdad, el que no depende de la
+    visibilidad del repositorio, vive en el `.exe`, donde `mvpm/` va compilado a
+    `.pyd` (`packaging/strip_py_sources.py`).
+
+    Va además con las herramientas de activación por marcador, que siguen
+    sirviendo en cualquier máquina y no dependen de nada de esto.
     """
-    base = build_portable_zip(version=version)
+    edicion_owner = (ROOT / "mvpm" / "edicion.py").read_text(encoding="utf-8").replace(
+        "ES_OWNER_BUILD = False", "ES_OWNER_BUILD = True")
+    if "ES_OWNER_BUILD = True" not in edicion_owner:
+        raise RuntimeError(
+            "No pude marcar mvpm/edicion.py como Owner Edition: el paquete del "
+            "dueño saldría con el candado de cliente puesto.")
+
+    base = build_portable_zip(version=version,
+                              reemplazos={"mvpm/edicion.py": edicion_owner})
     ZIP_OWNER.parent.mkdir(parents=True, exist_ok=True)
     shutil.copyfile(base, ZIP_OWNER)
     with zipfile.ZipFile(ZIP_OWNER, "a", zipfile.ZIP_DEFLATED) as zf:

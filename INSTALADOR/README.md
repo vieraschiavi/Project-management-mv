@@ -22,32 +22,43 @@ corren en Linux ni en macOS, así que no hay forma de generarlos fuera del CI.
 |---|---|---|
 | Prueba de 7 días | sí | no, una vez activado |
 | Cupo de IA | según el plan | ilimitado |
-| Hay que activar algo | pega el token al pagar | la clave privada, una vez por máquina |
-| Quién lo puede usar | cualquiera que lo baje | sólo quien tenga la clave privada |
+| Hay que activar algo | pega el token al pagar | **nada** |
+| Quién lo puede usar | cualquiera que lo baje | quien lo baje de este repo privado |
 
 El de CLIENTE se instala en modo demo. Cuando el cliente paga, el token que
 recibe desbloquea **esa misma instalación**: no vuelve a bajar nada, no pierde
 los datos que cargó.
 
 El de OWNER es el mismo programa, con AppId y carpeta propios para poder
-tenerlo instalado al lado del de cliente. Lo que lo desbloquea no viaja adentro:
-vive en la máquina del dueño (`~/.mv_project_management/clave_privada_owner`).
-Se activa una vez con `MV_ProjectManagement_OWNER.bat` y queda para siempre en
-esa computadora, para todas las formas de abrir el programa.
+tenerlo instalado al lado del de cliente. Instalás y abre: sin clave, sin token
+y sin archivo al lado.
 
-### Por qué no viene ya activado
+### Cómo está hecho, y en qué se apoya
 
-Venía. Llevaba adentro un marcador de licencia **firmado**, y quien tuviera ese
-archivo tenía el producto desbloqueado sin pagar. Esto decía que era seguro
-"porque vive en un repositorio privado". **Este repositorio es público**, y
-también lo son los Releases de Actions: o sea que ese instalador —y el
-`packaging/OWNER_EDITION` que estaba versionado— le regalaban el producto pago a
-cualquiera que pasara por acá.
+Lo que lo desbloquea es una **constante compilada** (`ES_OWNER_BUILD` en
+`mvpm/edicion.py`), que el build pone en `True` antes de compilar `mvpm/` a
+`.pyd` con Cython. Va como código nativo adentro del ejecutable.
 
-Lo que se hizo: el token filtrado quedó revocado en `mvpm/licensing.py`
-(sacarlo del repo no alcanza — queda en el historial), ningún build empaqueta
-ya un marcador, y los marcadores nuevos se emiten **atados a una máquina**, así
-que uno copiado a otra computadora no desbloquea nada.
+Antes esto se hacía metiendo un marcador de licencia **firmado** adentro del
+`.exe`, y se justificaba diciendo "vive en un repositorio privado" mientras el
+repositorio era **público**. Ese instalador —y el `packaging/OWNER_EDITION` que
+estaba versionado— le regalaban el producto pago a cualquiera que pasara.
+
+La constante es estrictamente mejor que aquel marcador:
+
+* **No es un token.** No hay nada que pegar en el campo de licencia de otra
+  copia. Aquel marcador sí servía para eso: era una licencia `enterprise`.
+* **No es un archivo.** No se puede copiar de esta instalación a la de un
+  cliente, porque no hay nada que copiar.
+* **No desbloquea otro binario que no sea éste.**
+
+Lo que sí sigue dependiendo de que **este repositorio sea privado** es que este
+`.exe` no lo baje cualquiera. Si algún día vuelve a ser público, esto deja de
+proteger nada y hay que volver al marcador firmado y atado a la máquina, que
+sigue funcionando en paralelo (`mvpm/owner.py`) y no depende de la visibilidad.
+
+El token que se filtró quedó revocado en `mvpm/licensing.py` — sacarlo del repo
+no alcanza, queda en el historial.
 
 ## Los dos instalan igual
 
