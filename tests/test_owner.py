@@ -1143,10 +1143,18 @@ def test_el_zip_del_dueno_sale_desbloqueado():
         assert "ES_OWNER_BUILD = True" in zf.read("mvpm/edicion.py").decode("utf-8")
 
 
-def test_marcar_el_zip_del_dueno_no_toca_el_arbol_de_trabajo():
+def test_marcar_el_zip_del_dueno_no_toca_el_arbol_de_trabajo(tmp_path):
     """El accidente que hay que hacer imposible: que armar el paquete del dueño
     deje `mvpm/edicion.py` en True en el repositorio. Commitear eso deja sin
-    candado a todas las copias, incluida la del cliente."""
+    candado a todas las copias, incluida la del cliente.
+
+    Va a `tmp_path` y no al destino real: la primera versión de este test
+    llamaba a `build_owner_zip()` a secas, y como esa función escribe en un
+    archivo VERSIONADO, cada corrida de la suite dejaba el repositorio sucio con
+    un ZIP que sólo difería en los timestamps internos. El ruido en
+    `git status` era lo de menos — lo feo era terminar commiteando un paquete
+    armado desde un árbol a medio editar.
+    """
     import sys as _sys
 
     _sys.path.insert(0, str(RAIZ / "packaging"))
@@ -1154,9 +1162,80 @@ def test_marcar_el_zip_del_dueno_no_toca_el_arbol_de_trabajo():
 
     archivo = RAIZ / "mvpm" / "edicion.py"
     antes = archivo.read_text(encoding="utf-8")
-    build_release.build_owner_zip(version="no-toca-nada")
+    salida = build_release.build_owner_zip(version="no-toca-nada",
+                                           destino=tmp_path / "owner.zip")
+    assert salida == tmp_path / "owner.zip"
     assert archivo.read_text(encoding="utf-8") == antes
     assert "ES_OWNER_BUILD = False" in archivo.read_text(encoding="utf-8")
+
+
+def _foto_del_arbol() -> dict[str, tuple[int, int]] | None:
+    """(mtime, tamaño) de cada archivo versionado. None fuera de un checkout.
+
+    Se mira el ARCHIVO y no `git status --porcelain`, que fue el primer intento y
+    no servía: git reporta la misma línea ` M archivo.zip` lo haya modificado un
+    test o lo hubiera dejado así el desarrollador antes de correr la suite. O
+    sea que sobre un archivo YA sucio —el caso más probable, porque los ZIP se
+    regeneran a mano— el test no veía nada nuevo y daba verde.
+
+    mtime alcanza y es barato: no hay que leer contenido, así que el .exe de 98
+    MB de INSTALADOR/ no cuesta nada. Un test que reescriba un archivo con el
+    mismo contenido igual lo mueve, y también queremos enterarnos de eso.
+    """
+    import subprocess
+
+    if not (RAIZ / ".git").exists():
+        return None
+    salida = subprocess.run(["git", "ls-files", "-z"], cwd=RAIZ,
+                            capture_output=True, text=True, check=True)
+    foto = {}
+    for nombre in salida.stdout.split("\0"):
+        if not nombre:
+            continue
+        try:
+            st = (RAIZ / nombre).stat()
+        except OSError:
+            continue
+        foto[nombre] = (st.st_mtime_ns, st.st_size)
+    return foto
+
+
+#: Foto del árbol ANTES de que corra un solo test. Se toma al importar el
+#: módulo, y pytest importa todo durante la colección, o sea antes de ejecutar
+#: nada.
+#:
+#: Comparar contra esta foto y no contra "el árbol tiene que estar limpio" es lo
+#: que hace al test de abajo utilizable: quien corre la suite casi siempre tiene
+#: trabajo sin commitear, y un test que se pone rojo por eso se aprende a
+#: ignorar — que es lo mismo que no tenerlo.
+_ARBOL_AL_EMPEZAR = _foto_del_arbol()
+
+
+def test_la_suite_no_ensucia_el_repositorio():
+    """Ningún test puede dejar cambios en archivos versionados.
+
+    Los artefactos commiteados —los dos ZIP— se regeneran a propósito cuando
+    cambia el código, no como efecto colateral de correr `pytest`. Ya pasó: un
+    test de este mismo archivo llamaba a `build_owner_zip()` sin destino, y esa
+    función escribe en `owner/MV_Project_Management_OWNER.zip`. Cada corrida
+    dejaba un diff de timestamps que nadie había hecho, y lo feo no era el ruido
+    en `git status` sino terminar commiteando un paquete armado desde un árbol a
+    medio editar.
+
+    Va último en el archivo para ver lo que dejaron los demás. `git status` mira
+    el árbol entero, así que con la suite completa también agarra a los tests de
+    los otros archivos.
+    """
+    ahora = _foto_del_arbol()
+    if ahora is None or _ARBOL_AL_EMPEZAR is None:
+        pytest.skip("no es un checkout del repo")
+
+    tocados = sorted(n for n, v in ahora.items()
+                     if n in _ARBOL_AL_EMPEZAR and v != _ARBOL_AL_EMPEZAR[n])
+    assert not tocados, (
+        "la suite modificó archivos versionados:\n  " + "\n  ".join(tocados) +
+        "\nUn test que escribe en un archivo del repo tiene que escribir en "
+        "tmp_path (ver build_owner_zip(destino=...)).")
 
 
 # --------------------------------------- el instalador del paquete del dueño
