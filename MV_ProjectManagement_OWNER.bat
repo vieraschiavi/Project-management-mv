@@ -25,8 +25,8 @@ rem se puede activar nada (antes alcanzaba con que el archivo existiera, o sea
 rem que cualquier cliente se saltaba el candado creandolo a mano).
 rem
 rem No hay nada que configurar a mano: activar_owner.py resuelve la clave solo
-rem —variable de entorno, el archivo donde la dejo la primera vez, o la genera
-rem si esto es una copia del repositorio— y activa. Una sola vez por maquina.
+rem -variable de entorno, el archivo donde la dejo la primera vez, o la genera
+rem si esto es una copia del repositorio- y activa. Una sola vez por maquina.
 "%PY%" packaging\activar_owner.py
 if errorlevel 1 (
     echo.

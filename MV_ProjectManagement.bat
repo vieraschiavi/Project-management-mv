@@ -50,7 +50,7 @@ rem Antes aca se corria la suite entera (pytest tests\), y eso estaba mal por
 rem dos motivos. Uno: tarda minutos, asi que al doble clic no pasaba nada
 rem visible y parecia que el .bat no abria. Dos: varios tests verifican cosas
 rem del REPOSITORIO (.github\, landing\, distribucion\, owner\) que no viajan
-rem en el paquete, asi que en la copia del usuario fallaban siempre — y uno
+rem en el paquete, asi que en la copia del usuario fallaban siempre - y uno
 rem cortaba la coleccion entera. El usuario abria su programa y lo primero que
 rem veia era una pared de errores rojos de tests que no son asunto suyo.
 echo Verificando instalacion...

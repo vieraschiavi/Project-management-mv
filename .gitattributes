@@ -1,1 +1,14 @@
+# Los .exe de INSTALADOR/ son binarios: que git no intente diferenciarlos ni
+# convertirles finales de linea.
 *.exe binary
+
+# Los .bat SIEMPRE con finales de linea de Windows, pase lo que pase.
+#
+# Esto no es cosmético. cmd.exe necesita CRLF: con LF solo tolera comandos
+# sueltos, pero rompe los bloques `if (...)` y `for`, que es de lo que están
+# hechos estos archivos. Los dos .bat vivieron con LF desde el primer commit
+# —se escribieron desde Linux— y por eso el programa "no abría" en Windows.
+#
+# `text eol=crlf` hace que git los materialice con CRLF en el checkout de
+# cualquiera, incluso trabajando desde Linux o macOS.
+*.bat text eol=crlf
