@@ -1,13 +1,35 @@
 name: Tests
 
-# Corre en CADA push y en cada pull request. Si los tests o el linter fallan,
-# el job falla y el PR queda en rojo — no hay forma de mergear algo roto sin
-# verlo. Los otros workflows del repo compilan instaladores (Windows/Electron)
-# y sólo corren en tags o a mano; este es el único que actúa como red de
-# seguridad en cada cambio, así que corre en Linux, que es rápido y barato.
+# La red de seguridad de cada cambio: si los tests o el linter fallan, el job
+# falla y el PR queda en rojo — no hay forma de mergear algo roto sin verlo.
+# Corre en Linux, que es rápido y barato.
+#
+# ## Por qué el push está limitado a main
+#
+# Decía `push:` a secas, sin filtro de ramas, junto con `pull_request:`. O sea
+# que cada commit de una rama con PR abierto disparaba la suite DOS VECES sobre
+# el MISMO sha: una por el push y otra por el pull_request. Los dos runs
+# idénticos, con el mismo resultado, cobrando los dos.
+#
+# Mientras el repositorio fue público daba lo mismo: GitHub no cobra minutos de
+# Actions en repos públicos. Al pasarlo a privado, esos minutos empezaron a
+# descontar de la cuota de la cuenta, y este workflow es el que más corre.
+#
+# La cobertura no cambia: `pull_request` cubre cualquier rama que vaya a
+# mergearse, y `push` a main cubre lo que entra directo. Lo que se deja de
+# pagar es la corrida repetida.
 on:
   push:
+    branches:
+      - main
   pull_request:
+
+# Un push arriba de otro deja al primero sin sentido: lo que importa es el
+# último commit. Sin esto, tres pushes seguidos pagan tres corridas completas
+# y las dos primeras se descartan igual.
+concurrency:
+  group: tests-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   test:

@@ -143,9 +143,14 @@ def test_automerge_y_los_builds_coinciden_en_que_es_el_producto():
 # ---------------------------------------------- lo que no puede cambiar
 
 def test_el_build_del_dueno_sigue_sin_publicarse_en_ningun_canal_publico():
-    """El .exe del dueño lleva un marcador firmado adentro: quien lo tenga tiene
-    el producto desbloqueado. Automatizar su build no puede haber cambiado por
-    dónde sale."""
+    """El canal del dueño es el canal del dueño: no se linkea desde la landing
+    ni se sube a Vercel Blob, y su Release nunca queda como "Latest".
+
+    Ojo con por qué esto ya NO es lo que protege el producto. Lo era cuando el
+    .exe llevaba un marcador firmado adentro, y ese razonamiento resultó falso:
+    el repositorio era público, así que ese canal "privado" no lo era. Hoy el
+    .exe del dueño no lleva nada que desbloquee nada (ver packaging/mvpm_owner.spec)
+    y esto queda como higiene, no como candado."""
     wf = _sin_comentarios("build_windows_owner.yml")
     assert "publish_blob" not in wf.lower()
     assert "blob_read_write_token" not in wf.lower()
@@ -233,3 +238,50 @@ def test_el_publicador_no_deja_pasar_un_push_fallido_como_exito():
     assert cola.rstrip().endswith("exit 1"), (
         "el script termina en verde después de agotar los reintentos: el build "
         "quedaría en verde con INSTALADOR/ sin actualizar")
+
+
+# ------------------------------------------- lo que cuesta correr el CI
+
+def test_la_suite_no_corre_dos_veces_sobre_el_mismo_commit():
+    """`push:` a secas junto con `pull_request:` disparaba la suite DOS veces
+    sobre el MISMO sha: dos corridas idénticas, mismo resultado, las dos
+    cobrando.
+
+    No se notaba porque el repositorio era público, y GitHub no cobra minutos de
+    Actions en repos públicos. Al pasarlo a privado esos minutos empezaron a
+    descontar de la cuota de la cuenta.
+
+    La cobertura no cambia: `pull_request` cubre cualquier rama que vaya a
+    mergearse y `push` a main cubre lo que entra directo.
+    """
+    wf = _sin_comentarios("tests.yml")
+    assert "pull_request:" in wf
+    push = wf[wf.index("push:"):wf.index("pull_request:")]
+    assert "branches:" in push and "- main" in push, (
+        "tests.yml volvió a correr en push de cualquier rama: con pull_request "
+        "también activo, cada commit paga la suite dos veces")
+
+
+@pytest.mark.parametrize("workflow", ["tests.yml", "build_windows.yml",
+                                      "build_windows_owner.yml"])
+def test_un_push_nuevo_cancela_la_corrida_que_quedo_vieja(workflow):
+    """Tres pushes seguidos pagaban tres corridas completas y se quedaban con la
+    última: las dos primeras se descartan igual, pero se cobran. Pesa el doble en
+    los builds de Windows, que se facturan a 2x y tardan unos cinco minutos."""
+    wf = _sin_comentarios(workflow)
+    assert "concurrency:" in wf, f"{workflow} no cancela las corridas superadas"
+    assert "cancel-in-progress: true" in wf
+
+
+def test_cada_build_de_windows_tiene_su_propio_grupo_de_concurrencia():
+    """Si compartieran grupo, el build de cliente cancelaría al del dueño (o al
+    revés) y uno de los dos instaladores nunca se reconstruiría."""
+    import re
+
+    grupos = {}
+    for workflow in ("build_windows.yml", "build_windows_owner.yml"):
+        m = re.search(r"^concurrency:\s*\n\s*group:\s*(.+)$",
+                      _texto(workflow), re.MULTILINE)
+        assert m, f"{workflow} no declara group:"
+        grupos[workflow] = m.group(1).strip()
+    assert len(set(grupos.values())) == 2, f"los dos builds comparten grupo: {grupos}"
