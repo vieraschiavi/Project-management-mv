@@ -216,6 +216,65 @@ def test_el_push_del_instalador_reintenta():
         "curso y falla siempre")
 
 
+def test_el_publicador_limpia_el_arbol_antes_de_rebasar():
+    """`git pull --rebase` se niega a correr con cambios sin commitear:
+
+        error: cannot pull with rebase: You have unstaged changes.
+
+    y los reintentos no limpian nada, así que los cinco fallaban idénticos y el
+    .exe recién compilado se perdía. No era la carrera entre los dos builds
+    —eso es lo que arregla el reintento— sino el árbol sucio.
+
+    Quién lo ensucia, en los DOS builds: packaging/strip_py_sources.py borra los
+    mvpm/*.py después de que Cython los compila, y están versionados. El del
+    dueño suma mvpm/edicion.py, que marcar_build_owner.py reescribe.
+
+    Los dos builds del merge de #39 murieron acá con el mismo error, después de
+    compilar el .exe entero.
+    """
+    ps = _publicador()
+    assert "git checkout -- ." in ps, (
+        "el publicador no limpia el árbol antes del rebase: con mvpm/edicion.py "
+        "modificado por marcar_build_owner.py, `git pull --rebase` falla siempre")
+    assert ps.index("git checkout -- .") < ps.index("git pull --rebase origin main"), (
+        "la limpieza tiene que ir ANTES del primer pull, no adentro del bucle")
+    assert ps.index("git commit -m") < ps.index("git checkout -- ."), (
+        "limpiar ANTES de commitear borraría el .exe que se acaba de copiar")
+
+
+def test_el_build_ensucia_archivos_versionados():
+    """Fija la razón de ser del test de arriba: que los pasos de compilación
+    tocan archivos que git sigue. Si algún día dejaran de hacerlo, la limpieza
+    pasa a sobrar y este test lo dice.
+
+    Se comprueba contra git, no contra una lista escrita a mano: es git quien
+    decide si el árbol queda sucio.
+    """
+    import subprocess
+
+    # El que rompe los dos builds: borra los mvpm/*.py ya compilados a .pyd.
+    strip = (RAIZ / "packaging" / "strip_py_sources.py").read_text(encoding="utf-8")
+    assert ".unlink()" in strip and 'MVPM_DIR.glob("*.py")' in strip, (
+        "strip_py_sources.py ya no borra los mvpm/*.py: revisar si el "
+        "publicador sigue necesitando limpiar el árbol antes del rebase")
+
+    seguidos = subprocess.run(
+        ["git", "ls-files", "mvpm/"], cwd=RAIZ, capture_output=True, text=True,
+    ).stdout.split()
+    assert len([f for f in seguidos if f.endswith(".py")]) > 1, (
+        "los mvpm/*.py dejaron de estar versionados: borrarlos ya no ensucia "
+        "el árbol y la limpieza del publicador sobra")
+
+    # El extra del build del dueño.
+    marcar = (RAIZ / "packaging" / "marcar_build_owner.py").read_text(encoding="utf-8")
+    assert 'ROOT / "mvpm" / "edicion.py"' in marcar
+    versionado = subprocess.run(
+        ["git", "ls-files", "--error-unmatch", "mvpm/edicion.py"],
+        cwd=RAIZ, capture_output=True, text=True,
+    )
+    assert versionado.returncode == 0
+
+
 def test_el_publicador_corta_antes_del_limite_de_github():
     """GitHub rechaza todo archivo de 100 MiB o más, y no hay forma de forzarlo:
     el push muere del lado del servidor DESPUÉS de subir el archivo entero. El
