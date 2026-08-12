@@ -25,7 +25,7 @@ from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import PlainTextResponse
 
-from mvpm import db, demo_pharma, exporters, licensing, puertos, reviews
+from mvpm import db, demo_pharma, exporters, licensing, owner, puertos, reviews
 
 app = FastAPI(title="MV Project Management API", version="0.1.0")
 
@@ -66,10 +66,33 @@ def requiere_acceso(request: Request) -> None:
     levantar cualquiera (uvicorn a mano, un test, un import) sin pasar por
     run.sh.
 
-    Regla: desde la propia máquina se permite sin clave (es el caso normal,
-    Power BI y el dashboard corriendo al lado). Desde cualquier otra IP hay
-    que presentar MVPM_API_KEY.
+    Dos candados independientes, los dos tienen que abrir:
+
+    1. Licencia/prueba — igual que el dashboard: el dueño entra siempre: sin
+       eso, el reloj de 7 días. Va PRIMERO y sin excepción de loopback: es la
+       instalación la que tiene o no tiene acceso, no la red desde la que se
+       pregunta — antes esta API servía el portafolio completo para siempre
+       aunque la prueba del dashboard ya hubiera vencido, porque nunca
+       consultaba nada de licencias.
+
+       Nota de alcance: `licensing.estado_acceso` se llama con `token=None`
+       porque hoy no hay forma de que este proceso reciba el token que un
+       cliente pagó — `LICENSE_TOKEN` en app.py vive sólo en el campo de texto
+       de esa sesión de Streamlit, no se persiste a disco ni a variable de
+       entorno en ningún lado. Con esto, un cliente que YA PAGÓ pero cuya
+       prueba de 7 días venció tampoco puede usar la API hasta que exista esa
+       persistencia — es una limitación real, no algo que este chequeo pueda
+       resolver sin inventar un mecanismo de guardado que nadie pidió.
+
+    2. Red — desde la propia máquina se permite sin clave (es el caso normal,
+       Power BI y el dashboard corriendo al lado). Desde cualquier otra IP hay
+       que presentar MVPM_API_KEY.
     """
+    if not owner.es_owner():
+        acceso = licensing.estado_acceso(None)
+        if not acceso["acceso"]:
+            raise HTTPException(status_code=402, detail=acceso["mensaje"])
+
     host = (request.client.host if request.client else "") or ""
     if host in _LOOPBACK:
         return

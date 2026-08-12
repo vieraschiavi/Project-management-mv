@@ -12,14 +12,19 @@ name: Auto-merge
 #
 # Un push hecho con GITHUB_TOKEN NO dispara workflows. Es una protección de
 # GitHub contra bucles infinitos, y acá tenía una consecuencia concreta: al
-# mergear con el token, `build_windows.yml` y `build_windows_owner.yml` —que
-# escuchan push a main— nunca se enterarían. Los instaladores quedarían
-# congelados en la versión anterior justamente por haber automatizado el merge.
+# mergear con el token, los tres builds de instalador —que escuchan push a
+# main— nunca se enterarían. Los instaladores quedarían congelados en la
+# versión anterior justamente por haber automatizado el merge.
 #
 # Por eso, después de mergear, se disparan explícitamente por API
 # (`createWorkflowDispatch`), que sí funciona con el token. Y sólo si el PR tocó
-# algo que va adentro del instalador, para no gastar minutos de runner de
+# algo que va adentro de CADA instalador, para no gastar minutos de runner de
 # Windows en un cambio de README.
+#
+# build_electron.yml es un caso aparte: además de RUTAS_DE_PRODUCTO, también
+# empaqueta desktop/ (el propio Electron). Un PR que sólo toca desktop/ tiene
+# que disparar ese build igual, aunque no toque nada de RUTAS_DE_PRODUCTO — por
+# eso va con su propio chequeo, no con `tocaElProducto`.
 
 on:
   workflow_run:
@@ -82,6 +87,8 @@ jobs:
                 {owner, repo, pull_number: pr.number, per_page: 100});
               const tocaElProducto = archivos.some(
                 f => RUTAS_DE_PRODUCTO.some(r => f.filename.startsWith(r)));
+              const tocaElEscritorio = tocaElProducto ||
+                archivos.some(f => f.filename.startsWith('desktop/'));
 
               await github.rest.pulls.merge({
                 owner, repo, pull_number: pr.number,
@@ -100,15 +107,19 @@ jobs:
                 core.warning(`No se pudo borrar ${actual.head.ref}: ${e.message}`);
               }
 
-              if (!tocaElProducto) {
+              if (!tocaElProducto && !tocaElEscritorio) {
                 core.info('El PR no toca el producto: no se reconstruyen instaladores.');
                 continue;
               }
 
               // Acá está el punto del comentario de arriba: el push del merge
               // no dispara nada por haberse hecho con GITHUB_TOKEN, así que los
-              // builds se piden a mano.
-              for (const wf of ['build_windows.yml', 'build_windows_owner.yml']) {
+              // builds se piden a mano — sólo los que este PR realmente afecta.
+              const workflowsADisparar = [];
+              if (tocaElProducto) workflowsADisparar.push('build_windows.yml', 'build_windows_owner.yml');
+              if (tocaElEscritorio) workflowsADisparar.push('build_electron.yml');
+
+              for (const wf of workflowsADisparar) {
                 try {
                   await github.rest.actions.createWorkflowDispatch(
                     {owner, repo, workflow_id: wf, ref: 'main'});

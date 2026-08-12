@@ -89,8 +89,22 @@ def test_el_automerge_dispara_los_builds_a_mano():
     instaladores dejan de actualizarse sin que nada lo diga."""
     script = _texto("automerge.yml")
     assert "createWorkflowDispatch" in script
-    for build in ("build_windows.yml", "build_windows_owner.yml"):
+    for build in ("build_windows.yml", "build_windows_owner.yml", "build_electron.yml"):
         assert build in script
+
+
+def test_el_automerge_dispara_electron_aunque_el_pr_solo_toque_desktop():
+    """build_electron.yml también escucha push a main cuando cambia desktop/
+    (no sólo RUTAS_DE_PRODUCTO): un PR que sólo toca desktop/ no dispararía
+    ese build si automerge lo gatillara con el mismo chequeo que los otros
+    dos, que ignoran desktop/ por completo."""
+    script = _texto("automerge.yml")
+    assert "tocaElEscritorio" in script
+    assert "startsWith('desktop/')" in script
+    # El build de escritorio se pide con su propio chequeo, no con
+    # tocaElProducto — si comparte el mismo `if`, un PR sólo de desktop/ nunca
+    # lo dispara.
+    assert "if (tocaElEscritorio) workflowsADisparar.push('build_electron.yml')" in script
 
 
 def test_el_automerge_tiene_los_permisos_que_necesita():
@@ -103,20 +117,31 @@ def test_el_automerge_tiene_los_permisos_que_necesita():
 
 # --------------------------------- que los builds se disparen cuando toca
 
-@pytest.mark.parametrize("workflow", ["build_windows.yml", "build_windows_owner.yml"])
+@pytest.mark.parametrize("workflow", ["build_windows.yml", "build_windows_owner.yml", "build_electron.yml"])
 def test_los_instaladores_se_reconstruyen_al_cambiar_el_producto(workflow):
-    """Los dos instaladores —cliente y dueño— se reconstruyen con push a main.
+    """Los tres instaladores —cliente, dueño y Electron— se reconstruyen con
+    push a main.
 
     El del dueño no lo hacía: sólo corría a mano o con un tag, así que se podía
     bajar de Actions una build de semanas atrás, sin los arreglos que ya estaban
-    en main.
+    en main. El de Electron tenía el mismo problema —sólo tag o a mano— y en
+    toda una serie de cambios al producto no se disparó ni una vez: el
+    instalador de escritorio nunca se llegó a construir.
     """
     wf = _sin_comentarios(workflow)
     assert "branches:" in wf and "- main" in wf
     assert "paths:" in wf
 
 
-@pytest.mark.parametrize("workflow", ["build_windows.yml", "build_windows_owner.yml"])
+def test_electron_tambien_se_reconstruye_al_cambiar_el_propio_electron():
+    """A diferencia de los otros dos, este instalador empaqueta desktop/ (el
+    código de Electron en sí) además de RUTAS_DE_PRODUCTO — un cambio ahí
+    tiene que reconstruirlo aunque no toque mvpm/app/packaging."""
+    wf = _sin_comentarios("build_electron.yml")
+    assert '"desktop/**"' in wf
+
+
+@pytest.mark.parametrize("workflow", ["build_windows.yml", "build_windows_owner.yml", "build_electron.yml"])
 def test_los_paths_de_los_builds_cubren_todo_el_producto(workflow):
     """El riesgo real de estas listas es la deriva: se agrega un módulo nuevo
     bajo api/ y el instalador deja de reconstruirse cuando cambia, sin que nada
@@ -322,7 +347,7 @@ def test_la_suite_no_corre_dos_veces_sobre_el_mismo_commit():
 
 
 @pytest.mark.parametrize("workflow", ["tests.yml", "build_windows.yml",
-                                      "build_windows_owner.yml"])
+                                      "build_windows_owner.yml", "build_electron.yml"])
 def test_un_push_nuevo_cancela_la_corrida_que_quedo_vieja(workflow):
     """Tres pushes seguidos pagaban tres corridas completas y se quedaban con la
     última: las dos primeras se descartan igual, pero se cobran. Pesa el doble en
@@ -333,14 +358,14 @@ def test_un_push_nuevo_cancela_la_corrida_que_quedo_vieja(workflow):
 
 
 def test_cada_build_de_windows_tiene_su_propio_grupo_de_concurrencia():
-    """Si compartieran grupo, el build de cliente cancelaría al del dueño (o al
-    revés) y uno de los dos instaladores nunca se reconstruiría."""
+    """Si compartieran grupo, un build cancelaría al otro y ese instalador
+    nunca se reconstruiría."""
     import re
 
     grupos = {}
-    for workflow in ("build_windows.yml", "build_windows_owner.yml"):
+    for workflow in ("build_windows.yml", "build_windows_owner.yml", "build_electron.yml"):
         m = re.search(r"^concurrency:\s*\n\s*group:\s*(.+)$",
                       _texto(workflow), re.MULTILINE)
         assert m, f"{workflow} no declara group:"
         grupos[workflow] = m.group(1).strip()
-    assert len(set(grupos.values())) == 2, f"los dos builds comparten grupo: {grupos}"
+    assert len(set(grupos.values())) == 3, f"los builds comparten grupo: {grupos}"
