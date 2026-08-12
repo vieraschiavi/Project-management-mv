@@ -18,3 +18,9 @@ assets/video/demo*.mp4
 OWNER_EDITION
 clave_privada_owner
 clave_owner.txt
+
+# graft's local graph cache — regenerable, not committed (run `graft build`).
+# Anclado a la raíz (barra inicial): sin ella, "graft/" ignora CUALQUIER
+# carpeta llamada graft en el árbol, incluida .claude/skills/graft/ — que sí
+# tiene que quedar versionada para que el equipo reciba el skill con git.
+/graft/
