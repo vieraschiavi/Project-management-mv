@@ -1,10 +1,35 @@
 name: Build Electron desktop installer
 
+# El instalador de escritorio: ventana nativa propia (Electron + NSIS) sobre el
+# mismo motor Python. NSIS da elegir carpeta, icono en el escritorio, entrada
+# en el menú Inicio y desinstalador (ver `build.nsis` en desktop/package.json).
+#
+# Antes esto SÓLO corría con un tag `v*` o a mano: en toda una serie de
+# cambios al producto no se disparó ni una vez, y el instalador de escritorio
+# nunca se llegó a construir. Los otros dos builds (build_windows.yml,
+# build_windows_owner.yml) sí escuchan push a main; éste quedaba afuera y nada
+# lo avisaba, porque un workflow que no corre no falla.
 on:
   push:
+    branches:
+      - main
     tags:
       - "v*"
+    # Lo que termina adentro del instalador. Misma lista que build_windows.yml.
+    paths:
+      - "packaging/**"
+      - "mvpm/**"
+      - "app/**"
+      - "requirements.txt"
+      - "desktop/**"
+      - ".github/workflows/build_electron.yml"
   workflow_dispatch: {}
+
+# Runner de Windows: se cobra al doble y este build tarda más que los otros
+# porque encima compila Electron. Dos pushes seguidos no pagan dos veces.
+concurrency:
+  group: build-electron-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   build:
