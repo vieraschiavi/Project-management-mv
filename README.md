@@ -173,13 +173,43 @@ el número que lo sustenta:
 | Proveedor | Variables de entorno | Paquete opcional |
 |---|---|---|
 | Claude | `ANTHROPIC_API_KEY` | ya incluido (`anthropic`) |
-| ChatGPT | `OPENAI_API_KEY` + `OPENAI_MODEL` | `pip install openai` |
-| Gemini | `GEMINI_API_KEY` + `GEMINI_MODEL` | `pip install google-generativeai` |
+| ChatGPT | `OPENAI_API_KEY` | `pip install openai` |
+| Gemini | `GEMINI_API_KEY` | `pip install google-generativeai` |
+| Grok (xAI) | `XAI_API_KEY` | `pip install openai` |
+| Copilot (GitHub Models) | `GITHUB_MODELS_TOKEN` | `pip install openai` |
 
 El asistente sólo ofrece los proveedores con su clave configurada — nunca
-uno que vaya a fallar. Para ChatGPT y Gemini además hace falta declarar el
-modelo exacto (`OPENAI_MODEL`, `GEMINI_MODEL`): así el producto nunca asume
-un ID de modelo por vos, que podría quedar desactualizado.
+uno que vaya a fallar.
+
+> `GITHUB_MODELS_TOKEN` y no `GITHUB_TOKEN`: esta última está seteada por
+> defecto en cualquier runner de GitHub Actions y en muchas máquinas de
+> desarrollo, para cosas que no tienen que ver con IA. Si fuera la clave de
+> Copilot, el producto ofrecería un proveedor que nadie configuró.
+
+### Qué modelo usa cada proveedor
+
+Se elige desde **Configuración de IA** en el dashboard (`mvpm/modelos.py`), y
+es la palanca principal del gasto: dentro de un mismo proveedor, el modelo más
+caro y el más barato se llevan más de un orden de magnitud por token.
+
+El botón **«Actualizar modelos desde mi API»** le pregunta al proveedor qué
+modelos tiene habilitados *tu* clave, y con esa respuesta arma la lista. **El
+programa no trae ningún catálogo de modelos precargado**, a propósito: los
+catálogos cambian todos los meses y no todas las claves tienen habilitados los
+mismos modelos (depende del plan, la organización y la región). Una lista
+escrita a mano te ofrecería modelos que tu clave no puede usar y te escondería
+los que sí. Antes del primer «Actualizar» la lista está vacía, y la pantalla lo
+dice con esas palabras.
+
+La elección se guarda **versionada por empresa** (tabla `versiones`, igual que
+gobernanza y organigrama): queda quién la hizo y cuándo, y no se pisa el
+historial. Quien prefiera automatizar el arranque puede seguir fijando el
+modelo por variable de entorno (`ANTHROPIC_MODEL`, `OPENAI_MODEL`,
+`GEMINI_MODEL`, `XAI_MODEL`, `GITHUB_MODELS_MODEL`); lo elegido en la pantalla
+le gana, porque es lo último que pidió el usuario.
+
+Nada de esto afecta al motor de reglas: salud, dependencias, backlog y
+políticas se calculan sin IA y no gastan un token.
 
 Cada sugerencia se puede marcar **en seguimiento** y cambiar de estado
 (abierto / en progreso / resuelto) — queda persistida en la base real, no se

@@ -38,6 +38,7 @@ from mvpm import (
     importer,
     invitado,
     licensing,
+    modelos,
     organigrama,
     owner,
     plantillas,
@@ -283,6 +284,16 @@ else:
             st.rerun()
     EMPRESA_ID = int(_empresas[_empresas["nombre"] == empresa_sel]["id"].iloc[0])
 
+# Modelo de IA elegido por esta empresa. Se aplica en CADA corrida del script y
+# no una sola vez: Streamlit vuelve a ejecutar todo el archivo en cada
+# interacción, y la elección vive en un contextvar por hilo de sesión (ver
+# mvpm/modelos.py). Reponerla acá arriba garantiza que cualquier llamada a la IA
+# más abajo use el modelo de la empresa activa, incluso si el usuario acaba de
+# cambiar de empresa en el selector.
+if not INVITADO:
+    _cfg_ia = db.obtener_version_actual(EMPRESA_ID, "config_ia", "modelos")
+    modelos.aplicar_seleccion(_cfg_ia["contenido"] if _cfg_ia else None)
+
 st.sidebar.title(T("app_title"))
 
 if INVITADO:
@@ -304,6 +315,7 @@ else:
         T("nav_governance"), T("nav_organigrama"), T("nav_pmbok"), T("nav_plantillas"),
         T("nav_reviews"), T("nav_glossary"), T("nav_policies"),
         T("nav_import"), T("nav_conectores"), T("nav_capacitacion"),
+        T("nav_config_ia"),
     ]
     if user["rol"] == "admin":
         nav_options.append(T("nav_users"))
@@ -1444,6 +1456,71 @@ elif section == T("nav_capacitacion"):
             {"Módulo": _m["titulo"], "Min": _m["minutos"],
              "Dónde": _m["seccion_app"], "Roles": ", ".join(_m["roles"])}
             for _m in _plan]), use_container_width=True, hide_index=True)
+
+elif section == T("nav_config_ia"):
+    st.subheader(T("cfg_titulo"))
+    st.caption(T("cfg_intro"))
+
+    _provs_cfg = modelos.con_clave()
+    if not _provs_cfg:
+        st.info(T("cfg_sin_proveedores"))
+        st.code("\n".join(
+            f"export {_cfg['env_clave']}=...    # {_cfg['etiqueta']}"
+            for _cfg in modelos.PROVEEDORES.values()), language="bash")
+    else:
+        # El catálogo traído de la API vive en la sesión, no en la base: es una
+        # foto de lo que el proveedor contestó hoy y mañana puede ser otra. Lo
+        # que sí se persiste —porque es una decisión del cliente— es el modelo
+        # elegido.
+        _catalogos = st.session_state.setdefault("catalogos_ia", {})
+
+        for _prov_cfg in _provs_cfg:
+            with st.expander(f"🤖 {modelos.etiqueta(_prov_cfg)}", expanded=True):
+                _elegido_actual = modelos.modelo_actual(_prov_cfg)
+                st.caption(f"{T('cfg_en_uso')}: "
+                           f"**{_elegido_actual or T('cfg_sin_elegir')}**")
+
+                if st.button(T("cfg_actualizar"), key=f"cfg_upd_{_prov_cfg}",
+                             help=T("cfg_actualizar_ayuda")):
+                    try:
+                        _catalogos[_prov_cfg] = modelos.listar_desde_api(_prov_cfg)
+                        st.success(f"{len(_catalogos[_prov_cfg])} {T('cfg_traidos')}.")
+                    except modelos.ErrorDeProveedor as exc:
+                        # Se muestra el motivo: el usuario apretó un botón que
+                        # dice "actualizar" y merece saber por qué no pasó nada.
+                        st.error(seguro.escapar(str(exc)))
+
+                _lista = _catalogos.get(_prov_cfg, [])
+                if not _lista:
+                    st.caption(T("cfg_sin_catalogo"))
+
+                with st.form(f"cfg_form_{_prov_cfg}"):
+                    _opciones = [T("cfg_sin_elegir"), *_lista]
+                    _idx = (_opciones.index(_elegido_actual)
+                            if _elegido_actual in _opciones else 0)
+                    _sel = st.selectbox(T("cfg_modelo"), _opciones, index=_idx,
+                                        key=f"cfg_sel_{_prov_cfg}")
+                    # Escape para el proveedor sin endpoint de listado, o
+                    # cuando el catálogo falla y el cliente igual sabe qué ID
+                    # quiere usar. Lo escrito a mano le gana a lo elegido.
+                    _manual = st.text_input(T("cfg_modelo_manual"),
+                                            key=f"cfg_man_{_prov_cfg}")
+                    if st.form_submit_button(f"💾 {T('cfg_guardar')}"):
+                        _nuevo = _manual.strip() or (
+                            _sel if _sel != T("cfg_sin_elegir") else None)
+                        modelos.fijar_modelo(_prov_cfg, _nuevo)
+                        db.guardar_version(EMPRESA_ID, "config_ia", "modelos",
+                                           modelos.serializar_seleccion(),
+                                           estado="vigente",
+                                           recomendado_por=user["nombre"])
+                        st.success(T("cfg_guardado"))
+                        st.rerun()
+
+        _hist_ia = db.historial_versiones(EMPRESA_ID, "config_ia", "modelos")
+        if len(_hist_ia) > 0:
+            with st.expander(f"📚 {T('cfg_historial')} ({len(_hist_ia)})"):
+                st.dataframe(_hist_ia[["contenido", "recomendado_por", "creado_en"]],
+                             use_container_width=True, hide_index=True)
 
 elif section == T("nav_users"):
     st.subheader(T("nav_users"))

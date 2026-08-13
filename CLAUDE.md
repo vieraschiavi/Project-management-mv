@@ -51,16 +51,20 @@ para BI son reales.
 > `MV_ProjectManagement.bat` y lo que hay en `packaging/` son para Windows
 > (PyInstaller + Inno Setup); no corren en este entorno Linux.
 > No hay `.env.example` en el repo: las claves (`ANTHROPIC_API_KEY`,
-> `OPENAI_API_KEY`+`OPENAI_MODEL`, `GEMINI_API_KEY`+`GEMINI_MODEL`,
+> `OPENAI_API_KEY`, `GEMINI_API_KEY`, `XAI_API_KEY`, `GITHUB_MODELS_TOKEN`,
 > `MP_ACCESS_TOKEN`, `MP_LINK_PROFESSIONAL`) se exportan como variables de
-> entorno — el producto funciona sin ninguna de ellas configurada.
+> entorno — el producto funciona sin ninguna de ellas configurada. El modelo
+> de cada proveedor se elige desde la pantalla **Configuración de IA**
+> (`mvpm/modelos.py`) y también acepta variable de entorno
+> (`ANTHROPIC_MODEL`, `OPENAI_MODEL`, `GEMINI_MODEL`, `XAI_MODEL`,
+> `GITHUB_MODELS_MODEL`); lo elegido en la pantalla le gana.
 
 ## Estructura
 
 ```
 mvpm/                 motor de dominio (catálogo, salud, dependencias, backlog,
                         copiloto, políticas, glosario, auth, licencias, db,
-                        i18n, PMBOK, gobernanza, organigrama, demos)
+                        i18n, PMBOK, gobernanza, organigrama, modelos de IA, demos)
 app/app.py            dashboard operativo (Streamlit)
 api/main.py           API REST local para BI (Power BI, Tableau, Excel)
 api/checkout.js       checkout de MercadoPago (función serverless Vercel)

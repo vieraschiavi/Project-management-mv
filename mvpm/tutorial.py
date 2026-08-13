@@ -376,6 +376,35 @@ SECTIONS = [
         ],
     },
     {
+        "id": "nav_config_ia",
+        "titulo": "Configuración de IA",
+        "resumen": "Elegir qué modelo usa cada proveedor de IA que tengas configurado, para "
+                   "regular cuánto gastás en tokens. La lista sale de tu propia API.",
+        "pasos": [
+            "Sólo aparecen los proveedores cuya clave tengas exportada: Claude "
+            "(ANTHROPIC_API_KEY), ChatGPT (OPENAI_API_KEY), Gemini (GEMINI_API_KEY), Grok "
+            "(XAI_API_KEY) y Copilot / GitHub Models (GITHUB_MODELS_TOKEN).",
+            "Tocá «Actualizar modelos desde mi API»: el programa le pregunta a tu proveedor "
+            "qué modelos tiene habilitados TU clave, y con esa respuesta arma la lista.",
+            "Elegí el modelo y guardá. Desde ese momento lo usan el Asistente IA, el "
+            "Copiloto, Gobernanza y Organigrama.",
+            "Si tu proveedor no lista modelos, o querés uno que no aparece, escribí el "
+            "identificador a mano: lo escrito a mano le gana a lo elegido en la lista.",
+        ],
+        "tips": [
+            "El programa no trae ninguna lista de modelos precargada, y es a propósito: los "
+            "catálogos cambian todos los meses y no todas las claves tienen habilitados los "
+            "mismos modelos. Una lista inventada te ofrecería modelos que tu clave no puede "
+            "usar y te escondería los que sí.",
+            "El modelo es la palanca principal del gasto: dentro de un mismo proveedor, el "
+            "más caro y el más barato se llevan más de un orden de magnitud por token.",
+            "Cada cambio queda guardado como una versión nueva por empresa, con quién lo "
+            "hizo y cuándo — igual que gobernanza y organigrama. No se pisa el historial.",
+            "Nada de esto afecta al motor de reglas: salud, dependencias, backlog y políticas "
+            "se calculan sin IA y no gastan un token.",
+        ],
+    },
+    {
         "id": "nav_import",
         "titulo": "Importar datos",
         "resumen": "Subir proyectos o tareas desde tu CSV/Excel tal como lo tenés — sin "

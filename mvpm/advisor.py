@@ -2,7 +2,8 @@
 """Asistente de sugerencias: detecta problemas reales del portafolio (motor de
 reglas, siempre disponible) y redacta una sugerencia de acción — con un motor
 de reglas por defecto, o pulida por el proveedor de IA que el usuario elija
-(Claude, ChatGPT o Gemini, según qué clave tenga configurada). Mismo
+(Claude, ChatGPT, Gemini, Grok o Copilot, según qué clave tenga configurada, y
+con el modelo que haya elegido en Configuración). Mismo
 principio que `copilot.py`: la IA nunca inventa el problema ni el número que
 lo sustenta, sólo redacta mejor la acción sugerida sobre el dato real.
 
@@ -14,7 +15,7 @@ import os
 
 import pandas as pd
 
-from . import catalog, dependencies as dep_mod, health, policies
+from . import ai, catalog, dependencies as dep_mod, health, policies
 
 _SUGERENCIAS = {
     "bloqueo": "Desbloqueá '{titulo}' antes que nada: frena a {impacto} tarea(s) más — "
@@ -84,95 +85,50 @@ def _texto_base(problema: dict) -> str:
     return _SUGERENCIAS[problema["tipo"]].format(titulo=problema["titulo"], **problema["contexto"])
 
 
-def _enrich_claude(texto: str) -> str | None:
-    try:
-        import anthropic  # type: ignore
-    except ImportError:
-        return None
-    try:
-        client = anthropic.Anthropic()
-        msg = client.messages.create(
-            model="claude-opus-4-8",
-            max_tokens=200,
-            output_config={"effort": "low"},
-            system="Redactás en español rioplatense, tono directo y profesional. "
-                   "Nunca agregues cifras que no estén en el texto base.",
-            messages=[{"role": "user", "content":
-                       f"Sugerencia del motor de reglas: {texto}\n"
-                       "Redactala en 1-2 frases más naturales, sin inventar números nuevos."}],
-        )
-        return msg.content[0].text if msg.content else None
-    except Exception:
-        return None
+# El pedido de redacción es idéntico para todos los proveedores: lo único que
+# cambiaba entre las tres versiones que había acá era el dialecto del SDK, y de
+# eso ahora se encarga ai.completar(). La instrucción de no inventar cifras va
+# en el mensaje de sistema, no como sugerencia: es la regla de honestidad de
+# datos del producto aplicada a la capa de IA.
+_SISTEMA = ("Redactás en español rioplatense, tono directo y profesional. "
+            "Nunca agregues cifras que no estén en el texto base.")
+
+_PEDIDO = ("Sugerencia del motor de reglas: {texto}\n"
+           "Redactala en 1-2 frases más naturales, sin inventar números nuevos.")
+
+# Se derivan de la capa genérica para que agregar un proveedor allá alcance:
+# antes este módulo tenía su propia lista y su propia implementación por
+# proveedor, y cualquier alta había que hacerla dos veces.
+_PROVEEDORES = dict(ai._ENV_KEYS)
 
 
-def _enrich_openai(texto: str) -> str | None:
-    model = os.environ.get("OPENAI_MODEL")
-    if not model:
-        return None
-    try:
-        import openai  # type: ignore
-    except ImportError:
-        return None
-    try:
-        client = openai.OpenAI()
-        resp = client.chat.completions.create(
-            model=model,
-            max_tokens=200,
-            messages=[
-                {"role": "system", "content": "Redactás en español rioplatense, tono directo y "
-                                               "profesional. Nunca agregues cifras que no estén en el texto base."},
-                {"role": "user", "content": f"Sugerencia del motor de reglas: {texto}\n"
-                                             "Redactala en 1-2 frases más naturales, sin inventar números nuevos."},
-            ],
-        )
-        return resp.choices[0].message.content if resp.choices else None
-    except Exception:
-        return None
-
-
-def _enrich_gemini(texto: str) -> str | None:
-    model = os.environ.get("GEMINI_MODEL")
-    if not model:
-        return None
-    try:
-        import google.generativeai as genai  # type: ignore
-    except ImportError:
-        return None
-    try:
-        genai.configure(api_key=os.environ.get("GEMINI_API_KEY"))
-        client = genai.GenerativeModel(model)
-        resp = client.generate_content(
-            "Redactá en español rioplatense, tono directo y profesional, sin inventar cifras nuevas.\n"
-            f"Sugerencia del motor de reglas: {texto}\nRedactala en 1-2 frases más naturales.")
-        return resp.text if getattr(resp, "text", None) else None
-    except Exception:
-        return None
-
-
-_PROVEEDORES = {
-    "claude": (_enrich_claude, "ANTHROPIC_API_KEY"),
-    "chatgpt": (_enrich_openai, "OPENAI_API_KEY"),
-    "gemini": (_enrich_gemini, "GEMINI_API_KEY"),
-}
+def _enriquecer(texto: str, proveedor: str) -> str | None:
+    return ai.completar(_SISTEMA, _PEDIDO.format(texto=texto), proveedor, max_tokens=200)
 
 
 def proveedores_disponibles() -> list[str]:
     """Sólo lista proveedores con su clave configurada — nunca se ofrece uno
-    que vaya a fallar en silencio."""
-    return [nombre for nombre, (_, env_key) in _PROVEEDORES.items() if os.environ.get(env_key)]
+    que vaya a fallar en silencio.
+
+    Más laxo que `ai.proveedores_disponibles()`, que además exige tener un
+    modelo resuelto: acá alcanza con la clave porque si falta el modelo la
+    sugerencia igual sale del motor de reglas, que es el comportamiento
+    correcto y no un error."""
+    return [nombre for nombre, env_key in _PROVEEDORES.items() if os.environ.get(env_key)]
 
 
 def sugerir(problema: dict, proveedor: str | None = None) -> dict:
     """Devuelve {sugerencia, ai_enriched, proveedor}. El motor de reglas
     responde siempre — la IA es una capa de redacción opcional que nunca
-    reemplaza el texto base si no está disponible o falla."""
+    reemplaza el texto base si no está disponible o falla.
+
+    El modelo lo decide `mvpm/modelos.py` (lo elegido en Configuración, o la
+    variable de entorno del proveedor)."""
     base = _texto_base(problema)
     resultado = {"sugerencia": base, "ai_enriched": False, "proveedor": None}
     if proveedor and proveedor in _PROVEEDORES:
-        fn, env_key = _PROVEEDORES[proveedor]
-        if os.environ.get(env_key):
-            enriched = fn(base)
+        if os.environ.get(_PROVEEDORES[proveedor]):
+            enriched = _enriquecer(base, proveedor)
             if enriched:
                 resultado = {"sugerencia": enriched, "ai_enriched": True, "proveedor": proveedor}
     return resultado
