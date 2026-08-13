@@ -1,3 +1,4 @@
+// © 2026 Martín Viera. Todos los derechos reservados.
 // Tests de la emisión de licencias tras un pago (api/verify-payment.js).
 //
 // Se corre con `node tests/test_verify_payment.js` (sin framework: es el único

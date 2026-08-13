@@ -1,3 +1,4 @@
+// © 2026 Martín Viera. Todos los derechos reservados.
 // Rate limiting para las funciones serverless públicas.
 //
 // ALCANCE REAL (importante, para no sobrevender esto): el estado vive en la

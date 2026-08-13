@@ -1,3 +1,4 @@
+// © 2026 Martín Viera. Todos los derechos reservados.
 // Registro de pagos ya canjeados por una licencia — idempotencia de
 // api/verify-payment.js.
 //

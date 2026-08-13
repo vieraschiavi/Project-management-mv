@@ -1,3 +1,4 @@
+# © 2026 Martín Viera. Todos los derechos reservados.
 """Genera el par de claves Ed25519 con el que se firman las licencias.
 
 Se corre UNA sola vez, en la máquina del dueño del producto:

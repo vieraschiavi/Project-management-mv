@@ -1,3 +1,4 @@
+# © 2026 Martín Viera. Todos los derechos reservados.
 """Gobernanza de definiciones: cada concepto de gestión de proyectos viene con
 una definición YA PREESTABLECIDA de fábrica (correcta, lista para usar), y
 sobre esa base:

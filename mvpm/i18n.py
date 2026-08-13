@@ -1,3 +1,4 @@
+# © 2026 Martín Viera. Todos los derechos reservados.
 """Diccionario de traducciones de la app (ES/EN/PT) con fallback a español."""
 
 _STRINGS = {

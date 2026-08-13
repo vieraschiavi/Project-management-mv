@@ -1,3 +1,4 @@
+# © 2026 Martín Viera. Todos los derechos reservados.
 """Compila mvpm/*.py a extensiones nativas (Cython) para los builds de
 Windows (ver .github/workflows/build_windows.yml y build_electron.yml).
 

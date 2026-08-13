@@ -1,3 +1,4 @@
+# © 2026 Martín Viera. Todos los derechos reservados.
 """`packaging/mvpm_launcher.py` es el punto de entrada del .exe (PyInstaller) y
 de la ventana de Electron. Nada de lo que hace se ejercita corriendo la app
 desde el repo, así que sus fallas aparecen recién en el instalador ya

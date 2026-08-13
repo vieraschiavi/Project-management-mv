@@ -1,3 +1,4 @@
+# © 2026 Martín Viera. Todos los derechos reservados.
 """Datos sintéticos deterministas para demo — con defectos inyectados a propósito
 (tareas sin dueño, hitos vencidos, dependencias huérfanas) para que el motor de
 salud tenga algo real que detectar. Ningún dato corresponde a una persona u

@@ -1,3 +1,4 @@
+# © 2026 Martín Viera. Todos los derechos reservados.
 """Centro de adopción: qué se automatiza solo, qué necesita un empujón, y qué
 es puramente humano — más los guiones (speeches) que cierran esa parte humana
 que ningún software resuelve solo. Mismo patrón que `help_center.py` de

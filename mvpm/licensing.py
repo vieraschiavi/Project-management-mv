@@ -1,3 +1,4 @@
+# © 2026 Martín Viera. Todos los derechos reservados.
 """Licencias y plan de créditos de IA — mismo patrón que `backend_venta/licencias.py`
 de MV Kobra AI: el core del producto (catálogo, salud, dependencias, backlog,
 políticas) no requiere licencia y no tiene cupo. Lo que se mide y factura es

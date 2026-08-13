@@ -1,3 +1,4 @@
+# © 2026 Martín Viera. Todos los derechos reservados.
 """Configuración común de la suite.
 
 Las licencias se firman con Ed25519 (`mvpm/licensing.py`): hay una clave

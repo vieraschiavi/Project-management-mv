@@ -1,3 +1,4 @@
+# © 2026 Martín Viera. Todos los derechos reservados.
 """Tests de las plantillas de gobernanza por rubro.
 
 Buena parte son tests de integridad del contenido. Puede parecer poco, pero es

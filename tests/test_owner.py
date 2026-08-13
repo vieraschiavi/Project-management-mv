@@ -1,3 +1,4 @@
+# © 2026 Martín Viera. Todos los derechos reservados.
 """Edición Owner (mvpm/owner.py): el dueño usa su producto sin candado.
 
 Dos cosas que fijar, y la segunda importa más que la primera:

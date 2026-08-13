@@ -1,3 +1,4 @@
+# © 2026 Martín Viera. Todos los derechos reservados.
 """Base de datos real (SQLite) para proyectos, tareas y usuarios.
 
 Reemplaza a `demo_data.py` como fuente de datos operativa — pero devuelve

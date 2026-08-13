@@ -1,3 +1,4 @@
+# © 2026 Martín Viera. Todos los derechos reservados.
 """Borra los .py de mvpm/ ya compilados a .pyd/.so, para que el instalador
 sólo empaquete el binario — nunca el código fuente en texto plano.
 

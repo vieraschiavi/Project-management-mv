@@ -1,3 +1,4 @@
+# © 2026 Martín Viera. Todos los derechos reservados.
 """Verifica, de punta a punta, que Power BI va a poder leer este portafolio.
 
 Hace exactamente lo que hace el conector Web de Power BI —un GET HTTP a cada

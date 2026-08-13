@@ -1,3 +1,4 @@
+# © 2026 Martín Viera. Todos los derechos reservados.
 """Reseñas y calificación de usuarios reales.
 
 Principio de honestidad (igual que Kobra/Data Governance MV): este módulo NUNCA

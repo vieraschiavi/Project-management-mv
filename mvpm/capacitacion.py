@@ -1,3 +1,4 @@
+# © 2026 Martín Viera. Todos los derechos reservados.
 """Capacitación por rol: currícula, guion de grabación y verificación.
 
 En cada implementación se repetía la misma capacitación en vivo, y encima

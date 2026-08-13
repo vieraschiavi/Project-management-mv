@@ -1,3 +1,4 @@
+// © 2026 Martín Viera. Todos los derechos reservados.
 // Tests de la emisión y verificación de licencias (api/_license.js).
 //
 // Es el módulo que decide quién tiene acceso pago, así que su firma es lo que

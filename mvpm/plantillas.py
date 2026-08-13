@@ -1,3 +1,4 @@
+# © 2026 Martín Viera. Todos los derechos reservados.
 """Plantillas de gobernanza por rubro, alineadas a PMBOK.
 
 Sin esto, cada implementación arranca en blanco: hay que sentarse con el cliente

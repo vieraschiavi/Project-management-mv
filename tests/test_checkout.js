@@ -1,3 +1,4 @@
+// © 2026 Martín Viera. Todos los derechos reservados.
 // Tests del checkout de MercadoPago (api/checkout.js).
 //
 // Es el endpoint que genera el link de pago: si acepta un plan que no existe,

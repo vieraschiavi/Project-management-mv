@@ -1,3 +1,4 @@
+# © 2026 Martín Viera. Todos los derechos reservados.
 # -*- mode: python ; coding: utf-8 -*-
 # Spec de PyInstaller — compila en un runner Windows (ver
 # .github/workflows/build_windows.yml). No se puede compilar el .exe final

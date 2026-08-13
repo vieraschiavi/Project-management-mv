@@ -371,7 +371,7 @@ Facebook, que además fuerzan a que refresquen su caché.
 
 ## Licencia
 
-Software propietario — ver [`LICENSE.txt`](LICENSE.txt). El instalador de
+Software propietario — ver [`LICENSE`](LICENSE). El instalador de
 Windows muestra y requiere aceptar el [EULA](packaging/EULA.txt) antes de
 instalar. El paquete `mvpm/` que corre dentro de los instaladores (Windows
 y Electron) se compila a binario nativo con Cython en CI para no

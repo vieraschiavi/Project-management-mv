@@ -1,3 +1,4 @@
+# © 2026 Martín Viera. Todos los derechos reservados.
 """El contrato que Power BI (y Tableau/Excel) consumen.
 
 Los `.pbids` de `distribucion/powerbi/` son archivos con URLs escritas a mano:

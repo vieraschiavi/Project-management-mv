@@ -1,3 +1,4 @@
+# © 2026 Martín Viera. Todos los derechos reservados.
 """Abre el dashboard como una ventana de programa, no como una pestaña.
 
 El problema que resuelve: el `.exe` instalado hacía `webbrowser.open(url)`. Eso

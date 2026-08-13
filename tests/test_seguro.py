@@ -1,3 +1,4 @@
+# © 2026 Martín Viera. Todos los derechos reservados.
 """Regresión de mvpm/seguro.py — el punto de escape antes de insertar texto
 externo (reseñas, notas de gobernanza, organigrama importado) en un
 st.markdown/st.write.

@@ -1,3 +1,4 @@
+# © 2026 Martín Viera. Todos los derechos reservados.
 """Elección del puerto del dashboard, sin pisarle el puerto a otra aplicación.
 
 El programa se abre de cuatro formas (el `.exe` del instalador, el `.bat`

@@ -1,3 +1,4 @@
+# © 2026 Martín Viera. Todos los derechos reservados.
 """Los workflows de CI, tratados como código que puede romperse en silencio.
 
 Un workflow mal escrito no falla: simplemente no corre, o corre y no hace lo que

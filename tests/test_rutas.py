@@ -1,3 +1,4 @@
+# © 2026 Martín Viera. Todos los derechos reservados.
 """Dónde van los datos del programa (mvpm/rutas.py).
 
 El pedido que motiva este módulo: "la instalación debe ser 100% en el disco

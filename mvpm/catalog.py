@@ -1,3 +1,4 @@
+# © 2026 Martín Viera. Todos los derechos reservados.
 """Catálogo único de proyectos: dueño, sponsor, criticidad, presupuesto vs. ejecutado."""
 
 import pandas as pd

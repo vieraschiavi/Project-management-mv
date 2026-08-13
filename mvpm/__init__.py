@@ -1,3 +1,4 @@
+# © 2026 Martín Viera. Todos los derechos reservados.
 """MV Project Management — motor de gestión de proyectos con IA aditiva."""
 
 APP_NAME = "MV Project Management"

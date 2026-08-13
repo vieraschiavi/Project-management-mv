@@ -1,3 +1,4 @@
+# © 2026 Martín Viera. Todos los derechos reservados.
 """Copiloto de portafolio: responde preguntas en lenguaje natural sobre el
 estado real de los proyectos.
 

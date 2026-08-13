@@ -1,3 +1,4 @@
+# © 2026 Martín Viera. Todos los derechos reservados.
 import json
 import sys
 import time

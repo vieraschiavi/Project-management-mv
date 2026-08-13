@@ -1,3 +1,4 @@
+# © 2026 Martín Viera. Todos los derechos reservados.
 r"""Dónde vive el estado del programa en el disco.
 
 Todo dato que no es del negocio en sí —licencia, marcador de modo owner, base

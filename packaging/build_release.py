@@ -1,3 +1,4 @@
+# © 2026 Martín Viera. Todos los derechos reservados.
 """Genera el paquete portable descargable (ZIP con el launcher .bat + fuente).
 
 No requiere Windows ni PyInstaller — es la opción de distribución que se
@@ -17,7 +18,7 @@ DIST_DIR = ROOT / "dist"
 INCLUDE_DIRS = ["mvpm", "app", "api", "tests"]
 INCLUDE_FILES = [
     "MV_ProjectManagement.bat", "requirements.txt", "README.md", "run.sh",
-    "LICENSE.txt", "packaging/EULA.txt",
+    "LICENSE", "packaging/EULA.txt",
     # `run.sh owner` existe también en el paquete del cliente, así que el script
     # que invoca tiene que estar o el usuario ve un "no such file" en vez del
     # motivo real. Incluirlo no afloja nada: se niega a activar salvo desde un

@@ -1,3 +1,4 @@
+# © 2026 Martín Viera. Todos los derechos reservados.
 """Tests del importador guiado.
 
 El caso que importa es el último (`test_archivo_real_de_cliente`): un Excel con

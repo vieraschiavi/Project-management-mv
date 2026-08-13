@@ -1,3 +1,4 @@
+# © 2026 Martín Viera. Todos los derechos reservados.
 """Políticas de gestión verificadas contra evidencia real (no checkboxes manuales)."""
 
 from dataclasses import dataclass

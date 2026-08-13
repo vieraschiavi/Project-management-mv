@@ -1,3 +1,4 @@
+// © 2026 Martín Viera. Todos los derechos reservados.
 // Verificación de pago — nunca confía en el query string de retorno de
 // MercadoPago (`status=approved` en la URL es trivial de falsificar). Vuelve
 // a consultar el pago real contra la API de MercadoPago con el access token
