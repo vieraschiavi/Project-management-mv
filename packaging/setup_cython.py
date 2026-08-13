@@ -47,7 +47,40 @@ setup(
     name="mvpm_compiled",
     ext_modules=cythonize(
         MODULES,
-        compiler_directives={"language_level": "3"},
+        compiler_directives={
+            "language_level": "3",
+            # EL bug que rompia la demo en el programa instalado:
+            #
+            #   TypeError: Expected str, got float
+            #   mvpm/db.py:489 en cargar_datos_de_ejemplo
+            #
+            # Cython trae `annotation_typing` en True: interpreta las
+            # anotaciones PEP 484 como DECLARACIONES DE TIPO y las hace
+            # cumplir en runtime. CPython no: para el interprete son
+            # documentacion y no chequea nada.
+            #
+            # O sea que el binario que se instala tiene semantica distinta
+            # de todo lo que se prueba. `_id_para(nombre: str | None)`
+            # recibe el NaN de una fila sin dueno asignado -un float, caso
+            # legitimo que la primera linea del cuerpo maneja con
+            # pd.isna()- y compilado revienta ANTES de entrar al cuerpo.
+            #
+            # No es un caso aislado: hay 116 firmas anotadas en mvpm/, y
+            # ninguna la puede cubrir la suite, que corre en Python puro
+            # donde las anotaciones son inertes. Por eso el arreglo va aca
+            # y no en la funcion: apagar el enforcement alinea el binario
+            # con lo que se testea, en vez de ir corrigiendo anotaciones de
+            # a una a medida que exploten en la maquina de un usuario.
+            #
+            # Verificado compilando de verdad (Cython 3.2.9 + gcc), mismo
+            # modulo con y sin la directiva:
+            #   con enforcement -> TypeError: expected str, got float
+            #   sin enforcement -> None, y los str siguen andando igual
+            #
+            # No se pierde nada de la proteccion del codigo: la directiva
+            # cambia el chequeo de tipos, no la compilacion a binario.
+            "annotation_typing": False,
+        },
         build_dir=str(ROOT / "build" / "cython"),
     ),
 )
