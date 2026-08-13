@@ -60,8 +60,10 @@ jobs:
       - name: Compilar el motor (PyInstaller) — sin Node ni Python en la PC del usuario
         run: pyinstaller packaging/mvpm.spec --distpath dist --workpath build --noconfirm
 
-      - name: Copiar el ejecutable del motor a los recursos de Electron
-        run: Copy-Item dist/MVProjectManagement.exe desktop/resources/MVProjectManagement.exe
+      # PyInstaller ahora compila en onedir (ver packaging/mvpm.spec): deja una
+      # CARPETA, no un .exe suelto. Se copia entera a los recursos de Electron.
+      - name: Copiar el motor a los recursos de Electron
+        run: Copy-Item -Recurse -Force dist/MVProjectManagement desktop/resources/motor
 
       - uses: actions/setup-node@v4
         with:

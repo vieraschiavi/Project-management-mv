@@ -26,8 +26,8 @@
     ],
     "extraResources": [
       {
-        "from": "resources/MVProjectManagement.exe",
-        "to": "MVProjectManagement.exe"
+        "from": "resources/motor",
+        "to": "motor"
       }
     ],
     "win": {
