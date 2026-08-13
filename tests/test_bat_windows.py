@@ -104,3 +104,49 @@ def test_el_bat_que_viaja_en_el_zip_tambien_tiene_crlf():
                 crudo.decode("ascii")  # explota si hay no-ASCII
     finally:
         zip_path.unlink(missing_ok=True)
+
+
+# ------------------- que el owner reinstale donde ya estaba, no en C:
+
+def test_el_instalador_owner_detecta_la_instalacion_previa():
+    """Sin esto, `INSTALAR_OWNER.bat` mandaba SIEMPRE a `%LOCALAPPDATA%`
+    (que vive en C:) salvo que se le pasara la carpeta a mano.
+
+    O sea que quien instalaba en D: y volvía a correr el instalador —para
+    actualizar— terminaba con una SEGUNDA instalación en C:, los accesos
+    directos apuntando a la nueva, y la de D: muerta ocupando disco. No se le
+    preguntaba nada ni se le avisaba: simplemente reaparecía en C:.
+
+    Ahora se detecta sola leyendo a dónde apunta el acceso directo que dejó la
+    corrida anterior, y se reinstala ahí mismo.
+    """
+    bat = (RAIZ / "INSTALAR_OWNER.bat").read_text(encoding="ascii")
+
+    assert ":DETECTAR" in bat, "no existe la subrutina que detecta la instalación previa"
+    assert "call :DETECTAR" in bat, "la subrutina existe pero nunca se llama"
+    assert "CreateShortcut" in bat, (
+        "la detección no lee el acceso directo: sin eso no hay de dónde sacar "
+        "la carpeta donde el usuario había instalado")
+
+    # El argumento explícito tiene que seguir ganando: es la vía de escape
+    # para elegir otro disco a propósito.
+    assert bat.index('set "DESTINO=%~1"') < bat.index("call :DETECTAR"), (
+        "la detección corre antes de mirar el argumento: pisaría la carpeta "
+        "que el usuario eligió a mano")
+
+    # LOCALAPPDATA sigue existiendo, pero sólo como último recurso.
+    assert bat.index("call :DETECTAR") < bat.index('DESTINO=%LOCALAPPDATA%'), (
+        "%LOCALAPPDATA% (C:) se asigna antes de intentar detectar: volvería a "
+        "ganar C: aunque hubiera una instalación en otro disco")
+
+
+def test_la_deteccion_ignora_un_acceso_directo_colgado():
+    """Un acceso directo que apunta a una carpeta que el usuario ya borró no
+    es una instalación: si se aceptara, el instalador copiaría sobre una ruta
+    fantasma en vez de caer al destino por defecto."""
+    bat = (RAIZ / "INSTALAR_OWNER.bat").read_text(encoding="ascii")
+    assert ":DETECTAR" in bat, "no existe la subrutina de detección"
+    detectar = bat[bat.index(":DETECTAR"):]
+    assert "mvpm\\edicion.py" in detectar, (
+        "la detección no comprueba que la carpeta tenga el programa adentro: "
+        "un acceso directo colgado la haría instalar en una ruta fantasma")
