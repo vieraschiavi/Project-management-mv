@@ -1,3 +1,4 @@
+# © 2026 Martín Viera. Todos los derechos reservados.
 """Modo invitado: usar el producto sin crear cuenta (mvpm/invitado.py).
 
 Lo que se fija acá es la promesa de la landing: alguien sube su Excel y ve la

@@ -1,3 +1,4 @@
+# © 2026 Martín Viera. Todos los derechos reservados.
 """Autenticación con usuario y contraseña sobre la base local (`mvpm/db.py`).
 
 Sin dependencias nuevas: hash de contraseña con PBKDF2-HMAC-SHA256 (stdlib

@@ -1,3 +1,4 @@
+# © 2026 Martín Viera. Todos los derechos reservados.
 """Exportación uniforme a CSV/Excel/JSON — mismo dato para dashboard, API y BI."""
 
 import io

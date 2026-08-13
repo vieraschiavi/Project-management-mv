@@ -1,3 +1,4 @@
+// © 2026 Martín Viera. Todos los derechos reservados.
 // Descarga del instalador de Windows — función serverless (Vercel, CommonJS).
 //
 // El repo es privado a propósito, así que un link directo a un asset de

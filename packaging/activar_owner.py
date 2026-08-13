@@ -1,3 +1,4 @@
+# © 2026 Martín Viera. Todos los derechos reservados.
 """Activa el modo dueño en ESTA máquina, sin pedirle nada al que lo corre.
 
 Es lo que ejecutan `./run.sh owner` y `MV_ProjectManagement_OWNER.bat`. La

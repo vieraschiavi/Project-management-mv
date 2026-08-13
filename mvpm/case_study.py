@@ -1,3 +1,4 @@
+# © 2026 Martín Viera. Todos los derechos reservados.
 """Caso de uso completo: recorre las herramientas del programa sobre UN
 proyecto real (o el más comprometido del portafolio, si no se elige uno),
 para que alguien nuevo vea el flujo completo de punta a punta — no una

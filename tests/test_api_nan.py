@@ -1,3 +1,4 @@
+# © 2026 Martín Viera. Todos los derechos reservados.
 """La API de BI no puede caerse por una celda numérica vacía.
 
 Bug real que esto fija: un proyecto recién creado, sin presupuesto cargado

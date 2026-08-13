@@ -1,3 +1,4 @@
+# © 2026 Martín Viera. Todos los derechos reservados.
 """Consistencia de los instaladores de Windows (packaging/*.iss).
 
 Inno Setup sólo compila en Windows, así que la compilación real la hace CI

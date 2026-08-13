@@ -1,3 +1,4 @@
+# © 2026 Martín Viera. Todos los derechos reservados.
 """Glosario compartido: qué significa cada estado, igual para todo el equipo."""
 
 import pandas as pd

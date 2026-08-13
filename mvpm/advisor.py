@@ -1,3 +1,4 @@
+# © 2026 Martín Viera. Todos los derechos reservados.
 """Asistente de sugerencias: detecta problemas reales del portafolio (motor de
 reglas, siempre disponible) y redacta una sugerencia de acción — con un motor
 de reglas por defecto, o pulida por el proveedor de IA que el usuario elija

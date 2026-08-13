@@ -1,3 +1,4 @@
+# © 2026 Martín Viera. Todos los derechos reservados.
 """La ventana del programa (mvpm/ventana.py).
 
 Lo que se fija acá es una promesa de producto, no un detalle técnico: quien

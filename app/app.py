@@ -1,3 +1,4 @@
+# © 2026 Martín Viera. Todos los derechos reservados.
 """MV Project Management — dashboard operativo (Streamlit).
 
 Un único motor (mvpm/) alimenta este dashboard, la API REST (api/main.py) y

@@ -1,3 +1,4 @@
+# © 2026 Martín Viera. Todos los derechos reservados.
 """Pestaña "Demo reales": corre el motor sobre datos públicos reales, no
 sintéticos — para que se vea cómo se comporta con proyectos que existieron
 de verdad, con sus propios problemas documentados.

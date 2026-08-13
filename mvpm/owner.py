@@ -1,3 +1,4 @@
+# © 2026 Martín Viera. Todos los derechos reservados.
 """Edición Owner: la instalación del dueño del producto, sin candado de licencia.
 
 El dueño usa su propio programa todos los días —para su portafolio real, para

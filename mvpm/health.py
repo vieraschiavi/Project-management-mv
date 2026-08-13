@@ -1,3 +1,4 @@
+# © 2026 Martín Viera. Todos los derechos reservados.
 """Salud de proyecto en 6 dimensiones (alcance, cronograma, presupuesto, riesgo,
 dependencias, equipo) — motor de reglas determinístico, sin dependencia de IA.
 Cada dimensión devuelve un score 0-100; el índice de salud es el promedio.

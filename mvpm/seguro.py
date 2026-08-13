@@ -1,3 +1,4 @@
+# © 2026 Martín Viera. Todos los derechos reservados.
 """Escape explícito para texto externo que se interpola en un st.markdown/st.write.
 
 Streamlit ya neutraliza HTML crudo y esquemas `javascript:` en links markdown

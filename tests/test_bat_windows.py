@@ -1,3 +1,4 @@
+# © 2026 Martín Viera. Todos los derechos reservados.
 """Los `.bat` tienen que poder correr en Windows, que es donde se usan.
 
 Este archivo existe por un bug que estuvo desde el primer commit y que nadie

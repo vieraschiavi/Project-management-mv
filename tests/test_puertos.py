@@ -1,3 +1,4 @@
+# © 2026 Martín Viera. Todos los derechos reservados.
 """Elección de puerto (mvpm/puertos.py): no pisarle el puerto a otra app.
 
 El programa se abre de cuatro formas —el `.exe`, el `.bat` portable,

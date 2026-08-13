@@ -1,3 +1,4 @@
+# © 2026 Martín Viera. Todos los derechos reservados.
 """Importador guiado: convierte un archivo del cliente en filas cargables.
 
 El importador viejo exigía que el archivo ya viniera con los nombres de columna

@@ -1,3 +1,4 @@
+# © 2026 Martín Viera. Todos los derechos reservados.
 """Capa genérica de IA multi-proveedor (Claude / ChatGPT / Gemini).
 
 Mismo principio que el resto del producto: la IA es SIEMPRE opcional y aditiva.

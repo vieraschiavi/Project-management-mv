@@ -1,3 +1,4 @@
+# © 2026 Martín Viera. Todos los derechos reservados.
 """Tests de los conectores a ERP.
 
 Lo que estos tests SÍ verifican: las conversiones de fecha y monto, el armado

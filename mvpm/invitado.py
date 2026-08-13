@@ -1,3 +1,4 @@
+# © 2026 Martín Viera. Todos los derechos reservados.
 """Modo invitado: usar el producto sin crear cuenta.
 
 Por qué existe: antes, para ver el propio portafolio había que crear una cuenta

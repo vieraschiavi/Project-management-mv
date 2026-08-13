@@ -1,3 +1,4 @@
+# © 2026 Martín Viera. Todos los derechos reservados.
 """Reporte ejecutivo del portafolio — texto plano estructurado, listo para
 convertir a PDF o pegar en un email gerencial. Generado del dato real, no
 armado a mano."""

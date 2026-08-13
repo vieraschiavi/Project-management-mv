@@ -1,3 +1,4 @@
+# © 2026 Martín Viera. Todos los derechos reservados.
 """PMBOK (Project Management Body of Knowledge, guía del PMI), en dos registros:
 
   - **técnico**: la definición formal de cada área de conocimiento y de cada

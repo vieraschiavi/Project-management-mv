@@ -1,3 +1,4 @@
+// © 2026 Martín Viera. Todos los derechos reservados.
 // Proceso principal de Electron — envuelve el mismo motor Python/Streamlit
 // en una ventana nativa (sin barra de navegador, ícono propio) en vez de
 // abrir una pestaña del navegador del sistema, que es lo que hace hoy el

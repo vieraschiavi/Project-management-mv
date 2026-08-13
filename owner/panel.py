@@ -1,3 +1,4 @@
+# © 2026 Martín Viera. Todos los derechos reservados.
 """Panel del OWNER — administración de licencias y cobros.
 
 ⚠️ ESTE ARCHIVO NO SE DISTRIBUYE AL CLIENTE.

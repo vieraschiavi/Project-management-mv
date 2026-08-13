@@ -1,3 +1,4 @@
+# © 2026 Martín Viera. Todos los derechos reservados.
 """Seguridad de la API REST de BI (api/main.py).
 
 La API sirve el portafolio completo del cliente. Antes escuchaba en 0.0.0.0

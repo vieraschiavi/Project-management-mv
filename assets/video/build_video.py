@@ -1,3 +1,4 @@
+# © 2026 Martín Viera. Todos los derechos reservados.
 """
 MV Project Management · Generador del video demo (PIL + imageio-ffmpeg) con
 narración en los 3 idiomas del producto (Piper TTS: es_AR "daniela",

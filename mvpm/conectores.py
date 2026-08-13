@@ -1,3 +1,4 @@
+# © 2026 Martín Viera. Todos los derechos reservados.
 """Conectores a los ERP más usados: SAP, Oracle, Dynamics y JD Edwards.
 
 Sin esto, cada implementación arranca con alguien escribiendo a mano la consulta

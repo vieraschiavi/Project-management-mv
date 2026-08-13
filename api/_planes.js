@@ -1,3 +1,4 @@
+// © 2026 Martín Viera. Todos los derechos reservados.
 // Catálogo de planes VENDIBLES online y su precio esperado.
 //
 // Vive en un módulo aparte a propósito: antes checkout.js sabía qué se puede

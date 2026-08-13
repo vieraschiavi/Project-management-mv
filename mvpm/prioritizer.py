@@ -1,3 +1,4 @@
+# © 2026 Martín Viera. Todos los derechos reservados.
 """Priorización de backlog por valor esperado (impacto × urgencia × riesgo),
 no por orden de llegada ni por quién insiste más. Motor de reglas, sin IA.
 """

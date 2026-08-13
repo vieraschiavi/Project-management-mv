@@ -1,3 +1,4 @@
+# © 2026 Martín Viera. Todos los derechos reservados.
 """API REST local para conectar Power BI/Tableau/Looker u otra herramienta de
 BI al mismo motor que usa el dashboard. Corre en la PC/servidor del cliente.
 

@@ -1,3 +1,4 @@
+# © 2026 Martín Viera. Todos los derechos reservados.
 """Pestaña de tutorial: contenido explicado paso a paso de cada herramienta
 real del producto — no un texto de marketing, una guía operativa. Un
 elemento por sección del dashboard (y por herramienta que vive fuera del nav

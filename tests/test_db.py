@@ -1,3 +1,4 @@
+# © 2026 Martín Viera. Todos los derechos reservados.
 import io
 import json
 import sys

@@ -1,3 +1,4 @@
+# © 2026 Martín Viera. Todos los derechos reservados.
 """Grafo de dependencias entre tareas: qué bloquea a qué, y simulación de impacto
 si una tarea se atrasa. Grafo dirigido simple (tarea -> depende_de).
 """

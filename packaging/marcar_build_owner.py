@@ -1,3 +1,4 @@
+# © 2026 Martín Viera. Todos los derechos reservados.
 """Marca ESTE build como Owner Edition, poniendo `ES_OWNER_BUILD` en True.
 
 Lo corre `.github/workflows/build_windows_owner.yml` justo ANTES de compilar

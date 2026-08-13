@@ -1,3 +1,4 @@
+# © 2026 Martín Viera. Todos los derechos reservados.
 """Demo con datos reales de un laboratorio multinacional: ensayos clínicos.
 
 Un ensayo clínico ES un proyecto — tiene sponsor (un laboratorio como

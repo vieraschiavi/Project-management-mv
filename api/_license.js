@@ -1,3 +1,4 @@
+// © 2026 Martín Viera. Todos los derechos reservados.
 // Licencias firmadas — mismo esquema que mvpm/licensing.py en Python
 // (formato "MVPM2.<payload_b64url>.<firma_b64url>").
 //

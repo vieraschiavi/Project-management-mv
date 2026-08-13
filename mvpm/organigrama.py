@@ -1,3 +1,4 @@
+# © 2026 Martín Viera. Todos los derechos reservados.
 """Organigrama: se carga desde Excel/CSV/SQL (o se pega una tabla), la IA lo
 investiga y AUTOCOMPLETA por defecto quién es responsable de cada etapa del
 proyecto — y todo eso queda editable y guardado por empresa, con versión.

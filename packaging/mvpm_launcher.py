@@ -1,3 +1,4 @@
+# © 2026 Martín Viera. Todos los derechos reservados.
 """Punto de entrada del programa empaquetado (instalador .exe o portable).
 
 Mismo patrón que `kobra_launcher.py` de MV Kobra AI: busca un puerto libre,

@@ -1,3 +1,4 @@
+# © 2026 Martín Viera. Todos los derechos reservados.
 # -*- mode: python ; coding: utf-8 -*-
 # Spec de PyInstaller para el build "Owner Edition" — mismo motor que
 # packaging/mvpm.spec (el que baja un cliente).

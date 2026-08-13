@@ -1,3 +1,4 @@
+# © 2026 Martín Viera. Todos los derechos reservados.
 """`run.sh` es el único punto de entrada documentado en Linux/Mac (CLAUDE.md y
 README lo usan para instalar, correr, testear y empaquetar). Estos tests fijan
 que el flujo documentado funcione en una máquina limpia.

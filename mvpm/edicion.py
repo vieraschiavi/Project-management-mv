@@ -1,3 +1,4 @@
+# © 2026 Martín Viera. Todos los derechos reservados.
 """Qué edición es ESTE binario. Se decide al compilar, no al ejecutar.
 
 `ES_OWNER_BUILD` vale False en el repositorio y en todo lo que recibe un
