@@ -38,11 +38,40 @@ if errorlevel 1 (
     exit /b 1
 )
 
-rem Destino: se puede pasar como argumento para elegir carpeta o disco.
-rem   INSTALAR_OWNER.bat "D:\Programas\MV Owner"
-set "DESTINO=%~1"
-if "%DESTINO%"=="" set "DESTINO=%LOCALAPPDATA%\MV Project Management Owner"
+rem --------------------------------------------------------------------
+rem Donde instalar. Tres fuentes, en orden de prioridad:
+rem
+rem   1. El argumento, si se paso: INSTALAR_OWNER.bat "D:\Programas\MV Owner"
+rem   2. La instalacion que YA exista en esta PC. Se detecta sola: se lee a
+rem      donde apunta el acceso directo que dejo la corrida anterior.
+rem   3. %LOCALAPPDATA%, que vive en C:.
+rem
+rem El paso 2 es el que faltaba. Sin el, quien habia instalado en D: y volvia
+rem a correr esto se encontraba con una SEGUNDA instalacion en C:, con los
+rem accesos directos apuntando a la nueva y la vieja quedando muerta en disco.
+rem Nunca se le preguntaba nada ni se le avisaba: simplemente reaparecia en C:.
+rem --------------------------------------------------------------------
+set "MENU=%APPDATA%\Microsoft\Windows\Start Menu\Programs"
+set "LNK_MENU=%MENU%\MV Project Management (Owner).lnk"
+set "LNK_ESCRITORIO=%USERPROFILE%\Desktop\MV Project Management (Owner).lnk"
 
+set "DESTINO=%~1"
+if not "%DESTINO%"=="" goto :TIENE_DESTINO
+
+call :DETECTAR "%LNK_MENU%"
+if "%DESTINO%"=="" call :DETECTAR "%LNK_ESCRITORIO%"
+if "%DESTINO%"=="" goto :SIN_PREVIA
+
+echo Se detecto una instalacion anterior y se va a reinstalar ahi mismo,
+echo en el disco que ya habias elegido:
+echo   %DESTINO%
+echo.
+goto :TIENE_DESTINO
+
+:SIN_PREVIA
+set "DESTINO=%LOCALAPPDATA%\MV Project Management Owner"
+
+:TIENE_DESTINO
 echo Se va a instalar en:
 echo   %DESTINO%
 echo.
@@ -165,6 +194,26 @@ echo   owner. No lo repartas, es tu copia completa.
 echo.
 pause
 start "" "%LANZADOR%"
+exit /b 0
+
+:DETECTAR
+rem Deja en %DESTINO% la CARPETA a la que apunta un acceso directo, si esa
+rem carpeta todavia existe y tiene el programa adentro.
+rem
+rem Un acceso directo colgado no cuenta: si el usuario borro la carpeta a
+rem mano, se ignora y se sigue con la fuente siguiente. Por eso se exige que
+rem exista mvpm\edicion.py y no solo la carpeta: una carpeta vacia que quedo
+rem de un desinstalado a medias tampoco es una instalacion.
+if not exist "%~1" exit /b 0
+set "OBJETIVO="
+for /f "usebackq delims=" %%P in (`powershell -NoProfile -ExecutionPolicy Bypass -Command "try { (New-Object -ComObject WScript.Shell).CreateShortcut('%~1').TargetPath } catch { }" 2^>nul`) do set "OBJETIVO=%%P"
+if "%OBJETIVO%"=="" exit /b 0
+rem %%~dpF da unidad+ruta con barra al final; se saca para no duplicarla.
+for %%F in ("%OBJETIVO%") do set "CARPETA=%%~dpF"
+if "%CARPETA%"=="" exit /b 0
+if "%CARPETA:~-1%"=="\" set "CARPETA=%CARPETA:~0,-1%"
+if not exist "%CARPETA%\mvpm\edicion.py" exit /b 0
+set "DESTINO=%CARPETA%"
 exit /b 0
 
 :ACCESO
