@@ -3,6 +3,10 @@
 # Spec de PyInstaller para el build "Owner Edition" — mismo motor que
 # packaging/mvpm.spec (el que baja un cliente).
 #
+# onedir por la misma razón que el de cliente (ver el comentario largo en
+# packaging/mvpm.spec): onefile descomprimía todo a %TEMP% —siempre en C:— en
+# cada arranque, y ahí fallaba con "decompression resulted in return code -1".
+#
 # Antes empaquetaba packaging/OWNER_EDITION junto al .exe: un marcador firmado
 # que desbloqueaba el producto con sólo estar ahí. Eso se sacó. Dos razones, y
 # la segunda sola ya alcanza:
@@ -75,20 +79,17 @@ a = Analysis(
 )
 pyz = PYZ(a.pure, a.zipped_data, cipher=block_cipher)
 
+# `exclude_binaries=True` + COLLECT = onedir (ver mvpm.spec).
 exe = EXE(
     pyz,
     a.scripts,
-    a.binaries,
-    a.zipfiles,
-    a.datas,
     [],
+    exclude_binaries=True,
     name='MVProjectManagementOwner',
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
     upx=False,
-    upx_exclude=[],
-    runtime_tmpdir=None,
     console=False,
     disable_windowed_traceback=False,
     argv_emulation=False,
@@ -96,4 +97,15 @@ exe = EXE(
     codesign_identity=None,
     entitlements_file=None,
     icon=ICON,
+)
+
+coll = COLLECT(
+    exe,
+    a.binaries,
+    a.zipfiles,
+    a.datas,
+    strip=False,
+    upx=False,
+    upx_exclude=[],
+    name='MVProjectManagementOwner',
 )

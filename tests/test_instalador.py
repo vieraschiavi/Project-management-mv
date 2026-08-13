@@ -72,24 +72,79 @@ def test_el_eula_existe_y_es_obligatorio(iss):
     assert (PACKAGING / ruta.replace("\\", "/")).exists()
 
 
+def _bloque(texto: str, constructor: str) -> str:
+    """El cuerpo de una llamada `CONSTRUCTOR(...)` de un .spec, hasta el
+    paréntesis de cierre a principio de renglón."""
+    m = re.search(rf"\b{constructor}\((.*?)^\)", texto, re.MULTILINE | re.DOTALL)
+    return m.group(1) if m else ""
+
+
+def _nombre_de(texto: str, constructor: str) -> str | None:
+    m = re.search(r"name=['\"]([^'\"]+)['\"]", _bloque(texto, constructor))
+    return m.group(1) if m else None
+
+
+@pytest.mark.parametrize("spec", sorted(PACKAGING.glob("*.spec")), ids=lambda p: p.name)
+def test_los_spec_compilan_en_onedir_y_no_en_onefile(spec):
+    """EL bug que rompió la instalación en la máquina de un usuario:
+
+        Failed to extract mvpm\\policies.cp311-win_amd64.pyd:
+        decompression resulted in return code -1!
+
+    En onefile el .exe lleva todo comprimido adentro y lo descomprime a
+    %TEMP%\\_MEIxxxxxx en CADA arranque; ahí es donde fallaba. Y como %TEMP%
+    vive en C:, el programa escribía ~350 MB en C: aunque estuviera instalado
+    en otro disco — o sea que "no usar el disco C" era imposible por
+    construcción, no una preferencia.
+
+    onedir no descomprime nada: los archivos quedan en la carpeta de
+    instalación, en el disco que el usuario eligió.
+    """
+    texto = _texto(spec)
+    assert "exclude_binaries=True" in texto, (
+        f"{spec.name} volvió a onefile: sin exclude_binaries las dependencias "
+        "van embebidas y se descomprimen a %TEMP% en cada arranque")
+    assert _bloque(texto, "COLLECT"), (
+        f"{spec.name} no tiene COLLECT: sin él PyInstaller no arma la carpeta")
+    assert "runtime_tmpdir" not in texto, (
+        f"{spec.name} declara runtime_tmpdir, que sólo existe en onefile — "
+        "en onedir no hay directorio temporal porque no hay extracción")
+
+
 @pytest.mark.parametrize("iss", ISS, ids=lambda p: p.name)
-def test_el_exe_que_empaqueta_es_el_que_compila_pyinstaller(iss):
-    """Si el nombre del .exe del .iss y el del .spec se desalinean, el build
-    de CI termina 'bien' pero el instalador queda sin el programa adentro."""
+def test_lo_que_empaqueta_el_iss_es_lo_que_produce_pyinstaller(iss):
+    """Si los nombres del .iss y del .spec se desalinean, el build de CI
+    termina 'bien' pero el instalador queda sin el programa adentro.
+
+    Son DOS nombres desde que se pasó a onedir: la carpeta que arma COLLECT
+    (lo que se empaqueta) y el .exe que arma EXE adentro de ella (lo que se
+    lanza y al que apuntan los accesos directos)."""
     texto = _texto(iss)
     origen = re.search(r'^Source:\s*"([^"]+)"', _seccion(texto, "Files"), re.MULTILINE)
     assert origen, "la sección [Files] no declara ningún Source"
 
+    nombre_dir = _define(texto, "MyAppDirName")
     nombre_exe = _define(texto, "MyAppExeName")
+    assert nombre_dir, "no se declara #define MyAppDirName"
     assert nombre_exe, "no se declara #define MyAppExeName"
-    assert origen.group(1).endswith("{#MyAppExeName}"), (
-        "el Source no usa MyAppExeName: los dos nombres pueden desalinearse")
+    assert origen.group(1).endswith("{#MyAppDirName}\\*"), (
+        "el Source no usa MyAppDirName: los nombres pueden desalinearse, y sin "
+        f"el \\* se empaquetaría la carpeta como archivo. Source: {origen.group(1)}")
+
+    flags = re.search(r"^Source:.*Flags:\s*(.+)$", _seccion(texto, "Files"),
+                      re.MULTILINE)
+    assert flags and "recursesubdirs" in flags.group(1), (
+        "sin recursesubdirs el instalador copia sólo el primer nivel de la "
+        "carpeta y el programa queda sin sus dependencias")
 
     specs = list(PACKAGING.glob("*.spec"))
-    declarados = {m for s in specs
-                  for m in re.findall(r"name=['\"]([^'\"]+)['\"]", _texto(s))}
-    assert nombre_exe.removesuffix(".exe") in declarados, (
-        f"{iss.name} empaqueta '{nombre_exe}', que ningún .spec produce: {declarados}")
+    carpetas = {_nombre_de(_texto(s), "COLLECT") for s in specs}
+    ejecutables = {_nombre_de(_texto(s), "EXE") for s in specs}
+    assert nombre_dir in carpetas, (
+        f"{iss.name} empaqueta la carpeta '{nombre_dir}', que ningún COLLECT "
+        f"produce: {carpetas}")
+    assert nombre_exe.removesuffix(".exe") in ejecutables, (
+        f"{iss.name} lanza '{nombre_exe}', que ningún EXE produce: {ejecutables}")
 
 
 # --------------------------------------------------- iconos que pidió el dueño

@@ -18,6 +18,9 @@
 #define MyAppPublisher "MV"
 #define MyAppPublisherEmail "vieraschiavi@gmail.com"
 #define MyAppExeName "MVProjectManagement.exe"
+; Carpeta que deja PyInstaller en dist\ (el `name=` del COLLECT en
+; packaging/mvpm.spec). Es lo que se empaqueta, no un archivo suelto.
+#define MyAppDirName "MVProjectManagement"
 
 [Setup]
 AppId={{B8E2C4A0-6F1A-4B7E-9C3D-MVPM00000001}
@@ -65,8 +68,19 @@ Name: "spanish"; MessagesFile: "compiler:Languages\Spanish.isl"
 Name: "english"; MessagesFile: "compiler:Default.isl"
 
 [Files]
-; PyInstaller compila en modo onefile → un único .exe (no una carpeta).
-Source: "..\dist\{#MyAppExeName}"; DestDir: "{app}"; Flags: ignoreversion
+; PyInstaller compila en modo onedir → una CARPETA (dist\MVProjectManagement\)
+; con el .exe y sus dependencias al lado, no un único archivo.
+;
+; Era onefile, y ahí el .exe se descomprimía entero a %TEMP% en cada arranque.
+; Eso fallaba de verdad en la máquina de un usuario ("Failed to extract
+; mvpm\policies.cp311-win_amd64.pyd: decompression resulted in return code
+; -1!") y, además, escribía ~300-400 MB en C: aunque el programa estuviera
+; instalado en otro disco — ver el comentario largo en packaging/mvpm.spec.
+;
+; Para el usuario no cambia nada: sigue recibiendo un solo instalador y un
+; solo acceso directo. Lo que cambia es que ahora los archivos viven en la
+; carpeta que eligió y no hay descompresión en cada arranque.
+Source: "..\dist\{#MyAppDirName}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 
 [Icons]
 ; Acceso directo en el menú Inicio / lista de programas de Windows (siempre).
@@ -103,8 +117,14 @@ Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,{#MyAppName}}
 
 const
   MB = 1048576;
-  { El .exe onefile de PyInstaller ronda los 120 MB y se descomprime en disco
-    al correr; se pide margen para eso y para la base SQLite. }
+  { La carpeta de onedir ronda los 350 MB ya descomprimida; se pide margen
+    para eso y para la base SQLite.
+
+    Con onefile este número medía el disco equivocado: los archivos se
+    descomprimían a %TEMP% (siempre en C:), así que validar espacio en la
+    carpeta elegida no decía nada sobre dónde iba a fallar de verdad. Ahora
+    los archivos SÍ viven donde el usuario eligió, y este chequeo mide ese
+    mismo disco. }
   ESPACIO_MINIMO_MB = 400;
 
 function CarpetaExistenteMasCercana(Dir: String): String;

@@ -22,6 +22,9 @@
 #define MyAppPublisher "MV"
 #define MyAppPublisherEmail "vieraschiavi@gmail.com"
 #define MyAppExeName "MVProjectManagementOwner.exe"
+; Carpeta que deja PyInstaller en dist\ (el `name=` del COLLECT en
+; packaging/mvpm_owner.spec).
+#define MyAppDirName "MVProjectManagementOwner"
 
 [Setup]
 AppId={{B8E2C4A0-6F1A-4B7E-9C3D-MVPM0000OWNR}
@@ -60,7 +63,9 @@ Name: "spanish"; MessagesFile: "compiler:Languages\Spanish.isl"
 Name: "english"; MessagesFile: "compiler:Default.isl"
 
 [Files]
-Source: "..\dist\{#MyAppExeName}"; DestDir: "{app}"; Flags: ignoreversion
+; Carpeta de onedir, no un .exe suelto — misma razón que en instalador.iss:
+; onefile descomprimía a %TEMP% (siempre en C:) en cada arranque y ahí fallaba.
+Source: "..\dist\{#MyAppDirName}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 
 [Icons]
 ; Acceso directo en el menú Inicio / lista de programas de Windows (siempre).
@@ -97,8 +102,10 @@ Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,{#MyAppName}}
 
 const
   MB = 1048576;
-  { El .exe onefile de PyInstaller ronda los 120 MB y se descomprime en disco
-    al correr; se pide margen para eso y para la base SQLite. }
+  { La carpeta de onedir ronda los 350 MB ya descomprimida; se pide margen
+    para eso y para la base SQLite. Con onefile este chequeo medía el disco
+    elegido mientras la descompresión real iba a %TEMP% (C:) — ver la nota
+    equivalente en packaging/instalador.iss. }
   ESPACIO_MINIMO_MB = 400;
 
 function CarpetaExistenteMasCercana(Dir: String): String;

@@ -27,7 +27,10 @@ function puertoLibre() {
 }
 
 function comandoStreamlit(puerto) {
-  const exeEmpaquetado = path.join(process.resourcesPath || "", "MVProjectManagement.exe");
+  // El motor viaja como CARPETA (PyInstaller onedir, ver packaging/mvpm.spec),
+  // no como un .exe suelto: el .exe necesita a sus dependencias al lado.
+  const exeEmpaquetado = path.join(
+    process.resourcesPath || "", "motor", "MVProjectManagement.exe");
   if (app.isPackaged) {
     // Instalador real: corre el .exe ya compilado por PyInstaller, sin
     // necesitar Python instalado en la PC del usuario.

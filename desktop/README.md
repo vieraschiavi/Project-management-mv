@@ -29,7 +29,9 @@ mismo tag `vX.Y.Z` que compila el instalador Python/Inno Setup:
 
 ```powershell
 pyinstaller packaging/mvpm.spec --distpath dist --workpath build --noconfirm
-Copy-Item dist/MVProjectManagement.exe desktop/resources/MVProjectManagement.exe
+# PyInstaller compila en onedir: deja una CARPETA, no un .exe suelto. El .exe
+# necesita a sus dependencias al lado, así que se copia entera.
+Copy-Item -Recurse -Force dist/MVProjectManagement desktop/resources/motor
 cd desktop
 npm ci
 npm run dist   # genera desktop/release/*.exe
