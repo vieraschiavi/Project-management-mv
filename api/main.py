@@ -14,7 +14,6 @@ presupuestos, equipo), así que por defecto es de uso local:
   Avanzadas → encabezado).
 """
 
-import math
 import os
 import secrets
 import sys
@@ -123,25 +122,10 @@ def _tables():
 def _registros(df):
     """DataFrame -> lista de dicts serializable a JSON.
 
-    NaN e infinito no son JSON válido: `json.dumps` los rechaza y el endpoint
-    respondía 500. Y no es un caso raro — un proyecto recién creado, sin
-    presupuesto cargado todavía, da ejecucion_pct = NaN (catalog.py lo deja
-    así a propósito, para no mostrar "inf%"). O sea que al primer proyecto que
-    cargaba el cliente se le caía la conexión de Power BI.
-
-    Se convierten a null, que es como se representa "sin dato" en JSON y lo
-    que las herramientas de BI esperan para una celda vacía.
-
-    Se recorre el resultado en vez de usar `df.where(notna, None)`: sobre una
-    columna float, pandas mantiene el dtype y vuelve a convertir ese None en
-    NaN, así que el reemplazo por DataFrame no sirve para este caso.
+    La conversión vive en el motor (`exporters.registros_json`) porque el
+    servidor MCP tiene que serializar exactamente igual que esta API.
     """
-    registros = df.to_dict("records")
-    for fila in registros:
-        for clave, valor in fila.items():
-            if isinstance(valor, float) and not math.isfinite(valor):
-                fila[clave] = None
-    return registros
+    return exporters.registros_json(df)
 
 
 def _csv(df):

@@ -234,6 +234,33 @@ portafolio en `GET /api/demo/pharma` (JSON o CSV) y el archivo
 `distribucion/powerbi/MV_ProjectManagement_Pharma.pbids` conecta Power BI de un
 clic contra ese endpoint (ver `distribucion/powerbi/README.md`).
 
+## Conectar BI y agentes (Power BI, Tableau, Fabric, MCP)
+
+El mismo motor sale por cuatro bocas y todas sirven las mismas 6 tablas —hay un
+test (`tests/test_conectores_bi.py`) que falla si alguna se desincroniza, para
+que un cliente no vea un portafolio distinto según con qué herramienta lo abra.
+
+| Herramienta | Cómo se conecta | Carpeta |
+|---|---|---|
+| **Power BI** | doble clic en un `.pbids`, lee la API en vivo | `distribucion/powerbi/` |
+| **Tableau** | exportador a CSV (Tableau no tiene conector Web para una API REST arbitraria) | `distribucion/tableau/` |
+| **Fabric** | Power Query para Dataflow Gen2 — requiere gateway, la API es local | `distribucion/fabric/` |
+| **Claude y otros agentes** | servidor MCP (`./run.sh mcp`) | `distribucion/mcp/` |
+
+El servidor MCP (`mvpm/mcp_server.py`) expone 9 herramientas **de sólo lectura**
+—salud, bloqueos, backlog, políticas, KPIs, glosario— para que un agente
+responda con los números que el motor calculó en vez de inventarlos. Habla
+JSON-RPC por stdio con la biblioteca estándar, sin dependencias nuevas.
+
+En `distribucion/mcp/` también quedan configurados los servidores MCP oficiales
+de **Power BI**, **Fabric** (en modo sólo lectura, sin las 4 herramientas que
+borran de OneLake) y **Tableau**, con un verificador que levanta cada uno y le
+habla el protocolo de verdad:
+
+```bash
+python distribucion/mcp/verificar_mcp.py
+```
+
 ## Gobernanza, organigrama y versionado por empresa
 
 Todo dato manual del sistema sigue el mismo patrón: **la IA lo recomienda

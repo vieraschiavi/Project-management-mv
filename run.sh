@@ -44,6 +44,14 @@ case "$cmd" in
     echo "API de BI en http://127.0.0.1:${API_PUERTO}"
     uvicorn api.main:app --host "${MVPM_API_HOST:-127.0.0.1}" --port "${API_PUERTO}"
     ;;
+  mcp)
+    # Servidor MCP del portafolio: lo arranca un cliente MCP (Claude Code), no
+    # una persona. Habla JSON-RPC por stdout, así que esta rama NO puede
+    # imprimir nada — un solo `echo` acá corrompe el stream y el cliente ve el
+    # servidor como caído. `exec` reemplaza el proceso para que el cliente le
+    # pueda mandar señales al Python directamente.
+    exec python3 -m mvpm.mcp_server
+    ;;
   test)
     pytest tests/ -v
     ;;
@@ -72,7 +80,7 @@ print('Esta instalación vuelve a comportarse como la de un cliente (prueba + li
 "
     ;;
   *)
-    echo "Uso: ./run.sh [install|app|api|test|portable|owner|owner-off]"
+    echo "Uso: ./run.sh [install|app|api|mcp|test|portable|owner|owner-off]"
     exit 1
     ;;
 esac
