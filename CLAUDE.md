@@ -46,10 +46,13 @@ para BI son reales.
 | Servidor MCP del portafolio | `./run.sh mcp` (lo arranca el cliente MCP, no una persona) |
 | Verificar los servidores MCP | `python distribucion/mcp/verificar_mcp.py` |
 | Tests | `./run.sh test` (= `pytest tests/ -v`) |
+| Linter (lo corre CI) | `ruff check .` |
 | Un test puntual | `pytest tests/test_core.py::<nombre> -v` |
 | Generar paquete portable (.zip) | `./run.sh portable` |
 
-> No hay linter/formatter configurado en el repo. No introduzcas uno sin pedirlo.
+> **CI corre `ruff check .`** (`.github/workflows/tests.yml`) y falla el build si
+> algo no pasa. Corrélo antes de pushear — la suite local puede estar verde y el
+> PR romper igual. No hay formatter: no introduzcas uno sin pedirlo.
 > `MV_ProjectManagement.bat` y lo que hay en `packaging/` son para Windows
 > (PyInstaller + Inno Setup); no corren en este entorno Linux.
 > No hay `.env.example` en el repo: las claves (`ANTHROPIC_API_KEY`,

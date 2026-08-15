@@ -253,11 +253,11 @@ def test_el_proceso_real_completa_el_handshake(tmp_path):
     ]) + "\n"
     salida, errores = proceso.communicate(peticiones, timeout=120)
 
-    lineas = [json.loads(l) for l in salida.splitlines() if l.strip()]
+    lineas = [json.loads(linea) for linea in salida.splitlines() if linea.strip()]
     # Tres pedidos con id -> exactamente tres respuestas. Si la notificación
     # se contestara, acá habría cuatro.
     assert len(lineas) == 3, f"stdout inesperado: {salida[:400]} | stderr: {errores[:400]}"
-    assert [l["id"] for l in lineas] == [1, 2, 3]
+    assert [m["id"] for m in lineas] == [1, 2, 3]
     assert lineas[0]["result"]["serverInfo"]["name"] == "mvpm"
     assert len(lineas[1]["result"]["tools"]) == len(mcp_server.HERRAMIENTAS)
     assert not lineas[2]["result"].get("isError")
@@ -275,5 +275,5 @@ def test_una_linea_ilegible_no_tumba_el_servidor(tmp_path):
     entrada = ("esto no es json\n"
                + json.dumps({"jsonrpc": "2.0", "id": 7, "method": "ping"}) + "\n")
     salida, _ = proceso.communicate(entrada, timeout=120)
-    lineas = [json.loads(l) for l in salida.splitlines() if l.strip()]
-    assert [l["id"] for l in lineas] == [7]
+    lineas = [json.loads(linea) for linea in salida.splitlines() if linea.strip()]
+    assert [m["id"] for m in lineas] == [7]
