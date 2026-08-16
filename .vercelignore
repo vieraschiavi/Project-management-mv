@@ -1,0 +1,34 @@
+# Qué se sube a Vercel. Sin este archivo se subía el repo ENTERO, y eso
+# rompía el deploy:
+#
+#   Total bundle size (505.03 MB) exceeds the maximum function size (500 MB)
+#
+# Dos cosas lo inflaban. La primera es `api/main.py`: Vercel ve un .py en
+# `api/` y arma una función de Python instalando todo `requirements.txt`
+# —pandas, pyarrow, streamlit— unos 350 MB. Esa API es la que corre LOCAL en
+# la PC del cliente para que Power BI lea el portafolio (`./run.sh api`);
+# desplegarla en la nube nunca fue la intención. La segunda son los 144 MB de
+# instaladores .exe commiteados en INSTALADOR/, que además se sirven desde
+# Vercel Blob (`api/download-installer.js`), no desde el repo.
+#
+# Lo que Vercel sí necesita es poco: la landing estática y las funciones .js
+# de MercadoPago. De hecho `vercel.json` reescribe `/(.*)` a `/landing/$1`, o
+# sea que NADA fuera de `landing/` es siquiera alcanzable por HTTP: todo lo
+# demás que se subía era peso muerto.
+#
+# La lista es por permitido, no por prohibido: `/*` excluye todo lo del nivel
+# raíz y abajo se vuelve a incluir sólo lo necesario. Así, un directorio nuevo
+# en el repo no se cuela solo en el deploy. Se usa `/*` y no `*` a propósito:
+# `*` alcanzaría también a los archivos anidados y entonces no se los podría
+# reincluir (una vez excluido el padre, gitignore ya no mira adentro).
+/*
+
+!/landing
+!/api
+!/package.json
+!/vercel.json
+
+# De `api/` sólo van las funciones .js. El .py es lo que disparaba el build de
+# Python: sin él, Vercel no instala requirements.txt y no hay lambda de Python.
+/api/main.py
+/api/__pycache__
