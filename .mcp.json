@@ -5,6 +5,41 @@
       "args": [
         "mcp"
       ]
+    },
+    "mvpm": {
+      "command": "./run.sh",
+      "args": [
+        "mcp"
+      ]
+    },
+    "fabric": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@microsoft/fabric-mcp@latest",
+        "server",
+        "start",
+        "--mode",
+        "all",
+        "--read-only"
+      ]
+    },
+    "powerbi": {
+      "type": "http",
+      "url": "https://api.fabric.microsoft.com/v1/mcp/powerbi"
+    },
+    "tableau": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@tableau/mcp-server@latest"
+      ],
+      "env": {
+        "SERVER": "${TABLEAU_SERVER}",
+        "SITE_NAME": "${TABLEAU_SITE_NAME}",
+        "PAT_NAME": "${TABLEAU_PAT_NAME}",
+        "PAT_VALUE": "${TABLEAU_PAT_VALUE}"
+      }
     }
   }
 }

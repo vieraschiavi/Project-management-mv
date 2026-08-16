@@ -33,8 +33,8 @@ para BI son reales.
 - **Desktop** — `desktop/`: envoltorio **Electron** (electron-builder) sobre el
   mismo motor Python/Streamlit, sin reescribir la UI.
 - **Tests**: `pytest` sobre `tests/` (`test_core.py`, `test_db.py`,
-  `test_importer.py`, `test_conectores.py`, `test_capacitacion.py`,
-  `test_plantillas.py`).
+  `test_importer.py`, `test_conectores.py`, `test_conectores_bi.py`,
+  `test_mcp_server.py`, `test_capacitacion.py`, `test_plantillas.py`).
 
 ## Comandos
 
@@ -43,11 +43,16 @@ para BI son reales.
 | Instalar deps (crea `.venv`) | `./run.sh install` |
 | Correr la app (dashboard) | `./run.sh app` (`http://localhost:8501`) |
 | Levantar la API REST para BI | `./run.sh api` (`http://127.0.0.1:8600`) |
+| Servidor MCP del portafolio | `./run.sh mcp` (lo arranca el cliente MCP, no una persona) |
+| Verificar los servidores MCP | `python distribucion/mcp/verificar_mcp.py` |
 | Tests | `./run.sh test` (= `pytest tests/ -v`) |
+| Linter (lo corre CI) | `ruff check .` |
 | Un test puntual | `pytest tests/test_core.py::<nombre> -v` |
 | Generar paquete portable (.zip) | `./run.sh portable` |
 
-> No hay linter/formatter configurado en el repo. No introduzcas uno sin pedirlo.
+> **CI corre `ruff check .`** (`.github/workflows/tests.yml`) y falla el build si
+> algo no pasa. Corrélo antes de pushear — la suite local puede estar verde y el
+> PR romper igual. No hay formatter: no introduzcas uno sin pedirlo.
 > `MV_ProjectManagement.bat` y lo que hay en `packaging/` son para Windows
 > (PyInstaller + Inno Setup); no corren en este entorno Linux.
 > No hay `.env.example` en el repo: las claves (`ANTHROPIC_API_KEY`,
@@ -65,6 +70,8 @@ para BI son reales.
 mvpm/                 motor de dominio (catálogo, salud, dependencias, backlog,
                         copiloto, políticas, glosario, auth, licencias, db,
                         i18n, PMBOK, gobernanza, organigrama, modelos de IA, demos)
+mvpm/mcp_server.py    servidor MCP del portafolio — tercera boca del mismo motor,
+                        sólo lectura, stdio + JSON-RPC con la biblioteca estándar
 app/app.py            dashboard operativo (Streamlit)
 api/main.py           API REST local para BI (Power BI, Tableau, Excel)
 api/checkout.js       checkout de MercadoPago (función serverless Vercel)
@@ -73,7 +80,9 @@ api/_license.js        mismo esquema de licencias que mvpm/licensing.py, en JS
 landing/              landing pública trilingüe (HTML/CSS/JS, sin build)
 desktop/              instalador Electron — misma UI de Streamlit, ventana nativa
 packaging/            empaquetado para PC (launcher, PyInstaller, Inno Setup)
-distribucion/         distribución (conector Power BI, guías)
+distribucion/         distribución y conectores de BI: powerbi/ (.pbids en vivo),
+                        tableau/ (exportador a CSV), fabric/ (Power Query para
+                        Dataflow Gen2), mcp/ (servidores MCP + verificador)
 comercial/, owner/     material comercial y de administración interna
 assets/                recursos (video demo, etc.)
 tests/                 suite pytest (test_core, test_db, test_importer, test_conectores, ...)
