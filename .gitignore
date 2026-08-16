@@ -24,3 +24,12 @@ clave_owner.txt
 # carpeta llamada graft en el árbol, incluida .claude/skills/graft/ — que sí
 # tiene que quedar versionada para que el equipo reciba el skill con git.
 /graft/
+
+# La línea de abajo la vuelve a agregar el instalador de graft en CADA arranque
+# de sesión: no reconoce "/graft/" como equivalente a la suya. Borrarla deja el
+# repo sucio una y otra vez, así que se la deja puesta y se neutraliza su único
+# efecto no deseado —tragarse .claude/skills/graft/— reincluyendo el skill acá
+# abajo. Verificado con `git check-ignore`: graft/ queda ignorado y el skill
+# versionado, subcarpetas incluidas.
+graft/
+!.claude/skills/graft/
