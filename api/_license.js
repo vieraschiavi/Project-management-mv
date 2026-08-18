@@ -60,6 +60,27 @@ function clavePrivada() {
   });
 }
 
+//: La clave pública que viaja DENTRO del programa que usa el cliente. Tiene
+//: que decir exactamente lo mismo que CLAVE_PUBLICA_EMBEBIDA en
+//: mvpm/licensing.py — es la única con la que una instalación puede verificar
+//: una licencia. Lo fija tests/test_licencias.js.
+const CLAVE_PUBLICA_EMBEBIDA = 'Ba7bsdl1pysbGEuG6wa3fne1PfdsTbkIpo8DD7cIgMg';
+
+function clavePublicaDelPrograma() {
+  // Misma precedencia que `_clave_publica()` en mvpm/licensing.py: la variable
+  // de entorno le gana a la embebida. En producción no está seteada, así que
+  // manda la embebida —que es la que trae la copia del cliente— y por eso el
+  // chequeo sirve. En los tests sí se setea, con el par efímero de la corrida:
+  // las claves reales no están en el repo y no deben estarlo.
+  const cruda = (process.env.MVPM_LICENSE_PUBLIC_KEY || '').trim()
+    || CLAVE_PUBLICA_EMBEBIDA;
+  return crypto.createPublicKey({
+    key: Buffer.concat([DER_PUBLICA, b64urlDecode(cruda)]),
+    format: 'der',
+    type: 'spki',
+  });
+}
+
 function clavePublica() {
   // Sólo hace falta para verificar del lado del servidor (tests, diagnóstico).
   // Se deriva de la privada si no viene explícita, así no hay dos fuentes de
@@ -85,7 +106,25 @@ function issueLicense(plan, email, paymentId = null) {
   const payloadB64 = b64url(Buffer.from(JSON.stringify(payload)));
   // Ed25519 firma el mensaje entero (no un digest previo): algoritmo null.
   const sig = crypto.sign(null, Buffer.from(payloadB64, 'ascii'), clavePrivada());
-  return `MVPM2.${payloadB64}.${b64url(sig)}`;
+  const token = `MVPM2.${payloadB64}.${b64url(sig)}`;
+
+  // El token se verifica contra la clave que viaja en el PROGRAMA, no contra
+  // la que se deriva de la privada.
+  //
+  // Sin esto, una MVPM_LICENSE_PRIVATE_KEY que no sea la del par de producción
+  // produce un token perfectamente firmado y coherente consigo mismo: el
+  // servidor responde 200 con su `license_token`, el cliente lo pega en la app
+  // y la app lo rechaza. Nadie se entera hasta que alguien paga, y para
+  // entonces ya cobraste por algo que no abre. Mejor que falle la emisión
+  // —ruidoso, visible, del lado del servidor— a vender una licencia muerta.
+  if (!crypto.verify(null, Buffer.from(payloadB64, 'ascii'),
+                     clavePublicaDelPrograma(), b64urlDecode(b64url(sig)))) {
+    throw new Error(
+      'MVPM_LICENSE_PRIVATE_KEY no corresponde a la clave pública embebida en ' +
+      'el programa: la licencia emitida no la podría verificar ninguna ' +
+      'instalación. Revisá la variable de entorno en Vercel.');
+  }
+  return token;
 }
 
 // Tokens emitidos de verdad que dejaron de valer, por su firma. Tiene que
@@ -111,4 +150,5 @@ function verifyLicense(token) {
   }
 }
 
-module.exports = { PLANES, issueLicense, verifyLicense, FIRMAS_REVOCADAS };
+module.exports = { PLANES, issueLicense, verifyLicense, FIRMAS_REVOCADAS,
+                   CLAVE_PUBLICA_EMBEBIDA, clavePublicaDelPrograma };

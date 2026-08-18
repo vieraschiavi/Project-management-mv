@@ -12,9 +12,16 @@
 
 // Par Ed25519 efímero: las licencias se firman con clave privada del dueño,
 // que no está en el repo. Sin esto, issueLicense() revienta y todo responde 500.
-process.env.MVPM_LICENSE_PRIVATE_KEY = require('crypto')
-  .generateKeyPairSync('ed25519').privateKey
+//
+// Se exportan LAS DOS mitades. `issueLicense` verifica lo que firma contra la
+// clave pública del programa —para no venderle a nadie una licencia que su
+// instalación no pueda abrir—, así que con sólo la privada la emisión falla a
+// propósito: sería un par que ninguna copia del producto reconoce.
+const _parPago = require('crypto').generateKeyPairSync('ed25519');
+process.env.MVPM_LICENSE_PRIVATE_KEY = _parPago.privateKey
   .export({ format: 'der', type: 'pkcs8' }).subarray(16).toString('base64url');
+process.env.MVPM_LICENSE_PUBLIC_KEY = _parPago.publicKey
+  .export({ format: 'der', type: 'spki' }).subarray(-32).toString('base64url');
 process.env.MP_ACCESS_TOKEN = 'token-de-prueba';
 process.env.MP_CURRENCY = 'UYU';
 process.env.MP_TASA_UYU = '40';
