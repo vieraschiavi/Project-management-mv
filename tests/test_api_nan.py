@@ -14,7 +14,26 @@ import pytest
 from fastapi.testclient import TestClient
 
 import api.main as main
-from mvpm import demo_data, exporters
+from mvpm import demo_data, exporters, licensing
+
+
+@pytest.fixture(autouse=True)
+def _prueba_siempre_vigente(monkeypatch, tmp_path):
+    """Aísla el reloj de la prueba de 7 días.
+
+    Cada endpoint de datos pasa por `requiere_acceso`, que devuelve 402 cuando
+    la prueba venció. Ese reloj NO vive en el directorio de datos: `_RUTAS_TRIAL`
+    incluye rutas fijas del HOME (`~/.mvpm_estado`), y `_leer_trial()` toma la
+    marca más vieja de todas — así que setear MVPM_DATA_DIR no alcanza.
+
+    Sin esto, estos diez tests pasan en CI (runner nuevo, sin marca) y se ponen
+    en rojo en cualquier máquina donde el programa se haya abierto hace más de
+    siete días, por un cambio que no tiene nada que ver. Pasó acá: la prueba de
+    este contenedor venció a mitad de sesión y aparecieron diez fallas
+    fantasma. Es el mismo aislamiento que ya hace tests/test_api_seguridad.py.
+    """
+    monkeypatch.setattr(licensing, "_TRIAL_FILE", tmp_path / "trial.json")
+    monkeypatch.setattr(licensing, "_RUTAS_TRIAL", (tmp_path / "trial.json",))
 
 
 @pytest.fixture

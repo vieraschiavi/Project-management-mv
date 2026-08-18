@@ -11,16 +11,25 @@ const crypto = require('crypto');
 // Par Ed25519 efímero para la corrida. Las claves reales no están en el repo
 // (la privada vive como variable de entorno en Vercel), y no deben estarlo.
 function parDeClaves() {
-  const { privateKey } = crypto.generateKeyPairSync('ed25519');
+  const { privateKey, publicKey } = crypto.generateKeyPairSync('ed25519');
   // El DER PKCS#8 de una Ed25519 son 48 bytes: 16 de encabezado fijo + los 32
   // de la semilla, que es el formato crudo que usan _license.js y Python.
   const semilla = privateKey.export({ format: 'der', type: 'pkcs8' }).subarray(16);
-  return semilla.toString('base64url');
+  const publica = publicKey.export({ format: 'der', type: 'spki' }).subarray(-32);
+  return { privada: semilla.toString('base64url'),
+           publica: publica.toString('base64url') };
 }
 
-process.env.MVPM_LICENSE_PRIVATE_KEY = parDeClaves();
+// Se exportan LAS DOS, igual que hace tests/conftest.py del lado de Python.
+// `issueLicense` verifica lo que firma contra la pública del programa, así que
+// con sólo la privada la emisión fallaría a propósito: sería un par que ninguna
+// instalación puede verificar.
+const _par = parDeClaves();
+process.env.MVPM_LICENSE_PRIVATE_KEY = _par.privada;
+process.env.MVPM_LICENSE_PUBLIC_KEY = _par.publica;
 
-const { PLANES, issueLicense, verifyLicense, FIRMAS_REVOCADAS } = require('../api/_license');
+const { PLANES, issueLicense, verifyLicense, FIRMAS_REVOCADAS,
+        CLAVE_PUBLICA_EMBEBIDA } = require('../api/_license');
 
 let fallos = 0;
 function test(nombre, fn) {
@@ -103,12 +112,18 @@ test('RECHAZA un token firmado con otra clave privada', () => {
   // generarse un par de claves, pero sólo la privada del dueño produce firmas
   // que la pública embebida en el programa acepta.
   const original = process.env.MVPM_LICENSE_PRIVATE_KEY;
-  process.env.MVPM_LICENSE_PRIVATE_KEY = parDeClaves();
+  const originalPub = process.env.MVPM_LICENSE_PUBLIC_KEY;
+  // El atacante tiene SU par completo y emite con él: para su propio servidor
+  // la licencia es impecable. Lo que tiene que fallar es verificarla acá.
+  const ajenoPar = parDeClaves();
+  process.env.MVPM_LICENSE_PRIVATE_KEY = ajenoPar.privada;
+  process.env.MVPM_LICENSE_PUBLIC_KEY = ajenoPar.publica;
   delete require.cache[require.resolve('../api/_license')];
   const otroModulo = require('../api/_license');
   const ajeno = otroModulo.issueLicense('professional', 'a@b.com');
 
   process.env.MVPM_LICENSE_PRIVATE_KEY = original;
+  process.env.MVPM_LICENSE_PUBLIC_KEY = originalPub;
   delete require.cache[require.resolve('../api/_license')];
   const nuestro = require('../api/_license');
   assert.strictEqual(nuestro.verifyLicense(ajeno), null,
@@ -197,6 +212,40 @@ test('un token revocado se rechaza aunque la firma sea impecable', () => {
   } finally {
     FIRMAS_REVOCADAS.delete(firma);
   }
+});
+
+
+test('la clave publica embebida dice lo mismo que la de Python', () => {
+  // Es LA clave con la que verifica la copia instalada del cliente. Si el JS y
+  // el Python dicen distinto, el servidor emite licencias contra una clave y
+  // el programa verifica contra otra: todo lo que se venda no abre.
+  const fs = require('fs');
+  const path = require('path');
+  const py = fs.readFileSync(
+    path.join(__dirname, '..', 'mvpm', 'licensing.py'), 'utf-8');
+  const m = py.match(/CLAVE_PUBLICA_EMBEBIDA = "([A-Za-z0-9_-]+)"/);
+  assert.ok(m, 'no encontre CLAVE_PUBLICA_EMBEBIDA en mvpm/licensing.py');
+  assert.strictEqual(CLAVE_PUBLICA_EMBEBIDA, m[1]);
+});
+
+test('NO emite una licencia que el programa del cliente no podria verificar', () => {
+  // El modo de fallar que este chequeo existe para atrapar: una privada que no
+  // es la del par de produccion firma un token impecable y coherente consigo
+  // mismo. El servidor responde 200, el cliente paga, pega el token y la app lo
+  // rechaza. Nadie se entera hasta que alguien ya pago.
+  const original = process.env.MVPM_LICENSE_PRIVATE_KEY;
+  const originalPub = process.env.MVPM_LICENSE_PUBLIC_KEY;
+  process.env.MVPM_LICENSE_PRIVATE_KEY = parDeClaves().privada;
+  delete process.env.MVPM_LICENSE_PUBLIC_KEY;   // que mande la embebida
+  delete require.cache[require.resolve('../api/_license')];
+  const desalineado = require('../api/_license');
+
+  assert.throws(() => desalineado.issueLicense('professional', 'a@b.com'),
+                /no corresponde a la clave publica embebida|no corresponde a la clave pública embebida/);
+
+  process.env.MVPM_LICENSE_PRIVATE_KEY = original;
+  process.env.MVPM_LICENSE_PUBLIC_KEY = originalPub;
+  delete require.cache[require.resolve('../api/_license')];
 });
 
 if (fallos) { console.error(`\n${fallos} test(s) fallaron`); process.exit(1); }
