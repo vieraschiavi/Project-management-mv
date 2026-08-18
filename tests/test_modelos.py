@@ -382,12 +382,16 @@ def test_la_pantalla_de_configuracion_hace_el_recorrido_completo(monkeypatch, tm
     # trae catálogo precargado, y decir "sin elegir" es lo único cierto.
     assert _selectores_de_modelo()[0].options == ["sin elegir"]
 
-    [b for b in at.button if b.label.startswith("🔄")][0].click().run()
+    # Se busca por el TEXTO de la etiqueta y no por un emoji al principio: los
+    # iconos ahora van en el parámetro `icon=` de Streamlit, fuera de la
+    # etiqueta, así que un selector por emoji no encuentra nada. Además el
+    # texto es lo que el usuario lee y lo que el test quiere afirmar.
+    [b for b in at.button if "Actualizar modelos" in b.label][0].click().run()
     assert not at.exception
     assert _selectores_de_modelo()[0].options == ["sin elegir", "gpt-barato", "gpt-caro"]
 
     _selectores_de_modelo()[0].set_value("gpt-barato")
-    [b for b in at.button if b.label.startswith("💾")][0].click().run()
+    [b for b in at.button if "Guardar elección" in b.label][0].click().run()
     assert not at.exception
 
     # Quedó como una versión más, con autor — igual que gobernanza y organigrama.

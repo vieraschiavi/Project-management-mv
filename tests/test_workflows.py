@@ -397,3 +397,27 @@ def test_cada_build_de_windows_tiene_su_propio_grupo_de_concurrencia():
         assert m, f"{workflow} no declara group:"
         grupos[workflow] = m.group(1).strip()
     assert len(set(grupos.values())) == 3, f"los builds comparten grupo: {grupos}"
+
+
+def test_run_sh_ci_corre_las_mismas_compuertas_que_el_workflow():
+    """`./run.sh ci` tiene que ser el espejo local de tests.yml.
+
+    Correr sólo `./run.sh test` deja pasar dos cosas que en el PR salen en
+    rojo: ruff (la suite puede estar verde y el linter voltear el build igual)
+    y los tests de pago, que son de Node y pytest no los ve. Si CI agrega un
+    paso y el comando local no, el espejo deja de serlo en silencio — que es
+    justo cuando alguien pushea confiado.
+    """
+    wf = _sin_comentarios("tests.yml")
+    run_sh = (RAIZ / "run.sh").read_text(encoding="utf-8")
+    ci = run_sh.split("  ci)", 1)[1].split(";;", 1)[0]
+
+    assert "ruff check ." in wf and "ruff check ." in ci
+    assert "pytest tests/" in wf and "pytest tests/" in ci
+
+    # Cada .js que CI corre por nombre tiene que estar en el comando local.
+    for linea in wf.splitlines():
+        limpia = linea.strip()
+        if limpia.startswith("node tests/"):
+            archivo = limpia.split()[1]
+            assert archivo in ci, f"{archivo} lo corre CI pero no `./run.sh ci`"
