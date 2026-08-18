@@ -37,19 +37,31 @@ Var MvpmMejorLibre
 Var MvpmUnidad
 Var MvpmLibre
 Var MvpmLetra
+Var MvpmRaiz
 
 ; Espacio libre en MB de una unidad ("C:\"), o 0 si no se puede saber.
+;
+; Usa $MvpmRaiz como temporal y NO $MvpmUnidad: el llamador tiene la letra que
+; está evaluando guardada ahí, y pisársela deja el resultado bien de casualidad
+; —porque GetRoot devuelve el mismo valor— hasta que alguien cambie el
+; llamador y empiece a guardar la unidad equivocada.
 !macro MvpmLibreMB Raiz Salida
   StrCpy ${Salida} 0
-  ${GetRoot} "${Raiz}" $MvpmUnidad
-  ; DriveType devuelve vacío para una letra que no existe.
-  ${DriveSpace} "$MvpmUnidad\" "/D=F /S=M" ${Salida}
+  ${GetRoot} "${Raiz}" $MvpmRaiz
+  ; DriveSpace no escribe la salida si la unidad no existe: queda en 0.
+  ${DriveSpace} "$MvpmRaiz\" "/D=F /S=M" ${Salida}
 !macroend
 
 !macro preInit
   ; --------------------------------------------------------------------
   ; Sugerir la carpeta de instalación en el disco con más lugar.
   ; --------------------------------------------------------------------
+  ; $0/$1/$2 son registros compartidos con el resto del instalador que arma
+  ; electron-builder. Se guardan y se restauran para no pisarle nada.
+  Push $0
+  Push $1
+  Push $2
+
   ; Sólo en instalación nueva: si ya está instalado, no se toca nada.
   ReadRegStr $0 HKLM "${INSTALL_REGISTRY_KEY}" "InstallLocation"
   ${If} $0 == ""
@@ -91,4 +103,10 @@ Var MvpmLetra
       WriteRegExpandStr HKCU "${INSTALL_REGISTRY_KEY}" "InstallLocation" "$INSTDIR"
     ${EndIf}
   ${EndIf}
+
+  ; En orden inverso al Push: la pila de NSIS es LIFO y dejarla desbalanceada
+  ; le devuelve basura al instalador que sigue.
+  Pop $2
+  Pop $1
+  Pop $0
 !macroend

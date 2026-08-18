@@ -145,6 +145,19 @@ def test_el_nsh_solo_toca_la_instalacion_nueva():
     assert 'ReadRegStr $0 HKCU "${INSTALL_REGISTRY_KEY}" "InstallLocation"' in texto
 
 
+def test_el_nsh_devuelve_la_pila_como_la_encontro():
+    """La pila de NSIS es compartida con el resto del instalador que arma
+    electron-builder. Un Push sin su Pop no falla al compilar: le devuelve
+    basura al código que sigue, y eso se manifiesta como un instalador que se
+    comporta raro en la PC del cliente."""
+    texto = NSH.read_text(encoding="utf-8")
+    cuerpo = [linea.split(";")[0].strip() for linea in texto.splitlines()]
+    pushes = sum(1 for linea in cuerpo if linea.startswith("Push "))
+    pops = sum(1 for linea in cuerpo if linea.startswith("Pop "))
+    assert pushes == pops, f"{pushes} Push contra {pops} Pop"
+    assert pushes > 0, "se esperaba que preInit preservara los registros"
+
+
 def test_el_nsh_no_sugiere_unidades_removibles():
     """Sugerir instalar en un pendrive o en una unidad de red es peor que
     sugerir C:. 3 es DRIVE_FIXED."""
