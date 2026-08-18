@@ -1,12 +1,12 @@
 {
   "name": "mv-project-management-desktop",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "description": "Ventana nativa de escritorio para MV Project Management — envuelve el mismo motor Python/Streamlit, sin reescribir la UI.",
   "main": "main.js",
   "scripts": {
     "start": "electron .",
-    "dist": "electron-builder --win nsis"
+    "dist": "node verificar_motor.js && electron-builder --win nsis"
   },
   "devDependencies": {
     "electron": "^33.0.0",
@@ -31,13 +31,24 @@
       }
     ],
     "win": {
-      "target": "nsis"
+      "target": "nsis",
+      "icon": "../packaging/assets/icon.ico"
     },
     "nsis": {
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
+      "perMachine": false,
+      "allowElevation": true,
+      "include": "installer.nsh",
+      "installerIcon": "../packaging/assets/icon.ico",
+      "uninstallerIcon": "../packaging/assets/icon.ico",
+      "installerHeaderIcon": "../packaging/assets/icon.ico",
       "createDesktopShortcut": true,
-      "createStartMenuShortcut": true
+      "createStartMenuShortcut": true,
+      "shortcutName": "MV Project Management",
+      "uninstallDisplayName": "MV Project Management",
+      "deleteAppDataOnUninstall": false,
+      "runAfterFinish": true
     }
   }
 }

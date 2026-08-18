@@ -33,3 +33,8 @@ clave_owner.txt
 # versionado, subcarpetas incluidas.
 graft/
 !.claude/skills/graft/
+
+# El motor que PyInstaller deja para que Electron lo empaquete (~350 MB). Lo
+# genera el build (ver .github/workflows/build_electron.yml) y no se versiona:
+# el repo ya carga con instaladores commiteados y esto lo duplicaría.
+desktop/resources/motor/
