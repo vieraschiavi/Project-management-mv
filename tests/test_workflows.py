@@ -134,6 +134,33 @@ def test_los_instaladores_se_reconstruyen_al_cambiar_el_producto(workflow):
     assert "paths:" in wf
 
 
+def test_el_instalador_de_escritorio_se_compila_en_el_pr_que_lo_toca():
+    """Un cambio al instalador de escritorio se compila ANTES de mergear.
+
+    Es el único de los tres que se puede romper de formas que ningún test de
+    Python ve: una opción mal escrita en la config de NSIS, o el
+    package-lock.json desincronizado —que hace abortar a `npm ci`—. Sin
+    disparador de PR, eso entraba a main con todos los checks en verde y se
+    descubría del otro lado.
+
+    El filtro es sólo desktop/ y no las rutas de producto: el runner de Windows
+    se cobra al doble y un PR que toca mvpm/ ya queda cubierto por el build que
+    corre al mergear.
+    """
+    wf = _sin_comentarios("build_electron.yml")
+    assert "pull_request:" in wf, (
+        "build_electron.yml no compila en los PR: un cambio al instalador "
+        "recién se prueba después de mergearlo")
+
+    disparador = wf.split("pull_request:", 1)[1].split("workflow_dispatch", 1)[0]
+    assert '"desktop/**"' in disparador
+    # Las rutas de producto NO: encarecerían casi todos los PR del repo.
+    for ruta in ("mvpm/**", "app/**", "requirements.txt"):
+        assert f'"{ruta}"' not in disparador, (
+            f"{ruta} en el disparador de PR hace correr un runner de Windows "
+            f"en casi todos los PR")
+
+
 def test_electron_tambien_se_reconstruye_al_cambiar_el_propio_electron():
     """A diferencia de los otros dos, este instalador empaqueta desktop/ (el
     código de Electron en sí) además de RUTAS_DE_PRODUCTO — un cambio ahí
