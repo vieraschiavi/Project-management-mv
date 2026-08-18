@@ -55,6 +55,33 @@ case "$cmd" in
   test)
     pytest tests/ -v
     ;;
+  ci)
+    # LAS MISMAS compuertas que corre GitHub Actions, en el mismo orden
+    # (.github/workflows/tests.yml). Correr sólo `./run.sh test` deja pasar dos
+    # cosas que en el PR salen en rojo:
+    #
+    #   1. ruff. La suite puede estar verde y el linter voltear el build igual
+    #      (pasó con cuatro E741 por usar `l` de variable).
+    #   2. Los tests de las funciones de pago, que son de Node y pytest no ve.
+    #
+    # Si esto pasa, el PR pasa. Se corta en el primer fallo: el segundo error
+    # suele ser consecuencia del primero.
+    set -e
+    echo "── ruff ─────────────────────────────────────────────"
+    ruff check .
+    echo "── pytest ───────────────────────────────────────────"
+    pytest tests/ -q
+    echo "── tests de pago (Node) ─────────────────────────────"
+    if command -v node > /dev/null; then
+      for t in tests/test_verify_payment.js tests/test_licencias.js tests/test_checkout.js; do
+        echo "  $t"; node "$t"
+      done
+    else
+      echo "  (node no está instalado: CI sí los corre)"
+    fi
+    echo
+    echo "Todo verde. Esto es lo mismo que va a correr el PR."
+    ;;
   portable)
     python3 packaging/build_release.py
     ;;
@@ -80,7 +107,7 @@ print('Esta instalación vuelve a comportarse como la de un cliente (prueba + li
 "
     ;;
   *)
-    echo "Uso: ./run.sh [install|app|api|mcp|test|portable|owner|owner-off]"
+    echo "Uso: ./run.sh [install|app|api|mcp|test|ci|portable|owner|owner-off]"
     exit 1
     ;;
 esac

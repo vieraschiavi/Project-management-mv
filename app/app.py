@@ -53,7 +53,7 @@ from mvpm import (
 from mvpm import copilot as copilot_mod
 
 st.set_page_config(
-    page_title="MV Project Management", page_icon="📋", layout="wide",
+    page_title="MV Project Management", page_icon=":material/checklist:", layout="wide",
     # Sin esto el menú "···" ofrece Record a screencast, Report a bug y About
     # Streamlit: tres cosas que le cuentan al cliente con qué está hecho el
     # producto que compró, y ninguna que le sirva.
@@ -118,16 +118,17 @@ def _entrar_como_invitado(almacen) -> None:
 
 
 if st.session_state["user"] is None:
-    st.title("📋 MV Project Management")
+    st.title("MV Project Management")
 
     # Primero lo que no pide nada a cambio: probar el producto. La cuenta se
     # ofrece abajo, para quien ya decidió que quiere guardar su trabajo.
     st.markdown("#### Probalo ahora, sin crear cuenta")
     _c1, _c2 = st.columns(2)
-    if _c1.button("📂 Subir mi Excel de proyectos", type="primary",
+    if _c1.button("Subir mi Excel de proyectos", type="primary", icon=":material/upload_file:",
                   use_container_width=True):
         _entrar_como_invitado(invitado.almacen_vacio())
-    if _c2.button("🇬🇧 Probar con datos reales (132 proyectos)",
+    if _c2.button("Probar con datos reales del gobierno británico (132 proyectos)",
+                   icon=":material/public:",
                   use_container_width=True):
         _entrar_como_invitado(invitado.con_portafolio_real())
     st.caption("Sin registro y sin tarjeta. En modo invitado los datos quedan en "
@@ -212,7 +213,7 @@ if LICENSE_TOKEN and owner.es_email_owner(LICENSE_TOKEN):
         LICENSE_TOKEN = None
 
 st.sidebar.divider()
-st.sidebar.caption(f"👤 {user['nombre']} · {user['rol']}")
+st.sidebar.caption(f"{user['nombre']} · {user['rol']}")
 if st.sidebar.button("Cerrar sesión"):
     st.session_state["user"] = None
     st.rerun()
@@ -239,16 +240,16 @@ _acceso = (
     if INVITADO else licensing.estado_acceso(LICENSE_TOKEN)
 )
 if _acceso["modo"] == "owner":
-    st.sidebar.success(f"🔐 {_acceso['mensaje']}")
+    st.sidebar.success(_acceso["mensaje"], icon=":material/verified:")
 elif _acceso["modo"] == "invitado":
-    st.sidebar.info("👋 Modo invitado — nada se guarda")
+    st.sidebar.info("Modo invitado — nada se guarda", icon=":material/person:")
 elif _acceso["modo"] == "trial":
     st.sidebar.info(f"⏳ Prueba: quedan {_acceso['dias_restantes']} día(s)")
 elif _acceso["modo"] == "licencia":
-    st.sidebar.success(f"✓ {_acceso['mensaje']}")
+    st.sidebar.success(_acceso["mensaje"], icon=":material/schedule:")
 
 if not _acceso["acceso"]:
-    st.title("🔒 La prueba de 7 días venció")
+    st.title("La prueba de 7 días venció")
     st.warning(_acceso["mensaje"])
     st.markdown(
         "**Tus datos siguen guardados.** Nada se borró: apenas cargues una "
@@ -275,10 +276,10 @@ else:
     db.obtener_o_crear_empresa("Mi empresa")
     _empresas = db.listar_empresas()
     _empresa_nombres = _empresas["nombre"].tolist()
-    with st.sidebar.expander("🏢 Empresa"):
+    with st.sidebar.expander("Empresa", icon=":material/business:"):
         empresa_sel = st.selectbox("Empresa activa", _empresa_nombres,
                                    index=0, key="empresa_sel")
-        _nueva = st.text_input("➕ Nueva empresa", key="empresa_nueva")
+        _nueva = st.text_input("Nueva empresa", key="empresa_nueva")
         if st.button("Crear empresa", key="crear_empresa_btn") and _nueva.strip():
             db.crear_empresa(_nueva.strip())
             st.rerun()
@@ -423,12 +424,13 @@ if proj_df.empty and task_df.empty:
     # el invitado —que lee de su almacén de sesión— no veía aparecer nada.
     if INVITADO:
         st.info("Todavía no cargaste proyectos en esta sesión.")
-        if st.button("🇬🇧 Cargar el portafolio real del gobierno británico (132 proyectos)"):
+        if st.button("Cargar el portafolio real del gobierno británico (132 proyectos)",
+                     icon=":material/public:"):
             st.session_state["invitado_almacen"] = invitado.con_portafolio_real()
             st.rerun()
     else:
         st.info("Todavía no cargaste proyectos en este servidor.")
-        if st.button("🌱 Cargar datos de ejemplo para explorar"):
+        if st.button("Cargar datos de ejemplo para explorar", icon=":material/potted_plant:"):
             db.cargar_datos_de_ejemplo()
             st.rerun()
 
@@ -446,7 +448,7 @@ if section == T("nav_tutorial"):
             if s["tips"]:
                 st.markdown("**Tips:**")
                 for tip in s["tips"]:
-                    st.markdown(f"💡 {tip}")
+                    st.markdown(tip)
 
 elif section == T("nav_case_study"):
     st.subheader(T("nav_case_study"))
@@ -483,7 +485,7 @@ elif section == T("nav_real_demo"):
                "reportado por cada departamento — no el costo total a lo largo de vida del proyecto.")
 
     st.info(
-        f"⏱️ **Ahorro estimado de tiempo**: revisar a mano estos {resumen['total_proyectos']} "
+        f"**Ahorro estimado de tiempo**: revisar a mano estos {resumen['total_proyectos']} "
         f"proyectos para encontrar cuáles están sobre presupuesto — a un supuesto de "
         f"{resumen['minutos_por_revision_manual_supuesto']} minutos por proyecto, un número "
         f"explícito, no medido — tomaría ~{resumen['horas_ahorradas_estimadas']} horas de trabajo "
@@ -522,7 +524,7 @@ elif section == T("nav_pharma"):
     c2.metric("En riesgo (terminados/suspendidos)", r["en_riesgo"])
     c3.metric("Laboratorios", len(r["por_sponsor"]))
     st.info(
-        f"⏱️ **Ahorro estimado**: revisar a mano estos {r['total_ensayos']} ensayos para marcar "
+        f"**Ahorro estimado**: revisar a mano estos {r['total_ensayos']} ensayos para marcar "
         f"cuáles están frenados — a un supuesto explícito de {r['minutos_por_revision_manual_supuesto']} "
         f"minutos por ensayo — serían ~{r['horas_ahorradas_estimadas']} horas de trabajo manual. "
         "El motor los clasifica a todos en segundos."
@@ -544,7 +546,7 @@ elif section == T("nav_pharma"):
     st.dataframe(demo_pharma.en_riesgo_detalle(15), use_container_width=True)
 
     st.divider()
-    st.subheader("🔌 De acá a Power BI, end-to-end")
+    st.subheader("De acá a Power BI, end-to-end")
     st.markdown(
         "El mismo motor sirve estos ensayos por la **API REST local** (`./run.sh api`), así que "
         "Power BI se conecta al dato en vivo sin exportar planillas:\n\n"
@@ -571,7 +573,7 @@ elif section == T("nav_portfolio"):
     a_tiempo = int((health.project_health(proj_df, task_df, team_df)["dim_cronograma"] >= 70).sum())
     c6.metric(T("kpi_on_time"), a_tiempo)
 
-    with st.expander("➕ Nuevo proyecto"):
+    with st.expander("Nuevo proyecto", icon=":material/add:"):
         with st.form("nuevo_proyecto", clear_on_submit=True):
             nombre = st.text_input("Nombre del proyecto")
             col1, col2 = st.columns(2)
@@ -610,7 +612,7 @@ elif section == T("nav_portfolio"):
         if INVITADO:
             _solo_con_cuenta("Editar o archivar un proyecto")
         else:
-            with st.expander("✏️ Ficha de proyecto (editar / archivar / eliminar)"):
+            with st.expander("Ficha de proyecto (editar / archivar / eliminar)", icon=":material/edit:"):
                 opciones = (proj_df["nombre"] + " — " + proj_df["proyecto_id"]).tolist()
                 elegido = st.selectbox("Elegí un proyecto", opciones, key="ficha_proyecto_selector")
                 fila = proj_df.iloc[opciones.index(elegido)]
@@ -632,7 +634,7 @@ elif section == T("nav_portfolio"):
                     ejecutado_e = col4.number_input("Ejecutado", min_value=0.0, step=100.0, value=float(fila["ejecutado"]))
                     criticidad_e = st.selectbox("Criticidad", ["Alta", "Media", "Baja"],
                                                  index=["Alta", "Media", "Baja"].index(fila["criticidad"]))
-                    guardar = st.form_submit_button("💾 Guardar cambios")
+                    guardar = st.form_submit_button("Guardar cambios", icon=":material/save:")
                     if guardar:
                         db.actualizar_proyecto(
                             int(fila["_id"]), nombre=nombre_e.strip(), portafolio=portafolio_e.strip(),
@@ -642,11 +644,11 @@ elif section == T("nav_portfolio"):
                         st.success("Cambios guardados.")
                         st.rerun()
                 col_a, col_b = st.columns(2)
-                if col_a.button("🗄️ Archivar proyecto", key="archivar_proy"):
+                if col_a.button("Archivar proyecto", key="archivar_proy", icon=":material/archive:"):
                     db.archivar_proyecto(int(fila["_id"]))
                     st.success("Proyecto archivado.")
                     st.rerun()
-                if col_b.button("🗑️ Eliminar definitivamente", key="eliminar_proy"):
+                if col_b.button("Eliminar definitivamente", key="eliminar_proy", icon=":material/delete:"):
                     db.eliminar_proyecto(int(fila["_id"]))
                     st.success("Proyecto eliminado.")
                     st.rerun()
@@ -657,7 +659,7 @@ elif section == T("nav_portfolio"):
 elif section == T("nav_tasks"):
     st.subheader(T("nav_tasks"))
 
-    with st.expander("➕ Nueva tarea"):
+    with st.expander("Nueva tarea", icon=":material/add:"):
         if proj_df.empty:
             st.warning("Creá un proyecto primero.")
         else:
@@ -695,7 +697,7 @@ elif section == T("nav_tasks"):
         if INVITADO:
             _solo_con_cuenta("Editar o eliminar una tarea")
         else:
-            with st.expander("✏️ Ficha de tarea (editar / eliminar)"):
+            with st.expander("Ficha de tarea (editar / eliminar)", icon=":material/edit:"):
                 t_opciones = (task_df["titulo"] + " — " + task_df["tarea_id"]).tolist()
                 t_elegida = st.selectbox("Elegí una tarea", t_opciones, key="ficha_tarea_selector")
                 t_fila = task_df.iloc[t_opciones.index(t_elegida)]
@@ -709,13 +711,13 @@ elif section == T("nav_tasks"):
                                                index=["todo", "in_progress", "blocked", "done"].index(t_fila["estado"]))
                     prioridad_e = col2.selectbox("Prioridad", ["Alta", "Media", "Baja"],
                                                   index=["Alta", "Media", "Baja"].index(t_fila["prioridad"]))
-                    guardar_t = st.form_submit_button("💾 Guardar cambios")
+                    guardar_t = st.form_submit_button("Guardar cambios", icon=":material/save:")
                     if guardar_t:
                         db.actualizar_tarea(int(t_fila["_id"]), titulo=titulo_e.strip(),
                                              responsable_id=responsable_id_e, estado=estado_e, prioridad=prioridad_e)
                         st.success("Cambios guardados.")
                         st.rerun()
-                if st.button("🗑️ Eliminar tarea", key="eliminar_tarea"):
+                if st.button("Eliminar tarea", key="eliminar_tarea", icon=":material/delete:"):
                     db.eliminar_tarea(int(t_fila["_id"]))
                     st.success("Tarea eliminada.")
                     st.rerun()
@@ -803,7 +805,7 @@ elif section == T("nav_advisor"):
                 if nuevo_estado != seg["estado"]:
                     db.actualizar_estado_seguimiento(seg["id"], nuevo_estado)
                     st.rerun()
-            elif st.button("📌 Poner en seguimiento", key=f"seguir_{p['id']}"):
+            elif st.button("Poner en seguimiento", key=f"seguir_{p['id']}", icon=":material/push_pin:"):
                 db.crear_o_actualizar_seguimiento(p["id"], p["tipo"], p["titulo"],
                                                    resultado["sugerencia"], resultado["proveedor"])
                 st.rerun()
@@ -827,7 +829,7 @@ elif section == T("nav_reviews"):
     st.subheader(T("nav_reviews"))
     s = reviews.summary()
     if s["es_beta_sin_resenas"]:
-        st.info(f"⭐ {T('reviews_empty_title')} — {T('reviews_empty_body')}")
+        st.info(f"{T('reviews_empty_title')} — {T('reviews_empty_body')}", icon=":material/star:")
     else:
         st.metric("Calificación promedio", f"{s['promedio']} / 5 ({s['total']} reseñas)")
         for r in reviews.list_reviews():
@@ -891,7 +893,7 @@ elif section == T("nav_pmbok"):
                     st.caption(f"Lo que falta: {a['lo_que_falta']}")
                 _nota = pmbok.nota_empresa(EMPRESA_ID, a["clave"])
                 if _nota:
-                    st.success(f"📝 Nota de la empresa (validada por "
+                    st.success(f"Nota de la empresa (validada por "
                                f"{seguro.escapar(_nota['validado_por_nombre'])}, "
                                f"{seguro.escapar(_nota['validado_por_cargo'])}): "
                                f"{seguro.escapar(_nota['texto'])}")
@@ -903,7 +905,7 @@ elif section == T("nav_pmbok"):
                     cn, cc = st.columns(2)
                     val_n = cn.text_input("Validado por (nombre)", key=f"nota_n_{a['clave']}")
                     val_c = cc.text_input("Cargo", key=f"nota_c_{a['clave']}")
-                    if st.form_submit_button("💾 Guardar nota") and txt.strip() and val_n.strip():
+                    if st.form_submit_button("Guardar nota", icon=":material/save:") and txt.strip() and val_n.strip():
                         pmbok.guardar_nota(EMPRESA_ID, a["clave"], txt.strip(), val_n.strip(), val_c.strip())
                         st.success("Nota guardada.")
                         st.rerun()
@@ -917,7 +919,7 @@ elif section == T("nav_pmbok"):
                 st.info(g["criollo"])
                 _resp = organigrama.responsable_vigente(EMPRESA_ID, g["clave"])
                 if _resp:
-                    st.success(f"👤 Responsable asignado: {_resp['persona'].get('nombre')} "
+                    st.success(f"Responsable asignado: {_resp['persona'].get('nombre')} "
                                f"({_resp['persona'].get('cargo') or 's/d'}) — validado por "
                                f"{_resp['validado_por_nombre']}, {_resp['validado_por_cargo']}. "
                                "Se asigna desde la pestaña Organigrama.")
@@ -957,14 +959,14 @@ elif section == T("nav_governance"):
                 # (edición del dueño del producto) y reusar el nombre lo pisaba.
                 validador = co.text_input("Data Owner que valida (nombre)", key=f"gov_o_{c['clave']}")
                 cargo = cs.text_input("Cargo", value="Data Owner", key=f"gov_c_{c['clave']}")
-                if st.form_submit_button("💾 Validar y guardar") and txt.strip() and validador.strip():
+                if st.form_submit_button("Validar y guardar", icon=":material/save:") and txt.strip() and validador.strip():
                     governance.guardar(EMPRESA_ID, c["clave"], txt.strip(), rec["recomendado_por"],
                                        validador.strip(), cargo.strip())
                     st.success("Definición validada y guardada (nueva versión).")
                     st.rerun()
             hist = db.historial_versiones(EMPRESA_ID, "concepto", c["clave"])
             if len(hist) > 0:
-                st.caption(f"📚 {len(hist)} versión(es) guardada(s) — la historia completa queda.")
+                st.caption(f"{len(hist)} versión(es) guardada(s) — la historia completa queda.")
                 st.dataframe(hist[["contenido", "estado", "validado_por_nombre", "creado_en"]],
                              use_container_width=True)
 
@@ -977,7 +979,7 @@ elif section == T("nav_organigrama"):
     _provs = ai.proveedores_disponibles()
     _org_actual = db.listar_organigrama(EMPRESA_ID)
 
-    with st.expander("📤 Cargar / actualizar organigrama", expanded=_org_actual.empty):
+    with st.expander("Cargar / actualizar organigrama", icon=":material/cloud_upload:", expanded=_org_actual.empty):
         st.caption("Reconoce columnas comunes (nombre, cargo, área, reporta a) sin exigir un "
                    "formato exacto.")
         fuente_tipo = st.radio("Origen", ["Excel/CSV", "Base SQLite (.db)"], horizontal=True)
@@ -994,7 +996,7 @@ elif section == T("nav_organigrama"):
                 personas = organigrama.parsear(df_org)
                 st.write(f"{len(personas)} persona(s) detectada(s):")
                 st.dataframe(pd.DataFrame(personas), use_container_width=True)
-                if st.button("✅ Guardar este organigrama"):
+                if st.button("Guardar este organigrama", icon=":material/save:"):
                     n = db.reemplazar_organigrama(EMPRESA_ID, personas, "excel/csv")
                     st.success(f"Organigrama guardado ({n} personas).")
                     st.rerun()
@@ -1015,7 +1017,7 @@ elif section == T("nav_organigrama"):
                     personas = organigrama.parsear(df_org)
                     st.write(f"{len(personas)} persona(s) detectada(s):")
                     st.dataframe(pd.DataFrame(personas), use_container_width=True)
-                    if st.button("✅ Guardar este organigrama"):
+                    if st.button("Guardar este organigrama", icon=":material/save:"):
                         n = db.reemplazar_organigrama(EMPRESA_ID, personas, "sqlite")
                         st.success(f"Organigrama guardado ({n} personas).")
                         st.rerun()
@@ -1036,7 +1038,7 @@ elif section == T("nav_organigrama"):
         for s in sugerencias:
             per = s["persona"]
             _resp = organigrama.responsable_vigente(EMPRESA_ID, s["etapa_clave"])
-            with st.expander(f"🔹 {s['etapa_nombre']}"):
+            with st.expander(s["etapa_nombre"]):
                 st.caption(s["etapa_desc"])
                 if _resp:
                     st.success(f"Asignado: {seguro.escapar(_resp['persona'].get('nombre'))} "
@@ -1059,7 +1061,7 @@ elif section == T("nav_organigrama"):
                     cv1, cv2 = st.columns(2)
                     val_n = cv1.text_input("Validado por (nombre)", key=f"resp_vn_{s['etapa_clave']}")
                     val_c = cv2.text_input("Cargo de quien valida", key=f"resp_vc_{s['etapa_clave']}")
-                    if st.form_submit_button("💾 Validar responsable") and val_n.strip():
+                    if st.form_submit_button("Validar responsable", icon=":material/save:") and val_n.strip():
                         organigrama.guardar_responsable(
                             EMPRESA_ID, s["etapa_clave"], elegido, cargo_p or "",
                             s["recomendado_por"], val_n.strip(), val_c.strip())
@@ -1085,9 +1087,10 @@ elif section == T("nav_import"):
         plantilla_df = importer.plantilla(tipo)
         st.dataframe(plantilla_df, use_container_width=True)
         st.download_button(
-            f"⬇️ Plantilla de {tipo_label.lower()} (CSV)",
+            f"Plantilla de {tipo_label.lower()} (CSV)",
             plantilla_df.to_csv(index=False).encode("utf-8-sig"),
-            file_name=f"plantilla_{tipo}.csv", mime="text/csv")
+            file_name=f"plantilla_{tipo}.csv", mime="text/csv",
+            icon=":material/download:")
         st.caption("La plantilla es una ayuda, no un requisito: el importador acepta "
                    "cualquier nombre de columna.")
 
@@ -1136,7 +1139,7 @@ elif section == T("nav_import"):
                     icono = "✅" if sug.confianza >= 0.9 else "🟡"
                     col2.caption(f"{icono} detectado: {sug.motivo}")
                 elif campo.requerido:
-                    col2.caption("⚠️ hace falta elegir una columna")
+                    col2.caption("hace falta elegir una columna")
                 else:
                     col2.caption("—")
                 if elegida != "— sin usar —":
@@ -1206,7 +1209,7 @@ elif section == T("nav_import"):
                 st.markdown("#### 4. Confirmar")
                 if not reporte.puede_importar:
                     st.info("No queda ninguna fila para importar con estas opciones.")
-                elif st.button(f"✅ Importar {reporte.filas_validas} {tipo}",
+                elif st.button(f"Importar {reporte.filas_validas} {tipo}", icon=":material/check:",
                                type="primary"):
                     # El importador recibe las funciones de escritura, así que
                     # el invitado usa las de su almacén de sesión y el usuario
@@ -1256,9 +1259,10 @@ elif section == T("nav_plantillas"):
                     st.write(f"- {_x}")
                 st.write(f"**Puerta de salida:** {_e.criterio_salida}")
                 st.write(f"**Aprueba:** {_e.aprueba}")
-        st.download_button("⬇️ Descargar la gobernanza completa (Markdown)",
+        st.download_button("Descargar la gobernanza completa (Markdown)",
                            plantillas.como_texto(_elegido).encode("utf-8"),
-                           file_name=f"gobernanza_{_elegido}.md", mime="text/markdown")
+                           file_name=f"gobernanza_{_elegido}.md", mime="text/markdown",
+                           icon=":material/download:")
     with _t2:
         st.write("**Roles y qué decide cada uno**")
         st.dataframe(pd.DataFrame(_p.roles, columns=["Rol", "Qué decide"]),
@@ -1335,7 +1339,7 @@ elif section == T("nav_conectores"):
 
         _consulta = _perfil.consultas[_tipo]
         if _consulta.nota:
-            st.caption(f"ℹ️ {_consulta.nota}")
+            st.caption(_consulta.nota)
         st.write("**Cómo se interpreta cada columna:**")
         st.dataframe(pd.DataFrame([
             {"Columna": _c.columna, "Va a": _c.destino,
@@ -1349,7 +1353,7 @@ elif section == T("nav_conectores"):
                  "candado del software es sólo la segunda línea.")
 
         _cb1, _cb2 = st.columns(2)
-        if _cb1.button("🔍 Sondear el esquema", disabled=not _cadena):
+        if _cb1.button("Sondear el esquema", disabled=not _cadena, icon=":material/search:"):
             try:
                 _ej = conectores.crear_ejecutor(_cadena)
                 _s = conectores.sondear(_ej, _perfil.clave, _tipo, esquema=_esquema,
@@ -1361,7 +1365,7 @@ elif section == T("nav_conectores"):
             except Exception as _exc:
                 st.error(f"No se pudo conectar: {_exc}")
 
-        if _cb2.button("⬇️ Traer los datos", disabled=not _cadena, type="primary"):
+        if _cb2.button("Traer los datos", disabled=not _cadena, type="primary", icon=":material/download:"):
             try:
                 _ej = conectores.crear_ejecutor(_cadena)
                 conectores.validar_solo_lectura(_sql_editado)
@@ -1403,7 +1407,7 @@ elif section == T("nav_conectores"):
                 with st.expander(f"Ver {len(_rep_erp.problemas)} observación(es)"):
                     st.dataframe(_rep_erp.problemas_df(), use_container_width=True)
             if _rep_erp.puede_importar and st.button(
-                    f"✅ Importar {_rep_erp.filas_validas} {_destino}", type="primary",
+                    f"Importar {_rep_erp.filas_validas} {_destino}", type="primary", icon=":material/check:",
                     key="importar_erp"):
                 _n = importer.aplicar(_rep_erp, db.crear_proyecto, db.crear_tarea)
                 st.session_state.pop("erp_df", None)
@@ -1439,9 +1443,10 @@ elif section == T("nav_capacitacion"):
                 st.write("**Verificación:**")
                 for _v in _m.verificacion:
                     st.write(f"- {_v}")
-        st.download_button("⬇️ Descargar el guion completo (Markdown)",
+        st.download_button("Descargar el guion completo (Markdown)",
                            capacitacion.guion_de(_rol).encode("utf-8"),
-                           file_name=f"capacitacion_{_rol}.md", mime="text/markdown")
+                           file_name=f"capacitacion_{_rol}.md", mime="text/markdown",
+                           icon=":material/download:")
     with _tc2:
         st.write("Preguntas de toda la ruta, incluidos los requisitos previos. Si la "
                  "persona las contesta, puede trabajar sola.")
@@ -1475,12 +1480,13 @@ elif section == T("nav_config_ia"):
         _catalogos = st.session_state.setdefault("catalogos_ia", {})
 
         for _prov_cfg in _provs_cfg:
-            with st.expander(f"🤖 {modelos.etiqueta(_prov_cfg)}", expanded=True):
+            with st.expander(modelos.etiqueta(_prov_cfg), expanded=True, icon=":material/smart_toy:"):
                 _elegido_actual = modelos.modelo_actual(_prov_cfg)
                 st.caption(f"{T('cfg_en_uso')}: "
                            f"**{_elegido_actual or T('cfg_sin_elegir')}**")
 
                 if st.button(T("cfg_actualizar"), key=f"cfg_upd_{_prov_cfg}",
+                             icon=":material/refresh:",
                              help=T("cfg_actualizar_ayuda")):
                     try:
                         _catalogos[_prov_cfg] = modelos.listar_desde_api(_prov_cfg)
@@ -1505,7 +1511,7 @@ elif section == T("nav_config_ia"):
                     # quiere usar. Lo escrito a mano le gana a lo elegido.
                     _manual = st.text_input(T("cfg_modelo_manual"),
                                             key=f"cfg_man_{_prov_cfg}")
-                    if st.form_submit_button(f"💾 {T('cfg_guardar')}"):
+                    if st.form_submit_button(T("cfg_guardar"), icon=":material/save:"):
                         _nuevo = _manual.strip() or (
                             _sel if _sel != T("cfg_sin_elegir") else None)
                         modelos.fijar_modelo(_prov_cfg, _nuevo)
@@ -1518,7 +1524,7 @@ elif section == T("nav_config_ia"):
 
         _hist_ia = db.historial_versiones(EMPRESA_ID, "config_ia", "modelos")
         if len(_hist_ia) > 0:
-            with st.expander(f"📚 {T('cfg_historial')} ({len(_hist_ia)})"):
+            with st.expander(f"{T('cfg_historial')} ({len(_hist_ia)})", icon=":material/history_edu:"):
                 st.dataframe(_hist_ia[["contenido", "recomendado_por", "creado_en"]],
                              use_container_width=True, hide_index=True)
 

@@ -57,9 +57,9 @@ _STRINGS = {
               "já calculou. Para habilitar um provedor, exporte sua variável de ambiente antes "
               "de abrir o programa:",
     },
-    "cfg_actualizar": {"es": "🔄 Actualizar modelos desde mi API",
-                       "en": "🔄 Refresh models from my API",
-                       "pt": "🔄 Atualizar modelos da minha API"},
+    "cfg_actualizar": {"es": "Actualizar modelos desde mi API",
+                       "en": "Refresh models from my API",
+                       "pt": "Atualizar modelos da minha API"},
     "cfg_actualizar_ayuda": {
         "es": "Le pregunta a tu API qué modelos tiene habilitados TU clave. No hay ninguna "
               "lista precargada en el programa: los catálogos cambian todos los meses y no "
