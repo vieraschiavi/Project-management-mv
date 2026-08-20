@@ -7,6 +7,7 @@ viven en una base SQLite real (mvpm/db.py) en el equipo del cliente, detrás
 de un login con usuario y contraseña (mvpm/auth.py).
 """
 
+import pathlib
 import sys
 from datetime import date
 from pathlib import Path
@@ -52,8 +53,18 @@ from mvpm import (
 )
 from mvpm import copilot as copilot_mod
 
+#: El logo MV. Vive dentro de `mvpm/` porque el spec de PyInstaller copia ese
+#: directorio entero (`datas`), así que viaja en el .exe sin sumar una regla de
+#: empaquetado nueva. Se resuelve desde el paquete y no desde este archivo:
+#: congelado, app.py y mvpm/ no quedan uno al lado del otro.
+LOGO = pathlib.Path(copilot_mod.__file__).resolve().parent / "data" / "logo-mv.png"
+
 st.set_page_config(
-    page_title="MV Project Management", page_icon=":material/checklist:", layout="wide",
+    page_title="MV Project Management",
+    # Si el archivo faltara —una copia incompleta—, Streamlit levanta igual con
+    # el icono por defecto en vez de morir en la primera línea de la app.
+    page_icon=str(LOGO) if LOGO.exists() else ":material/checklist:",
+    layout="wide",
     # Sin esto el menú "···" ofrece Record a screencast, Report a bug y About
     # Streamlit: tres cosas que le cuentan al cliente con qué está hecho el
     # producto que compró, y ninguna que le sirva.
