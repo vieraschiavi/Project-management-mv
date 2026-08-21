@@ -251,6 +251,74 @@ def verify_license(token: str) -> dict | None:
         return None
 
 
+# ------------------------------------------- la licencia del cliente, guardada
+
+#: Dónde queda la licencia que el cliente pagó.
+#:
+#: Antes no quedaba en ningún lado: el token vivía sólo en el campo de texto de
+#: la barra lateral, o sea en la sesión de Streamlit. Dos consecuencias, y la
+#: segunda le rompía una función vendida:
+#:
+#: 1. Había que volver a pegarlo en CADA apertura del programa. La persona
+#:    pagó una vez y tenía que buscar el mail del token todos los días.
+#: 2. La API de BI (`api/main.py`, la que consumen Power BI y Tableau con los
+#:    `.pbids` que se reparten) corre en OTRO proceso, sin forma de ver ese
+#:    campo de texto. Pasados los 7 días de prueba devolvía 402 para siempre
+#:    aunque el cliente tuviera licencia paga vigente: pagaba por los
+#:    conectores de BI y no los podía usar.
+#:
+#: Guardarla en disco no afloja ningún candado. El token ya es del cliente —se
+#: lo mandamos por mail— y las licencias que se venden a propósito NO están
+#: atadas a una máquina (`issue_license`), justamente para que se la pueda
+#: llevar a otra computadora. Copiar este archivo no habilita nada que copiar
+#: el mail del token no habilitara ya.
+ARCHIVO_LICENCIA = "licencia"
+_RUTA_LICENCIA = _STORE_DIR / ARCHIVO_LICENCIA
+
+
+def guardar_token(token: str) -> bool:
+    """Guarda la licencia para las próximas aperturas y para la API de BI.
+
+    Sólo guarda lo que VERIFICA. Escribir un token inválido dejaría al programa
+    arrancando con basura en el bolsillo y —peor— haría creer que la licencia
+    quedó cargada cuando no. Devuelve False también si el disco no deja
+    escribir: el programa sigue andando con el token de esta sesión.
+    """
+    if verify_license(token) is None:
+        return False
+    try:
+        _RUTA_LICENCIA.parent.mkdir(parents=True, exist_ok=True)
+        _RUTA_LICENCIA.write_text(token.strip(), encoding="utf-8")
+    except OSError:
+        return False
+    try:
+        # Legible sólo por su dueño. En Windows no hace nada y no es un
+        # problema: el archivo vive en el perfil del usuario.
+        _RUTA_LICENCIA.chmod(0o600)
+    except OSError:
+        pass
+    return True
+
+
+def token_guardado() -> str | None:
+    """La licencia guardada, si sigue siendo válida. None si no hay o si dejó
+    de verificar (par de claves rotado, token revocado, archivo manoseado)."""
+    try:
+        token = _RUTA_LICENCIA.read_text(encoding="utf-8").strip()
+    except OSError:
+        return None
+    return token if token and verify_license(token) else None
+
+
+def olvidar_token() -> bool:
+    """Borra la licencia guardada. Para cuando se vence y se carga otra, o para
+    dejar limpia una máquina que se le presta a alguien."""
+    try:
+        _RUTA_LICENCIA.unlink()
+        return True
+    except OSError:
+        return False
+
 # ------------------------------------------------- tokens atados a una máquina
 
 #: Identificador aleatorio de ESTA máquina. No dice nada de la computadora (no

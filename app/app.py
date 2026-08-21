@@ -198,8 +198,9 @@ LANG_ES_DEFAULT = LANG  # T() ya definida arriba usa esta variable global
 
 LICENSE_TOKEN = st.sidebar.text_input(
     "Token de licencia", type="password",
-    help="Se emite automáticamente al pagar el plan Professional. Sin token, "
-         "corrés la prueba completa de 7 días con todo desbloqueado.",
+    help="Se emite automáticamente al pagar el plan Professional. Se pega una "
+         "sola vez: queda guardado en esta computadora. Sin token, corrés la "
+         "prueba completa de 7 días con todo desbloqueado.",
 ) or None
 
 # El dueño no tiene que pegar ningún token en su propia herramienta: si esta
@@ -222,6 +223,19 @@ if LICENSE_TOKEN and owner.es_email_owner(LICENSE_TOKEN):
             "y pegá tu clave privada: después no se pide nunca más."
         )
         LICENSE_TOKEN = None
+
+# La licencia se pega UNA vez. Antes vivía sólo acá, en la sesión de Streamlit:
+# había que volver a buscarla en el mail en cada apertura, y la API de BI —otro
+# proceso, el que consumen Power BI y Tableau— no la veía nunca, así que a los
+# 7 días le devolvía 402 a un cliente con licencia paga vigente.
+if LICENSE_TOKEN:
+    if licensing.verify_license(LICENSE_TOKEN):
+        licensing.guardar_token(LICENSE_TOKEN)
+    # Un token inválido no borra el que ya estaba guardado: el error más
+    # probable es un copiado a medias, y en ese caso perder la licencia buena
+    # sería peor que ignorar la mala.
+else:
+    LICENSE_TOKEN = licensing.token_guardado()
 
 st.sidebar.divider()
 st.sidebar.caption(f"{user['nombre']} · {user['rol']}")
@@ -255,7 +269,8 @@ if _acceso["modo"] == "owner":
 elif _acceso["modo"] == "invitado":
     st.sidebar.info("Modo invitado — nada se guarda", icon=":material/person:")
 elif _acceso["modo"] == "trial":
-    st.sidebar.info(f"⏳ Prueba: quedan {_acceso['dias_restantes']} día(s)")
+    st.sidebar.info(f"Prueba: quedan {_acceso['dias_restantes']} día(s)",
+                    icon=":material/hourglass_top:")
 elif _acceso["modo"] == "licencia":
     st.sidebar.success(_acceso["mensaje"], icon=":material/schedule:")
 
