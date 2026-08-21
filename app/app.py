@@ -788,7 +788,15 @@ elif section == T("nav_backlog"):
 elif section == T("nav_copilot"):
     st.subheader(T("nav_copilot"))
     st.caption("El motor de reglas responde siempre. Si hay ANTHROPIC_API_KEY configurada y todavía hay cupo de IA en tu plan, Claude pule el lenguaje sin inventar cifras nuevas.")
-    puede_ia, detalle_cupo = (True, "ilimitado (owner)") if _es_owner else licensing.puede_usar_ia(LICENSE_TOKEN)
+    # El cupo es la mitad del control; la otra es que el plan incluya la IA.
+    # Antes sólo se miraba el cupo, así que un plan sin "copiloto_ia" habría
+    # tenido IA igual mientras le quedaran consultas — la feature del plan no
+    # se consultaba en ningún lado.
+    puede_ia, detalle_cupo = (
+        (True, "ilimitado (owner)") if _es_owner
+        else licensing.puede_usar_ia(LICENSE_TOKEN)
+        if licensing.tiene_feature(LICENSE_TOKEN, "copiloto_ia")
+        else (False, "tu plan no incluye el copiloto con IA"))
     st.caption(f"Cupo de IA: {detalle_cupo}")
     q = st.text_input("Preguntá sobre el portafolio", "¿Qué está bloqueando los proyectos?")
     if st.button("Preguntar"):
@@ -847,6 +855,10 @@ elif section == T("nav_advisor"):
 
 elif section == T("nav_reports"):
     st.subheader(T("nav_reports"))
+    if not (_es_owner or licensing.tiene_feature(LICENSE_TOKEN, "reportes_automaticos")):
+        st.warning("Tu plan no incluye los reportes automáticos. El plan "
+                   "Professional sí los incluye.", icon=":material/lock:")
+        st.stop()
     st.code(reports.as_text(proj_df, task_df, team_df), language=None)
     st.download_button("Descargar JSON del portafolio", exporters.to_json_bundle(proj_df, task_df, team_df), file_name="portafolio_mvpm.json")
     st.download_button("Descargar Excel del portafolio", exporters.to_excel_bytes(proj_df, task_df, team_df), file_name="portafolio_mvpm.xlsx")

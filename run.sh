@@ -73,7 +73,9 @@ case "$cmd" in
     pytest tests/ -q
     echo "── tests de pago (Node) ─────────────────────────────"
     if command -v node > /dev/null; then
-      for t in tests/test_verify_payment.js tests/test_licencias.js tests/test_checkout.js; do
+      for t in tests/test_verify_payment.js tests/test_licencias.js \
+               tests/test_checkout.js tests/test_rotar_claves.js \
+               tests/test_metricas.js; do
         echo "  $t"; node "$t"
       done
     else

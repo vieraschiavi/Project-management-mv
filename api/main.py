@@ -92,9 +92,21 @@ def requiere_acceso(request: Request) -> None:
        que presentar MVPM_API_KEY.
     """
     if not owner.es_owner():
-        acceso = licensing.estado_acceso(licensing.token_guardado())
+        token = licensing.token_guardado()
+        acceso = licensing.estado_acceso(token)
         if not acceso["acceso"]:
             raise HTTPException(status_code=402, detail=acceso["mensaje"])
+        # Esta API ES la feature "integraciones" del plan: los .pbids de Power
+        # BI y el exportador de Tableau consumen exactamente estos endpoints.
+        # Durante la prueba de 7 días `tiene_feature` dice que sí a todo, así
+        # que esto no le saca nada a nadie hoy; lo que hace es que el día que
+        # se venda un plan sin integraciones, el plan lo signifique de verdad
+        # en vez de ser una línea decorativa en una tabla de precios.
+        if not licensing.tiene_feature(token, "integraciones"):
+            raise HTTPException(
+                status_code=402,
+                detail="Tu plan no incluye los conectores de BI (integraciones). "
+                       "El plan Professional sí los incluye.")
 
     host = (request.client.host if request.client else "") or ""
     if host in _LOOPBACK:

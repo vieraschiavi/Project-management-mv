@@ -421,3 +421,25 @@ def test_run_sh_ci_corre_las_mismas_compuertas_que_el_workflow():
         if limpia.startswith("node tests/"):
             archivo = limpia.split()[1]
             assert archivo in ci, f"{archivo} lo corre CI pero no `./run.sh ci`"
+
+
+def test_todo_suite_de_node_esta_enganchado_a_ci():
+    """La dirección que faltaba del espejo de arriba.
+
+    Ese test compara CI contra `./run.sh ci`, así que un archivo que no esté
+    en NINGUNO de los dos pasa desapercibido: existe, nadie lo corre, y como
+    un test que no corre no falla, parece cobertura cuando no lo es. Pasó con
+    `tests/test_rotar_claves.js`, que cubre la ruta por donde viaja la clave
+    privada de licencias.
+
+    pytest levanta solo cualquier `tests/test_*.py` nuevo; los de Node hay que
+    nombrarlos uno por uno en los dos lugares. Este test es lo que hace que
+    olvidarse duela ahora y no el día que importa.
+    """
+    wf = _sin_comentarios("tests.yml")
+    ci = (RAIZ / "run.sh").read_text(encoding="utf-8").split("  ci)", 1)[1].split(";;", 1)[0]
+
+    for archivo in sorted(p.name for p in (RAIZ / "tests").glob("test_*.js")):
+        ruta = f"tests/{archivo}"
+        assert ruta in wf, f"{ruta} existe y tests.yml no lo corre"
+        assert ruta in ci, f"{ruta} existe y `./run.sh ci` no lo corre"

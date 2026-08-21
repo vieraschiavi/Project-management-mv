@@ -251,6 +251,41 @@ def verify_license(token: str) -> dict | None:
         return None
 
 
+# --------------------------------------------------- qué desbloquea cada plan
+
+#: Funciones que `PLANES` nombra pero que el producto TODAVÍA NO TIENE.
+#:
+#: Existe esta lista para que la diferencia entre "está y se cobra" y "se
+#: pensó y no se construyó" sea explícita en el código y no una nota mental.
+#: `tests/test_planes_features.py` la usa para exigir que toda feature
+#: declarada, o se consulte en algún lado, o esté acá — así no se puede vender
+#: en la landing algo que ninguna línea del programa implementa.
+#: El núcleo, presente en TODOS los planes (incluido el demo gratuito). No se
+#: gatean por nombre a propósito: no existe un plan sin ellas, así que un
+#: `tiene_feature(token, "catalogo")` no podría devolver False jamás para
+#: alguien con licencia — sería ceremonia, no un control.
+FEATURES_BASE = frozenset({
+    "catalogo", "salud", "dependencias", "backlog", "copiloto_reglas"})
+
+FEATURES_NO_IMPLEMENTADAS = frozenset({"sso", "auditoria", "white_label"})
+
+
+def tiene_feature(token: str | None, feature: str, ahora: float | None = None) -> bool:
+    """¿Esta instalación tiene derecho a `feature`?
+
+    Durante la prueba de 7 días la respuesta es SÍ para todo, a propósito: el
+    producto se descarga completo y sin recortes, y el candado cae entero al
+    vencer. Recortar funciones durante la prueba sería otro modelo de negocio,
+    no éste.
+
+    Con licencia paga vigente manda la lista del plan. Sin licencia y con la
+    prueba vencida, `estado_acceso` ya bloqueó todo antes de llegar acá.
+    """
+    payload = verify_license(token) if token else None
+    if licencia_vigente(payload, ahora):
+        return feature in PLANES.get(payload["plan"], {}).get("features", ())
+    return estado_acceso(token, ahora)["acceso"]
+
 # ------------------------------------------- la licencia del cliente, guardada
 
 #: Dónde queda la licencia que el cliente pagó.
