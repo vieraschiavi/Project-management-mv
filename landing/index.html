@@ -248,7 +248,7 @@
       <select id="langSel" aria-label="Idioma del sitio / Site language / Idioma do site" onchange="setLang(this.value)">
         <option value="es">ES</option><option value="en">EN</option><option value="pt">PT</option>
       </select>
-      <a class="btn btn-primary" href="#descargas" data-i="nav_cta">Probar gratis</a>
+      <a class="btn btn-primary" href="#descargas" data-i="nav_cta">Pedir demo</a>
     </div>
   </div>
 </nav>
@@ -264,7 +264,7 @@
       <h1 class="h1" data-i="hero_h1">Tu portafolio de proyectos, con <em>salud medible</em> en vez de reuniones de estado.</h1>
       <p class="lead" data-i="hero_lead">MV Project Management prioriza tu backlog por valor esperado, detecta bloqueos antes de que exploten y arma el reporte ejecutivo solo — con un copiloto de IA que nunca inventa un número que el motor no calculó primero.</p>
       <div class="hero-ctas">
-        <a class="btn btn-primary" href="#descargas" data-i="cta_primary">Probar con datos reales</a>
+        <a class="btn btn-primary" href="#descargas" data-i="cta_primary">Pedir una demo</a>
         <a class="btn btn-ghost" href="#plataforma" data-i="cta_secondary">Ver la plataforma</a>
       </div>
       <p class="hero-nota" data-i="hero_nota">Al abrirlo elegís <strong>«Probar con datos reales»</strong> y ya estás mirando los <strong>132 proyectos del portafolio del gobierno británico</strong> — o subís tu propio Excel. Sin crear cuenta y sin tarjeta.</p>
@@ -459,7 +459,7 @@
         <div class="amount">US$0<span data-i="p1_period">/7 días, todo desbloqueado</span></div>
         <p data-i="p1_d">Descargás el programa completo y funciona 100% durante 7 días — todas las funciones, sin recortes. Al vencer se bloquea, pero todo lo que cargaste queda guardado.</p>
         <ul><li data-i="p1_l1">Programa completo, no una versión capada</li><li data-i="p1_l2">Todas las funciones + copiloto IA</li><li data-i="p1_l3">Sin tarjeta de crédito para empezar</li></ul>
-        <a class="btn btn-ghost" href="#descargas" data-i="p1_cta">Descargar y probar</a>
+        <a class="btn btn-ghost" href="#descargas" data-i="p1_cta">Pedir una demo</a>
       </div>
       <div class="price-card feat">
         <h3 data-i="p2_t">Professional</h3>
@@ -510,28 +510,31 @@
 <section id="descargas" class="light">
   <div class="wrap">
     <div class="sec-head">
-      <span class="eyebrow" data-i="downloads_kicker">Empezar ahora</span>
-      <h2 data-i="downloads_h2">Descargá el programa completo</h2>
-      <p data-i="downloads_lead">Funciona 100% desbloqueado durante 7 días desde el primer uso — todas las funciones, sin recortes. Al vencer, seguís con tu licencia Professional y conservás todo lo que cargaste; nada se borra.</p>
+      <span class="eyebrow" data-i="downloads_kicker">Demo</span>
+      <h2 data-i="downloads_h2">La demo se muestra en vivo, no se descarga</h2>
+      <p data-i="downloads_lead">Nos sentamos 30 minutos, cargamos tu portafolio o el de ejemplo, y ves el producto funcionando sobre datos que reconocés. Si te sirve, seguimos; si no, no perdiste una tarde instalando nada.</p>
     </div>
-    <div style="text-align:center; max-width:660px; margin:0 auto 10px;">
-      <a class="btn btn-primary" href="/downloads/MV_Project_Management.zip" download
-         style="font-size:16px; padding:15px 32px;" data-i="dl_btn">⬇ Descargar MV Project Management</a>
-      <p style="margin-top:14px; color:#4d5f78; font-size:13.5px;" data-i="dl_req">Descomprimí el ZIP y ejecutá el lanzador incluido — en Windows, doble clic; en Mac o Linux, <code>run.sh</code>. La primera vez prepara todo solo. Requiere Python 3.11+ (el lanzador lo verifica y te guía si falta).</p>
-      <p style="margin-top:16px; color:#4d5f78; font-size:13.5px;" data-i="dl_installer">🪟 <strong>¿Preferís un instalador de Windows?</strong> Elegís vos dónde instalarlo, con acceso directo en el <strong>escritorio</strong> (si lo elegís) y en el <strong>menú Inicio</strong> — sin depender de Python. <a href="/api/download-installer" style="text-decoration:underline; color:var(--amber-on-light);">Descargar el instalador (.exe)</a>.</p>
-    </div>
+    <form class="contact" id="form-demo" onsubmit="return solicitarDemo(event)" style="max-width:560px;">
+      <input type="text" id="d_nombre" placeholder="Nombre y apellido" data-i-ph="demo_ph_nombre" required>
+      <input type="text" id="d_empresa" placeholder="Empresa" data-i-ph="demo_ph_empresa" required>
+      <input type="text" id="d_pais" placeholder="País" data-i-ph="demo_ph_pais" required>
+      <input type="email" id="d_email" placeholder="Email de trabajo" data-i-ph="demo_ph_email" required>
+      <textarea id="d_msg" placeholder="Opcional: cuántos proyectos manejás y qué usás hoy" data-i-ph="demo_ph_msg"></textarea>
+      <button class="btn btn-primary" type="submit" id="d_btn" data-i="demo_cta">Pedir una demo</button>
+      <p id="d_estado" role="status" aria-live="polite" style="margin:10px 0 0; font-size:14px; min-height:20px;"></p>
+    </form>
     <div class="grid-3" style="margin-top:30px;">
       <div class="card">
-        <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18M8 4v5"/></svg></div><h3 data-i="dl1_t">Dashboard completo</h3>
-        <p data-i="dl1_d">Portafolio, salud, dependencias, backlog, copiloto y reportes — todo en el navegador, desde el primer minuto.</p>
+        <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18M8 4v5"/></svg></div><h3 data-i="dl1_t">Sobre tus datos, no sobre una maqueta</h3>
+        <p data-i="dl1_d">Traé tu Excel a la reunión y lo importamos ahí mismo. Ves tu portafolio con su salud calculada, no capturas de pantalla de otra empresa.</p>
       </div>
       <div class="card">
-        <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3v4M15 3v4M7 7h10v4a5 5 0 0 1-10 0V7Z"/><path d="M12 16v5"/></svg></div><h3 data-i="dl3_t">API para tu BI</h3>
-        <p data-i="dl3_d">Incluye la API local para conectar Power BI, Tableau o Excel a los mismos datos.</p>
+        <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3v4M15 3v4M7 7h10v4a5 5 0 0 1-10 0V7Z"/><path d="M12 16v5"/></svg></div><h3 data-i="dl3_t">Con tu Power BI conectado</h3>
+        <p data-i="dl3_d">Si trabajás con Power BI, Tableau o Excel, en la misma reunión conectamos el tuyo a las seis tablas y lo ves actualizarse.</p>
       </div>
       <div class="card">
-        <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12l6 6L21 4"/></svg></div><h3 data-i="dl2_t">Verificable</h3>
-        <p data-i="dl2_d">Trae su suite de tests para que compruebes vos mismo que el motor hace exactamente lo que decimos.</p>
+        <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12l6 6L21 4"/></svg></div><h3 data-i="dl2_t">Y las preguntas se responden ahí</h3>
+        <p data-i="dl2_d">"¿Esto aguanta 200 proyectos?", "¿los datos salen de mi red?", "¿cómo migro lo que tengo?". Se contestan en el momento, no por mail tres días después.</p>
       </div>
     </div>
   </div>
@@ -589,6 +592,71 @@ function comprar(plan, btn){
       alert('No se pudo iniciar el pago. Revisá tu conexión e intentá de nuevo.');
       if(btn){ btn.disabled = false; btn.textContent = label; }
     });
+}
+
+// Pedido de demo. POST a /api/solicitar-demo, que registra el pedido y me
+// avisa por mail. NO devuelve ninguna descarga y no puede: la demo se muestra
+// en vivo — ver el comentario de cabecera de api/solicitar-demo.js.
+//
+// Si el servidor no pudo registrar NI avisar, se muestra el error y el mail de
+// contacto en vez de agradecer: dar las gracias por un pedido que nadie va a
+// leer es peor que fallar, porque la persona no vuelve a escribir.
+function solicitarDemo(e){
+  e.preventDefault();
+  const btn = document.getElementById('d_btn');
+  const estado = document.getElementById('d_estado');
+  const original = btn.textContent;
+  const T = (window.__I18N_ACTUAL__ || {});
+  btn.disabled = true;
+  btn.textContent = T.demo_enviando || 'Enviando…';
+  estado.style.color = '#4d5f78';
+  estado.textContent = '';
+
+  fetch('/api/solicitar-demo', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      nombre: document.getElementById('d_nombre').value,
+      empresa: document.getElementById('d_empresa').value,
+      pais: document.getElementById('d_pais').value,
+      email: document.getElementById('d_email').value,
+      mensaje: document.getElementById('d_msg').value,
+    }),
+  })
+  .then(function(r){ return r.json().then(function(j){ return { ok: r.ok, j: j }; }); })
+  .then(function(res){
+    if(res.ok){
+      document.getElementById('form-demo').reset();
+      estado.style.color = '#1f7a3d';
+      estado.textContent = T.demo_ok
+        || 'Listo. Te escribo a ese mail para coordinar el horario.';
+      btn.textContent = original;
+      btn.disabled = false;
+      return;
+    }
+    const errores = {
+      nombre_incompleto: T.demo_err_nombre || 'Poné nombre y apellido.',
+      email_invalido: T.demo_err_email || 'Ese email no parece válido.',
+      falta_nombre: T.demo_err_falta || 'Faltan datos.',
+      falta_email: T.demo_err_falta || 'Faltan datos.',
+      falta_empresa: T.demo_err_falta || 'Faltan datos.',
+      falta_pais: T.demo_err_falta || 'Faltan datos.',
+    };
+    estado.style.color = '#b03a24';
+    estado.textContent = errores[res.j && res.j.error]
+      || ((T.demo_err_server || 'No pude registrar el pedido. Escribime a ')
+          + 'vieraschiavi@gmail.com');
+    btn.textContent = original;
+    btn.disabled = false;
+  })
+  .catch(function(){
+    estado.style.color = '#b03a24';
+    estado.textContent = (T.demo_err_server || 'No pude registrar el pedido. Escribime a ')
+      + 'vieraschiavi@gmail.com';
+    btn.textContent = original;
+    btn.disabled = false;
+  });
+  return false;
 }
 
 function enviarContacto(e){
@@ -660,7 +728,7 @@ const I18N = {
     p1_l1:"The complete program, not a crippled version", p1_l2:"All features + AI copilot", p1_l3:"No credit card to start", p1_cta:"Download and try",
     p2_t:"Professional", p2_period:"/user/month", p2_uyu:"≈ UYU 360/month · charged in local currency at the day's rate", p2_d:"Keep everything you entered during the trial. Unlimited portfolios, AI prioritizer, dependencies, automatic report.",
     p2_l1:"Monthly subscription — renews itself, cancel anytime", p2_l2:"AI copilot with no quota (using your own AI key)", p2_l3:"Priority support", p2_cta:"Pay with MercadoPago",
-    p3_t:"Custom implementation", p3_amount:"Talk to us", p3_period:"quoted per project, based on scope", p3_uyu:"",
+    p3_t:"Custom implementation", p3_amount:"Talk to us", p3_period:"quoted per project, based on scope",
     p3_d:"Connects straight to your SAP, Oracle (E-Business Suite, Fusion Cloud or JD Edwards) or Microsoft Dynamics 365 — or your own SQL database (SQL Server, PostgreSQL, MySQL, Oracle). Read-only, nothing migrated: your portfolio feeds itself from wherever your data already lives.",
     p3_l1:"Connector to SAP, Oracle or Dynamics 365 (or your own SQL)", p3_l2:"Rollout and team training", p3_l3:"Monthly support and maintenance", p3_cta:"Request a proposal",
     reviews_kicker:"Reviews", reviews_h2:"Real user ratings",
@@ -671,14 +739,23 @@ const I18N = {
     faq3_q:"Can I migrate from the tool I use today?", faq3_a:"Yes, the smart importer profiles your current Excel or export and suggests a structure.",
     faq4_q:"Is the AI copilot mandatory?", faq4_a:"No. The health, dependency and prioritization engine works 100% without AI. Claude is an optional layer that only rewrites what the engine already computed.",
     faq5_q:"Is there support in Spanish?", faq5_a:"Yes, the platform and support are trilingual: Spanish, English and Portuguese.",
-    downloads_kicker:"Get started", downloads_h2:"Download the complete program",
-    downloads_lead:"It runs 100% unlocked for 7 days from first use — every feature, no cuts. When it expires, you continue with your Professional license and keep everything you entered; nothing is deleted.",
-    dl_btn:"⬇ Download MV Project Management",
-    dl_req:"Unzip and run the included launcher — on Windows, double-click; on Mac or Linux, <code>run.sh</code>. It sets everything up the first time. Requires Python 3.11+ (the launcher checks and guides you if it's missing).",
-    dl_installer:"🪟 <strong>Prefer a Windows installer?</strong> You choose where to install it, with a shortcut on your <strong>desktop</strong> (if you choose) and in the <strong>Start menu</strong> — no Python needed. <a href=\"/api/download-installer\" style=\"text-decoration:underline; color:var(--amber-on-light);\">Download the installer (.exe)</a>.",
-    dl1_t:"Full dashboard", dl1_d:"Portfolio, health, dependencies, backlog, copilot and reports — all in the browser, from minute one.",
-    dl3_t:"API for your BI tool", dl3_d:"Includes the local API to connect Power BI, Tableau or Excel to the same data.",
-    dl2_t:"Verifiable", dl2_d:"Ships with its test suite so you can check for yourself that the engine does exactly what we claim.",
+    downloads_kicker:"Demo", downloads_h2:"The demo is shown live, not downloaded",
+    downloads_lead:"We sit down for 30 minutes, load your portfolio or the sample one, and you see the product working on data you recognise. If it fits, we continue; if not, you did not lose an afternoon installing anything.",
+    demo_ph_nombre:"First and last name", demo_ph_empresa:"Company", demo_ph_pais:"Country",
+    demo_ph_email:"Work email",
+    demo_ph_msg:"Optional: how many projects you manage and what you use today",
+    demo_cta:"Request a demo", demo_enviando:"Sending…",
+    demo_ok:"Done. I will write to that address to arrange a time.",
+    demo_err_nombre:"Please enter first and last name.",
+    demo_err_email:"That email does not look valid.",
+    demo_err_falta:"Some fields are missing.",
+    demo_err_server:"I could not register the request. Write to me at ",
+    dl1_t:"On your data, not on a mock-up",
+    dl1_d:"Bring your spreadsheet to the meeting and we import it right there. You see your portfolio with its health calculated — not screenshots of someone else's company.",
+    dl3_t:"With your Power BI connected",
+    dl3_d:"If you work with Power BI, Tableau or Excel, in the same meeting we connect yours to the six tables and you watch it refresh.",
+    dl2_t:"And the questions get answered there",
+    dl2_d:"\"Does this hold 200 projects?\", \"does the data leave my network?\", \"how do I migrate what I have?\". Answered on the spot, not by email three days later.",
     contact_kicker:"Contact", contact_h2:"Want a pilot for your team?", contact_name:"Name", contact_email:"Email", contact_msg:"Tell us about your team and what tool you use today", contact_cta:"Send",
     footer_tag:"Built with the same DNA as MV Kobra AI and MV Data Governance",
   },
@@ -739,7 +816,7 @@ const I18N = {
     p1_l1:"O programa completo, não uma versão capada", p1_l2:"Todas as funções + copiloto IA", p1_l3:"Sem cartão de crédito para começar", p1_cta:"Baixar e testar",
     p2_t:"Professional", p2_period:"/usuário/mês", p2_uyu:"≈ UYU 360/mês · cobrado em moeda local à cotação do dia", p2_d:"Continua com tudo o que carregou no teste. Portfólios ilimitados, priorizador IA, dependências, relatório automático.",
     p2_l1:"Assinatura mensal — renova sozinha, cancele quando quiser", p2_l2:"Copiloto IA sem limite de cota (com sua própria chave de IA)", p2_l3:"Suporte prioritário", p2_cta:"Pagar com MercadoPago",
-    p3_t:"Implementação sob medida", p3_amount:"Fale conosco", p3_period:"cotizada por projeto, conforme o escopo", p3_uyu:"",
+    p3_t:"Implementação sob medida", p3_amount:"Fale conosco", p3_period:"cotizada por projeto, conforme o escopo",
     p3_d:"Conecta direto no seu SAP, Oracle (E-Business Suite, Fusion Cloud ou JD Edwards) ou Microsoft Dynamics 365 — ou no seu banco SQL próprio (SQL Server, PostgreSQL, MySQL, Oracle). Somente leitura, sem migrar nada: o portfólio se alimenta sozinho de onde seus dados já estão.",
     p3_l1:"Conector para SAP, Oracle ou Dynamics 365 (ou seu SQL próprio)", p3_l2:"Implantação e treinamento da equipe", p3_l3:"Suporte e manutenção mensal", p3_cta:"Pedir uma proposta",
     reviews_kicker:"Avaliações", reviews_h2:"Avaliação de usuários reais",
@@ -750,14 +827,23 @@ const I18N = {
     faq3_q:"Posso migrar da ferramenta que uso hoje?", faq3_a:"Sim, o importador inteligente perfila seu Excel ou export atual e sugere a estrutura.",
     faq4_q:"O copiloto de IA é obrigatório?", faq4_a:"Não. O motor de saúde, dependências e priorização funciona 100% sem IA. Claude é uma camada opcional que só redige melhor o que o motor já calculou.",
     faq5_q:"Tem suporte em português?", faq5_a:"Sim, a plataforma e o suporte são trilíngues: espanhol, inglês e português.",
-    downloads_kicker:"Comece agora", downloads_h2:"Baixe o programa completo",
-    downloads_lead:"Roda 100% desbloqueado por 7 dias desde o primeiro uso — todas as funções, sem cortes. Ao vencer, você continua com sua licença Professional e conserva tudo o que carregou; nada é apagado.",
-    dl_btn:"⬇ Baixar MV Project Management",
-    dl_req:"Descompacte e execute o lançador incluído — no Windows, duplo clique; no Mac ou Linux, <code>run.sh</code>. Ele prepara tudo na primeira vez. Requer Python 3.11+ (o lançador verifica e te orienta se faltar).",
-    dl_installer:"🪟 <strong>Prefere um instalador do Windows?</strong> Você escolhe onde instalar, com atalho na <strong>área de trabalho</strong> (se você quiser) e no <strong>menu Iniciar</strong> — sem depender de Python. <a href=\"/api/download-installer\" style=\"text-decoration:underline; color:var(--amber-on-light);\">Baixar o instalador (.exe)</a>.",
-    dl1_t:"Dashboard completo", dl1_d:"Portfólio, saúde, dependências, backlog, copiloto e relatórios — tudo no navegador, desde o primeiro minuto.",
-    dl3_t:"API para o seu BI", dl3_d:"Inclui a API local para conectar Power BI, Tableau ou Excel aos mesmos dados.",
-    dl2_t:"Verificável", dl2_d:"Vem com sua suíte de testes para você comprovar que o motor faz exatamente o que dizemos.",
+    downloads_kicker:"Demo", downloads_h2:"A demo é mostrada ao vivo, não baixada",
+    downloads_lead:"Sentamos 30 minutos, carregamos seu portfólio ou o de exemplo, e você vê o produto funcionando sobre dados que reconhece. Se servir, seguimos; se não, você não perdeu uma tarde instalando nada.",
+    demo_ph_nombre:"Nome e sobrenome", demo_ph_empresa:"Empresa", demo_ph_pais:"País",
+    demo_ph_email:"E-mail de trabalho",
+    demo_ph_msg:"Opcional: quantos projetos você gerencia e o que usa hoje",
+    demo_cta:"Pedir uma demo", demo_enviando:"Enviando…",
+    demo_ok:"Pronto. Escrevo para esse e-mail para combinar o horário.",
+    demo_err_nombre:"Coloque nome e sobrenome.",
+    demo_err_email:"Esse e-mail não parece válido.",
+    demo_err_falta:"Faltam dados.",
+    demo_err_server:"Não consegui registrar o pedido. Escreva para ",
+    dl1_t:"Sobre seus dados, não sobre uma maquete",
+    dl1_d:"Traga sua planilha para a reunião e importamos ali mesmo. Você vê seu portfólio com a saúde calculada, não capturas de tela de outra empresa.",
+    dl3_t:"Com seu Power BI conectado",
+    dl3_d:"Se você trabalha com Power BI, Tableau ou Excel, na mesma reunião conectamos o seu às seis tabelas e você o vê atualizar.",
+    dl2_t:"E as perguntas se respondem ali",
+    dl2_d:"\"Isso aguenta 200 projetos?\", \"os dados saem da minha rede?\", \"como migro o que tenho?\". Respondidas na hora, não por e-mail três dias depois.",
     contact_kicker:"Contato", contact_h2:"Quer um piloto para sua equipe?", contact_name:"Nome", contact_email:"Email", contact_msg:"Conte sobre sua equipe e qual ferramenta usa hoje", contact_cta:"Enviar",
     footer_tag:"Feito com o mesmo DNA de MV Kobra AI e MV Data Governance",
   },
@@ -774,6 +860,10 @@ function setLang(lang){
   if(lang === 'es'){ location.reload(); return; }
   const dict = I18N[lang];
   if(!dict) return;
+  // El formulario de demo lee de acá los mensajes de error y de éxito, que se
+  // arman en JS y no viven en el HTML. En español no hace falta: esa rama
+  // recarga la página y los textos por defecto del script ya están en español.
+  window.__I18N_ACTUAL__ = dict;
   document.querySelectorAll('[data-i]').forEach(el => {
     // innerHTML deliberado y seguro: `dict` es I18N, un objeto literal
     // definido más arriba en ESTE mismo archivo. Son cadenas nuestras, con
@@ -867,7 +957,14 @@ function setLang(lang){
       // innerHTML con una cadena literal escrita acá (sólo un <a> nuestro),
       // sin interpolar nada. El token que SÍ viene de la API se asigna abajo
       // con textContent justamente para que no se interprete como HTML.
-      msg.innerHTML = 'Pegá este token en el campo "Token de licencia" de la barra lateral del programa (sección <a href="#descargas" style="text-decoration:underline;">Empezar ahora</a> más abajo si todavía no lo descargaste):';
+      // El instalador ya no es público: la licencia que acaba de recibir ES
+      // su credencial de descarga (ver api/download-installer.js). Se arma el
+      // enlace acá, con su token, así el cliente no tiene que pedirlo por mail.
+      msg.innerHTML = 'Guardá este token: es tu licencia. Pegalo en el campo '
+        + '"Token de licencia" de la barra lateral del programa. '
+        + '<a href="/api/download-installer?token=' + encodeURIComponent(body.license_token)
+        + '" style="text-decoration:underline;">Descargar el instalador de Windows</a> '
+        + '(el enlace ya lleva tu licencia).';
       tokenSpan.textContent = body.license_token;
       tokenBox.style.display = 'flex';
       document.getElementById('postCheckoutCopy').addEventListener('click', () => {

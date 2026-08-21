@@ -68,3 +68,4 @@ jobs:
           node tests/test_checkout.js
           node tests/test_rotar_claves.js
           node tests/test_metricas.js
+          node tests/test_demo_y_descarga.js
