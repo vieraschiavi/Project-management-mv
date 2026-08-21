@@ -1,16 +1,23 @@
 {
   "name": "mv-project-management-desktop",
+  "productName": "MV Project Management",
   "version": "0.2.0",
   "private": true,
-  "description": "Ventana nativa de escritorio para MV Project Management — envuelve el mismo motor Python/Streamlit, sin reescribir la UI.",
+  "description": "MV Project Management · aplicación de escritorio (Electron + React) sobre la API del mismo motor Python. 100% local, sin telemetría.",
   "main": "main.js",
+  "license": "UNLICENSED",
   "scripts": {
-    "start": "electron .",
-    "dist": "node verificar_motor.js && electron-builder --win nsis"
+    "build-ui": "node scripts/build-ui.mjs",
+    "test": "node lib/server-manager.test.js",
+    "start": "npm run build-ui && electron .",
+    "dist": "node verificar_motor.js && npm run build-ui && electron-builder --win nsis"
   },
   "devDependencies": {
     "electron": "^33.0.0",
-    "electron-builder": "^25.1.0"
+    "electron-builder": "^25.1.0",
+    "esbuild": "^0.24.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
   },
   "build": {
     "appId": "com.mvprojectmanagement.desktop",
@@ -22,12 +29,18 @@
     "files": [
       "main.js",
       "preload.js",
-      "package.json"
+      "package.json",
+      "lib/**",
+      "ui/dist/**"
     ],
     "extraResources": [
       {
         "from": "resources/motor",
         "to": "motor"
+      },
+      {
+        "from": "ui/dist",
+        "to": "ui"
       }
     ],
     "win": {

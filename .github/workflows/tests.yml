@@ -68,3 +68,15 @@ jobs:
           node tests/test_checkout.js
           node tests/test_rotar_claves.js
           node tests/test_metricas.js
+          node tests/test_demo_y_descarga.js
+
+      # La interfaz de escritorio: su lanzador se testea con Node puro (el
+      # runtime de Electron no se puede bajar en todos los entornos) y el
+      # bundle se construye para comprobar que compila y no baja nada de
+      # internet. Sin esto, un error en la UI de React aparecería recién al
+      # armar el instalador de Windows, que corre en otro workflow.
+      - name: Interfaz de escritorio (React + lanzador)
+        run: |
+          node desktop/lib/server-manager.test.js
+          cd desktop && npm install --no-save --silent esbuild react react-dom
+          node scripts/build-ui.mjs

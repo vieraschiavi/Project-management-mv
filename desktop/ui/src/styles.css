@@ -1,0 +1,318 @@
+/* © 2026 Martín Viera. Todos los derechos reservados.
+ *
+ * Interfaz de escritorio. Sin framework de CSS a propósito: son ~250 líneas
+ * contra los cientos de KB de una librería, en un programa que promete
+ * funcionar sin internet y cuyo instalador ya pesa bastante.
+ *
+ * El verde es el de la marca (#82C544, el de la V del logo), bajado en
+ * saturación para el fondo claro — el original vibra sobre blanco.
+ */
+
+:root {
+  --mv: #5C9130;
+  --mv-claro: #82C544;
+  --fondo: #F7F9F5;
+  --panel: #FFFFFF;
+  --borde: #DFE5D9;
+  --tinta: #161D17;
+  --tinta-2: #4C5750;
+  --tinta-3: #7C877E;
+  --verde: #3E7D2C;
+  --verde-f: #E6F1DF;
+  --ambar: #9A6B0C;
+  --ambar-f: #FAF0DA;
+  --rojo: #B03A24;
+  --rojo-f: #FAE8E4;
+  --gris: #8A938C;
+  --gris-f: #EDF0EB;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --mv: #8FCC57;
+    --fondo: #0F1410;
+    --panel: #171E18;
+    --borde: #2B352C;
+    --tinta: #E8EFE5;
+    --tinta-2: #B2BDAF;
+    --tinta-3: #7F8B7D;
+    --verde: #7FC060;
+    --verde-f: #182415;
+    --ambar: #E0B252;
+    --ambar-f: #2A2213;
+    --rojo: #E8836B;
+    --rojo-f: #2C1A16;
+    --gris: #8A938C;
+    --gris-f: #1E251F;
+  }
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--fondo);
+  color: var(--tinta);
+  font: 14px/1.55 "Segoe UI", system-ui, -apple-system, "Helvetica Neue", sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ------------------------------------------------------------- estructura */
+
+.app { display: flex; min-height: 100vh; }
+
+aside {
+  width: 224px;
+  flex: 0 0 224px;
+  background: var(--panel);
+  border-right: 1px solid var(--borde);
+  display: flex;
+  flex-direction: column;
+  padding: 18px 0;
+}
+
+.marca {
+  font-weight: 700;
+  font-size: 15px;
+  letter-spacing: -0.01em;
+  padding: 0 18px 16px;
+  color: var(--mv);
+}
+
+nav { display: flex; flex-direction: column; gap: 2px; padding: 0 10px; }
+
+nav button {
+  text-align: left;
+  padding: 9px 12px;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  color: var(--tinta-2);
+  font: inherit;
+  cursor: pointer;
+}
+nav button:hover:not(:disabled) { background: var(--gris-f); color: var(--tinta); }
+nav button.sel { background: var(--verde-f); color: var(--verde); font-weight: 600; }
+nav button:disabled { opacity: .38; cursor: default; }
+
+.pie {
+  margin-top: auto;
+  padding: 16px 18px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  border-top: 1px solid var(--borde);
+}
+
+main { flex: 1; padding: 26px 30px 60px; min-width: 0; }
+
+h2 {
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: .09em;
+  color: var(--tinta-3);
+  margin: 30px 0 12px;
+  font-weight: 600;
+}
+h2:first-child { margin-top: 0; }
+
+.sub { color: var(--tinta-3); font-size: 13px; margin: 0 0 12px; }
+
+/* ------------------------------------------------------------------ KPIs */
+
+.kpis {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(158px, 1fr));
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.kpi {
+  background: var(--panel);
+  border: 1px solid var(--borde);
+  border-radius: 8px;
+  padding: 14px 16px;
+}
+.kpi-e {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: .07em;
+  color: var(--tinta-3);
+}
+.kpi-v {
+  font-size: 25px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  margin-top: 3px;
+  font-variant-numeric: tabular-nums;
+}
+.kpi-s { font-size: 12px; color: var(--tinta-3); }
+
+/* ---------------------------------------------------------------- barras */
+
+.barras {
+  background: var(--panel);
+  border: 1px solid var(--borde);
+  border-radius: 8px;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+
+.barra { display: grid; grid-template-columns: 190px 1fr 52px; gap: 12px; align-items: center; }
+.barra-n { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--tinta-2); }
+.barra-v { text-align: right; font-variant-numeric: tabular-nums; color: var(--tinta-2); }
+.pista { height: 9px; background: var(--gris-f); border-radius: 5px; overflow: hidden; }
+.relleno { height: 100%; border-radius: 5px; }
+.relleno.verde { background: var(--verde); }
+.relleno.ambar { background: var(--ambar); }
+.relleno.rojo  { background: var(--rojo); }
+.relleno.gris  { background: var(--gris); }
+
+/* ---------------------------------------------------------------- tablas */
+
+.tabla-head { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; }
+
+.buscador {
+  flex: 1;
+  max-width: 340px;
+  padding: 8px 11px;
+  border: 1px solid var(--borde);
+  border-radius: 6px;
+  background: var(--panel);
+  color: var(--tinta);
+  font: inherit;
+}
+
+/* Las tablas anchas scrollean DENTRO de su caja: si scrolleara el body, la
+ * barra lateral se iría de pantalla con él. */
+.scroll {
+  overflow-x: auto;
+  background: var(--panel);
+  border: 1px solid var(--borde);
+  border-radius: 8px;
+}
+
+table { border-collapse: collapse; width: 100%; font-size: 13px; }
+th, td { text-align: left; padding: 9px 13px; border-bottom: 1px solid var(--borde); }
+th {
+  font-size: 10.5px;
+  text-transform: uppercase;
+  letter-spacing: .07em;
+  color: var(--tinta-3);
+  background: var(--gris-f);
+  position: sticky;
+  top: 0;
+  white-space: nowrap;
+}
+tr:last-child td { border-bottom: 0; }
+td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+.chip {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.chip.verde { background: var(--verde-f); color: var(--verde); }
+.chip.ambar { background: var(--ambar-f); color: var(--ambar); }
+.chip.rojo  { background: var(--rojo-f);  color: var(--rojo); }
+.chip.gris  { background: var(--gris-f);  color: var(--tinta-3); }
+
+/* -------------------------------------------------------------- licencia */
+
+.panel-lic {
+  background: var(--panel);
+  border: 1px solid var(--borde);
+  border-radius: 8px;
+  padding: 24px 26px;
+  max-width: 620px;
+}
+
+.estado { font-weight: 600; margin: 6px 0 10px; }
+.estado.verde { color: var(--verde); }
+.estado.ambar { color: var(--ambar); }
+.estado.rojo  { color: var(--rojo); }
+
+.form-lic { display: flex; gap: 8px; margin: 14px 0 4px; flex-wrap: wrap; }
+.form-lic input {
+  flex: 1;
+  min-width: 240px;
+  padding: 9px 11px;
+  border: 1px solid var(--borde);
+  border-radius: 6px;
+  background: var(--fondo);
+  color: var(--tinta);
+  font: inherit;
+}
+
+button {
+  padding: 9px 16px;
+  border: 0;
+  border-radius: 6px;
+  background: var(--mv);
+  color: #fff;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+button:disabled { opacity: .5; cursor: default; }
+
+button.link {
+  background: none;
+  color: var(--tinta-3);
+  padding: 4px 0;
+  font-weight: 400;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+select {
+  padding: 7px 9px;
+  border: 1px solid var(--borde);
+  border-radius: 6px;
+  background: var(--panel);
+  color: var(--tinta);
+  font: inherit;
+}
+
+:focus-visible { outline: 2px solid var(--mv); outline-offset: 2px; }
+
+/* ------------------------------------------------------- arranque y error */
+
+.centro {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  min-height: 100vh;
+  padding: 24px;
+  text-align: center;
+  color: var(--tinta-2);
+}
+
+.spinner {
+  width: 26px;
+  height: 26px;
+  border: 3px solid var(--borde);
+  border-top-color: var(--mv);
+  border-radius: 50%;
+  animation: girar .8s linear infinite;
+}
+@keyframes girar { to { transform: rotate(360deg); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .spinner { animation: none; }
+  * { transition: none !important; }
+}
+
+@media (max-width: 760px) {
+  .app { flex-direction: column; }
+  aside { width: auto; flex: none; border-right: 0; border-bottom: 1px solid var(--borde); }
+  nav { flex-direction: row; flex-wrap: wrap; }
+  .barra { grid-template-columns: 118px 1fr 46px; }
+}

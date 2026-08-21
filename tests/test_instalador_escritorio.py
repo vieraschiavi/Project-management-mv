@@ -169,18 +169,57 @@ def test_el_nsh_no_sugiere_unidades_removibles():
 # --------------------------------- lo que el instalador empaqueta
 
 def test_el_motor_que_empaqueta_es_el_que_produce_pyinstaller(paquete):
-    """`extraResources` copia resources/motor; main.js después busca el .exe
-    en resources/motor/. Si los dos nombres se separan, el instalador sale sin
-    motor y la ventana abre vacía."""
+    """`extraResources` copia resources/motor; el lanzador después busca el .exe
+    ahí. Si los dos nombres se separan, el instalador sale sin motor y la
+    ventana abre vacía.
+
+    La búsqueda se mudó de `main.js` a `lib/server-manager.js` cuando la
+    interfaz pasó a React: `main.js` no puede tener lógica testeable porque
+    importa `electron`, que no se puede cargar en CI. El test mira donde la
+    lógica está de verdad — pero sigue exigiendo lo mismo, que es que el nombre
+    del ejecutable coincida con el que produce PyInstaller.
+    """
     recursos = paquete["build"]["extraResources"]
     assert any(r["from"] == "resources/motor" and r["to"] == "motor"
                for r in recursos), recursos
 
-    main_js = (DESKTOP / "main.js").read_text(encoding="utf-8")
-    assert '"motor", "MVProjectManagement.exe"' in main_js
+    lanzador = (DESKTOP / "lib" / "server-manager.js").read_text(encoding="utf-8")
+    assert "'motor'," in lanzador and "MVProjectManagement.exe" in lanzador, (
+        "el lanzador no busca el .exe en resources/motor/")
 
     spec = (RAIZ / "packaging" / "mvpm.spec").read_text(encoding="utf-8")
     assert "MVProjectManagement" in spec
+
+
+def test_el_bundle_de_react_viaja_en_el_instalador(paquete):
+    """La ventana carga /app, que sirve el bundle de React desde
+    `resources/ui`. Sin este `extraResources`, el instalador se arma igual y
+    abre una ventana en blanco con un 404 — sólo en la PC del cliente."""
+    recursos = paquete["build"]["extraResources"]
+    assert any(r["from"] == "ui/dist" and r["to"] == "ui" for r in recursos), (
+        f"el bundle de React no se empaqueta: {recursos}")
+
+
+def test_el_bundle_se_construye_antes_de_empaquetar(paquete):
+    """`ui/dist` está en .gitignore: no existe en un checkout limpio. Si
+    `dist` no lo construyera primero, electron-builder empaquetaría una
+    carpeta vacía y sólo avisaría."""
+    dist = paquete["scripts"]["dist"]
+    assert "build-ui" in dist, f"`dist` no construye la interfaz: {dist}"
+    assert dist.index("verificar_motor") < dist.index("electron-builder"), (
+        "la verificación del motor tiene que correr antes de empaquetar")
+
+
+def test_el_modo_api_del_lanzador_existe(paquete):
+    """El `.exe` empaquetado sirve React levantando la API con MVPM_MODO=api.
+    Si el lanzador no conociera esa variable, el binario abriría Streamlit y la
+    ventana de Electron mostraría un 404 en /app."""
+    lanzador = (DESKTOP / "lib" / "server-manager.js").read_text(encoding="utf-8")
+    assert "MVPM_MODO: 'api'" in lanzador
+
+    launcher_py = (RAIZ / "packaging" / "mvpm_launcher.py").read_text(encoding="utf-8")
+    assert 'MVPM_MODO' in launcher_py and "uvicorn.run" in launcher_py, (
+        "packaging/mvpm_launcher.py no sabe levantar la API")
 
 
 def test_el_build_aborta_si_falta_el_motor(paquete):
@@ -254,3 +293,26 @@ def test_el_lockfile_no_se_desincroniza(paquete):
     lock = json.loads((DESKTOP / "package-lock.json").read_text(encoding="utf-8"))
     assert lock["version"] == paquete["version"]
     assert lock["packages"][""]["version"] == paquete["version"]
+
+    # Y las DEPENDENCIAS, que es por donde se rompió de verdad.
+    #
+    # Este test comparaba sólo la versión del paquete. Agregué esbuild, react y
+    # react-dom para la interfaz de escritorio, no regeneré el lockfile, y el
+    # test pasó en verde: `npm ci` aborta con "can only install packages when
+    # your package.json and package-lock.json are in sync", pero eso recién se
+    # ve en el runner de Windows, cinco minutos después y en otro workflow.
+    #
+    # Se comprueba en los dos sentidos: una dependencia agregada sin regenerar
+    # el lock, y una sacada del package.json que quedó en el lock.
+    en_lock = lock["packages"][""]
+    for grupo in ("dependencies", "devDependencies"):
+        declaradas = set(paquete.get(grupo, {}))
+        bloqueadas = set(en_lock.get(grupo, {}))
+        faltan = sorted(declaradas - bloqueadas)
+        sobran = sorted(bloqueadas - declaradas)
+        assert not faltan, (
+            f"{grupo} en package.json que no están en el lockfile: {faltan}. "
+            "`npm ci` va a abortar el build de Windows. Corré `npm install` "
+            "en desktop/ y commiteá el package-lock.json.")
+        assert not sobran, (
+            f"{grupo} en el lockfile que ya no están en package.json: {sobran}")

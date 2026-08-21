@@ -210,8 +210,20 @@ def test_el_launcher_del_exe_usa_el_modulo_y_no_connect_ex():
 
 def test_electron_usa_el_puerto_que_anuncia_el_launcher():
     """Electron pedía un puerto y esperaba en ESE. Si el launcher elegía otro
-    (porque el pedido se ocupó), la ventana se quedaba esperando donde no
-    había nadie."""
-    contenido = (RAIZ / "desktop" / "main.js").read_text(encoding="utf-8")
-    assert "MVPM_READY_PORT" in contenido, (
-        "Electron no lee el puerto real que anuncia el launcher")
+    (porque el pedido se ocupó entre medio), la ventana se quedaba esperando
+    donde no había nadie: el servidor vivo, en otra puerta, y la pantalla en
+    blanco sin ningún error.
+
+    La lectura se mudó de `main.js` a `lib/server-manager.js` cuando la
+    interfaz pasó a React — `main.js` importa `electron` y por eso no puede
+    tener lógica testeable. El test sigue exigiendo lo mismo, mirando donde la
+    lógica está: que se lea el anuncio Y que `main.js` lo use, porque tener la
+    función y no llamarla dejaría el mismo agujero con mejor aspecto.
+    """
+    lanzador = (RAIZ / "desktop" / "lib" / "server-manager.js").read_text(encoding="utf-8")
+    assert "MVPM_READY_PORT" in lanzador, (
+        "el lanzador no lee el puerto real que anuncia el motor")
+
+    main_js = (RAIZ / "desktop" / "main.js").read_text(encoding="utf-8")
+    assert "puertoAnunciado(" in main_js, (
+        "main.js no usa el puerto anunciado: la función existe y nadie la llama")

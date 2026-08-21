@@ -38,3 +38,10 @@ graft/
 # genera el build (ver .github/workflows/build_electron.yml) y no se versiona:
 # el repo ya carga con instaladores commiteados y esto lo duplicaría.
 desktop/resources/motor/
+
+# Bundle de la interfaz de escritorio (React). Es un artefacto de build: lo
+# genera `npm run build-ui` y se rearma en cada compilación del instalador.
+# Commitearlo lo dejaría envejecer respecto del código, que es exactamente lo
+# que pasó con el ZIP de la landing.
+desktop/ui/dist/
+desktop/node_modules/

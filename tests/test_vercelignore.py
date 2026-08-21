@@ -89,7 +89,6 @@ def test_el_instalador_no_viaja_en_el_deploy(se_ignora):
     "landing/index.html",
     "landing/en/index.html",
     "landing/pt/index.html",
-    "landing/downloads/MV_Project_Management.zip",
     "landing/video/demo.mp4",
     "landing/og-image.jpg",
 ])

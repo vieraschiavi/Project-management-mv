@@ -76,6 +76,29 @@ def main() -> None:
         threading.Thread(target=_esperar_y_abrir, args=(url,), daemon=True).start()
     print(f"MVPM_READY_PORT:{puerto}", flush=True)
 
+    # ------------------------------------------------------------ modo API
+    #
+    # La ventana de escritorio (Electron) muestra la interfaz React, que se
+    # sirve desde `api/main.py` en /app. Este modo levanta eso en vez de
+    # Streamlit.
+    #
+    # Por qué acá adentro y no como un ejecutable aparte: este `.exe` es el
+    # que produce PyInstaller DESPUÉS de compilar `mvpm/` a `.pyd`
+    # (`packaging/setup_cython.py` + `strip_py_sources.py`). Levantar la API
+    # desde afuera con un Python suelto obligaría a meter `mvpm/` como `.py`
+    # legible dentro del instalador — o sea, regalar el motor en cada
+    # descarga, que es justo lo que la compilación viene a evitar.
+    #
+    # El `.bat` portable sigue con Streamlit y no pasa por acá.
+    if os.environ.get("MVPM_MODO", "").lower() == "api":
+        import uvicorn
+
+        # El bundle de React lo pasa Electron por env var: en el instalado
+        # queda en resources/ui, que no está al lado de api/.
+        uvicorn.run("api.main:app", host="127.0.0.1", port=puerto,
+                    log_level="warning")
+        return
+
     from streamlit.web import cli as stcli
 
     sys.argv = [
