@@ -66,3 +66,5 @@ jobs:
           node tests/test_verify_payment.js
           node tests/test_licencias.js
           node tests/test_checkout.js
+          node tests/test_rotar_claves.js
+          node tests/test_metricas.js

@@ -16,6 +16,22 @@ const { limitar } = require('./_ratelimit');
 const BLOB_PATHNAME = 'installers/MVProjectManagement_Setup_latest.exe';
 const CONTACTO = 'vieraschiavi@gmail.com';
 
+/** Un objeto minúsculo por descarga; `api/metricas.js` los cuenta listando.
+ *
+ * Se guarda la fecha y nada más — ni IP ni user agent. Alcanza para el número
+ * que el tablero necesita ("cuántas descargas") y evita acumular datos
+ * personales de gente que todavía ni siquiera es cliente. */
+async function anotarDescarga(token) {
+  const { put } = require('@vercel/blob');
+  const ahora = new Date();
+  const dia = ahora.toISOString().slice(0, 10);
+  await put(
+    `descargas/${dia}/${ahora.getTime()}-${Math.random().toString(36).slice(2, 8)}.json`,
+    JSON.stringify({ en: ahora.toISOString() }),
+    { access: 'public', contentType: 'application/json', token },
+  );
+}
+
 module.exports = async (req, res) => {
   // Cada llamada resuelve la URL del blob contra la API de Vercel. El límite
   // es holgado (30/min por IP) porque bajar el instalador varias veces es un
@@ -32,6 +48,10 @@ module.exports = async (req, res) => {
 
   try {
     const meta = await head(BLOB_PATHNAME, { token });
+    // Se anota la descarga ANTES de redirigir pero sin poder romperla: si el
+    // registro falla, la persona igual se lleva su instalador. Un contador no
+    // puede ser motivo para que una descarga no ocurra.
+    await anotarDescarga(token).catch(() => {});
     res.writeHead(302, { Location: meta.downloadUrl || meta.url });
     res.end();
   } catch (err) {

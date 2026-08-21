@@ -1,0 +1,135 @@
+name: Rotar claves de licencia
+
+# El botón que deja el cobro funcionando sin abrir una terminal.
+#
+# Qué resuelve: `api/verify-payment.js` firma la licencia del cliente con
+# MVPM_LICENSE_PRIVATE_KEY. Si esa variable no está en Vercel, quien paga
+# recibe un error 500 en vez de su licencia. Y si está pero es de otro par, es
+# peor: la emisión sale 200, el token está bien firmado, y no lo verifica
+# ninguna instalación — porque el programa trae embebida la OTRA pública. Eso
+# no lo detecta ningún test ni ningún deploy verde; lo detecta el cliente que
+# ya pagó.
+#
+# Este workflow genera el par, carga la privada en Vercel por API y pega la
+# pública en el código, todo en el mismo paso, así las dos mitades no se pueden
+# separar. La clave privada nunca se imprime ni queda en un archivo.
+#
+# ## Antes de correrlo
+#
+# Cargar dos secretos una sola vez en Settings -> Secrets and variables ->
+# Actions -> New repository secret:
+#
+#   VERCEL_TOKEN       vercel.com/account/tokens -> Create Token (scope: la cuenta
+#                      donde vive el proyecto). Es lo único que hay que copiar y pegar.
+#   VERCEL_PROJECT_ID  Vercel -> el proyecto -> Settings -> General -> Project ID
+#                      (empieza con prj_).
+#
+# Y opcionalmente VERCEL_TEAM_ID (Settings -> General de la cuenta, empieza con
+# team_) si el proyecto vive en un equipo y no en la cuenta personal.
+#
+# ## Cuándo NO correrlo
+#
+# Rotar invalida TODA licencia ya emitida. Mientras nadie haya comprado es
+# gratis. Después de la primera venta, hay que reemitir la licencia de cada
+# cliente a mano — por eso el input de confirmación no tiene valor por defecto.
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirmar:
+        description: 'Escribí ROTAR para confirmar. Invalida toda licencia ya emitida.'
+        required: true
+        type: string
+
+concurrency:
+  group: rotar-claves
+  cancel-in-progress: false   # a medio camino deja el par partido: nunca cancelar
+
+jobs:
+  rotar:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write   # commitear la clave pública nueva
+
+    steps:
+      - name: Confirmación explícita
+        if: inputs.confirmar != 'ROTAR'
+        run: |
+          echo "::error::Escribí exactamente ROTAR en el campo de confirmación."
+          exit 1
+
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Generar el par, cargar la privada en Vercel y pegar la pública
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+          VERCEL_TEAM_ID: ${{ secrets.VERCEL_TEAM_ID }}
+        run: node packaging/rotar_claves_licencia.js
+
+      # La suite cruza Node contra Python: si las dos mitades quedaron con
+      # públicas distintas, esto se cae ACÁ y no en la PC de un cliente.
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+
+      - name: Instalar dependencias
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt -r requirements-dev.txt
+
+      - name: Comprobar que el programa y el servidor coinciden
+        run: |
+          pytest tests/test_claves_licencia.py tests/test_licencia_extremo_a_extremo.py -q
+          node tests/test_licencias.js
+
+      # Empujar a main dispara solo los tres builds de instalador (escuchan
+      # push a main con paths mvpm/**), así los .exe salen con la pública
+      # nueva. Sin esto, los instaladores publicados seguirían verificando
+      # contra la clave vieja y rechazarían toda licencia emitida de ahora en
+      # más — el mismo fallo, al revés.
+      - name: Commitear la clave pública nueva
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add mvpm/licensing.py api/_license.js
+          if git diff --cached --quiet; then
+            echo "La clave pública no cambió (nada que commitear)."
+            exit 0
+          fi
+          git commit -m "Rotar el par de claves de licencia
+
+          Clave privada nueva cargada en Vercel por API (nunca pasó por un log
+          ni por un archivo). Esta es su mitad pública, la que viaja en cada
+          copia del programa y sólo sirve para verificar.
+
+          Los builds de instalador se disparan con este push: los .exe tienen
+          que salir con esta pública o rechazarían toda licencia nueva."
+          git push
+
+      - name: Resumen
+        run: |
+          {
+            echo "## Claves de licencia rotadas"
+            echo
+            echo "- Clave privada cargada en Vercel (production, preview, development)."
+            echo "- Clave pública commiteada en \`mvpm/licensing.py\` y \`api/_license.js\`."
+            echo "- Los builds de instalador se disparan solos con ese push."
+            echo
+            echo "### Falta un paso, y es de Vercel"
+            echo
+            echo "Una variable nueva **no entra en un despliegue ya hecho**. El push"
+            echo "de arriba dispara un deploy nuevo que sí la toma; esperá a que"
+            echo "termine y comprobá:"
+            echo
+            echo '```'
+            echo "curl https://mv-project-management.vercel.app/api/estado-licencias"
+            echo '```'
+            echo
+            echo 'Tiene que decir `"ok": true`.'
+          } >> "$GITHUB_STEP_SUMMARY"
