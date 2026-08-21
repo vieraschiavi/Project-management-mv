@@ -76,13 +76,95 @@ def escribir_clave_publica(publica: str) -> None:
     ARCHIVO_LICENSING.write_text(nuevo, encoding="utf-8")
 
 
+def publica_de(privada_b64url: str) -> str:
+    """La clave pública que corresponde a una privada dada."""
+    faltan = "=" * (-len(privada_b64url) % 4)
+    cruda = base64.urlsafe_b64decode(privada_b64url + faltan)
+    if len(cruda) != 32:
+        raise ValueError(f"la clave privada mide {len(cruda)} bytes, se esperaban 32")
+    privada = Ed25519PrivateKey.from_private_bytes(cruda)
+    return _b64url(privada.public_key().public_bytes(
+        encoding=serialization.Encoding.Raw,
+        format=serialization.PublicFormat.Raw,
+    ))
+
+
+def verificar() -> int:
+    """¿La clave privada de ESTA máquina sirve para emitir licencias que el
+    programa acepte?
+
+    Es la pregunta que decide si un cliente que paga puede usar el producto, y
+    la única que no se puede responder desde el servidor: Vercel firma con la
+    privada que tenga cargada y nunca la compara con la pública que viaja
+    embebida en los instaladores ya repartidos.
+    """
+    sys.path.insert(0, str(RAIZ))
+    from mvpm import licensing, owner
+
+    embebida = licensing.CLAVE_PUBLICA_EMBEBIDA
+    print()
+    print(f"  Clave pública embebida en el programa:\n    {embebida}")
+
+    privada = owner.clave_privada_local()
+    if not privada:
+        print()
+        print("  NO se encontró ninguna clave privada en esta máquina.")
+        print("    Se buscó en la variable MVPM_LICENSE_PRIVATE_KEY y en")
+        print(f"    {owner.ruta_clave_local()}")
+        print()
+        print("  Si la tenés guardada en tu gestor de contraseñas, exportala:")
+        print("    export MVPM_LICENSE_PRIVATE_KEY=<la-clave>   # PowerShell: $env:...")
+        print("  y volvé a correr esto. Si la perdiste, hay que rotar el par:")
+        print("    python packaging/generar_claves_licencia.py --escribir")
+        print("  ...y reconstruir y repartir los instaladores, porque los que ya")
+        print("  entregaste verifican contra la pública vieja.")
+        return 1
+
+    try:
+        derivada = publica_de(privada)
+    except ValueError as e:
+        print(f"\n  La clave encontrada no sirve: {e}")
+        return 1
+
+    print(f"  Pública que corresponde a tu clave privada:\n    {derivada}")
+    print()
+    if derivada == embebida:
+        print("  COINCIDEN. Esta clave privada emite licencias que el programa")
+        print("  acepta. Cargala en Vercel tal cual:")
+        print()
+        print("    Nombre : MVPM_LICENSE_PRIVATE_KEY")
+        print("    Scope  : Production")
+        print(f"    Valor  : {privada}")
+        print()
+        print("  Después redeployá y comprobá:")
+        print("    curl https://<tu-dominio>/api/estado-licencias")
+        return 0
+
+    print("  NO COINCIDEN. Esta privada es de otro par: las licencias que")
+    print("  emita no las abre ninguna copia instalada del programa.")
+    print()
+    print("  Opciones:")
+    print("   1. Buscar la privada correcta (gestor de contraseñas, otra máquina).")
+    print("   2. Rotar el par y reconstruir los instaladores:")
+    print("        python packaging/generar_claves_licencia.py --escribir")
+    return 1
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
         "--escribir", action="store_true",
         help="pega la clave pública en mvpm/licensing.py (si no, sólo la imprime)",
     )
+    parser.add_argument(
+        "--verificar", action="store_true",
+        help="NO genera nada: dice si la clave privada de esta máquina "
+             "corresponde a la pública embebida en el programa",
+    )
     args = parser.parse_args()
+
+    if args.verificar:
+        return verificar()
 
     privada, publica = generar()
     if args.escribir:
