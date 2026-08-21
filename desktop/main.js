@@ -1,154 +1,164 @@
 // © 2026 Martín Viera. Todos los derechos reservados.
-// Proceso principal de Electron — envuelve el mismo motor Python/Streamlit
-// en una ventana nativa (sin barra de navegador, ícono propio) en vez de
-// abrir una pestaña del navegador del sistema, que es lo que hace hoy el
-// instalador Python solo. No reescribe ninguna pantalla: la UI sigue siendo
-// Streamlit, corriendo embebida como proceso hijo.
+//
+// Proceso principal de Electron.
+//
+// ## Qué cambió: Streamlit adentro, React adentro
+//
+// Antes esta ventana envolvía Streamlit: era un navegador sin barra mostrando
+// la misma página que se abre con `./run.sh app`. Funcionaba, pero el techo
+// era el de Streamlit — nunca se iba a ver como un producto a medida, y eso
+// era lo que bajaba la nota de interfaz.
+//
+// Ahora levanta `api/main.py` (FastAPI), que sirve la interfaz React en
+// `/app`. El motor de dominio (`mvpm/`) es EXACTAMENTE el mismo: son dos
+// formas de ver lo mismo, no dos productos.
+//
+//   .exe instalado -> React sobre la API
+//   .bat portable  -> Streamlit
+//
+// La lógica de arranque vive en `lib/server-manager.js`, separada a propósito
+// para poder testearla con Node puro: el runtime de Electron no se puede bajar
+// en todos los entornos de CI, y sin esa separación la parte que más se rompe
+// —encontrar el Python correcto, esperar al servidor, matarlo bien— quedaría
+// sin ningún test.
 
-const { app, BrowserWindow, dialog } = require("electron");
-const { spawn } = require("child_process");
-const http = require("http");
-const net = require("net");
-const path = require("path");
+const { app, BrowserWindow, dialog, shell } = require('electron');
+const path = require('node:path');
 
-let ventanaPrincipal = null;
-let procesoStreamlit = null;
+const {
+  puertoLibre, elegirPython, raizServidor, lanzarApi, lanzarMotorEmpaquetado,
+  motorEmpaquetado, puertoAnunciado, esperarServidor, detener,
+} = require('./lib/server-manager');
 
-function puertoLibre() {
-  return new Promise((resolve, reject) => {
-    const servidor = net.createServer();
-    servidor.unref();
-    servidor.on("error", reject);
-    servidor.listen(0, "127.0.0.1", () => {
-      const { port } = servidor.address();
-      servidor.close(() => resolve(port));
-    });
-  });
+let ventana = null;
+let servidor = null;
+
+/** Dónde está el bundle de React, según sea instalación o desarrollo. */
+function dirUi() {
+  return app.isPackaged
+    ? path.join(process.resourcesPath, 'ui')
+    : path.join(__dirname, 'ui', 'dist');
 }
 
-function comandoStreamlit(puerto) {
-  // El motor viaja como CARPETA (PyInstaller onedir, ver packaging/mvpm.spec),
-  // no como un .exe suelto: el .exe necesita a sus dependencias al lado.
-  const exeEmpaquetado = path.join(
-    process.resourcesPath || "", "motor", "MVProjectManagement.exe");
-  if (app.isPackaged) {
-    // Instalador real: corre el .exe ya compilado por PyInstaller, sin
-    // necesitar Python instalado en la PC del usuario.
-    return { comando: exeEmpaquetado, args: [] };
+function fallar(titulo, detalle) {
+  dialog.showErrorBox(titulo, detalle);
+  app.quit();
+}
+
+async function arrancar() {
+  const pedido = await puertoLibre();
+  let puerto = pedido;
+
+  // Dos formas de levantar el MISMO motor, según dónde estemos:
+  //
+  //   instalado    -> el .exe de PyInstaller en modo API. Lleva `mvpm/`
+  //                   compilado a .pyd y no necesita Python en la PC.
+  //   desarrollo   -> uvicorn contra el código fuente del repositorio.
+  //
+  // El orden importa: si estuviera al revés, en una máquina de desarrollo con
+  // un .exe viejo en resources/ se probaría ese y no el código que se está
+  // editando.
+  const exe = app.isPackaged ? motorEmpaquetado(process.resourcesPath) : null;
+  if (exe) {
+    servidor = lanzarMotorEmpaquetado(exe, pedido, dirUi());
+    // El motor puede haber tomado OTRO puerto si el pedido se ocupó en el
+    // medio: se escucha el que anuncia en vez de asumir el que se pidió.
+    puerto = await puertoAnunciado(servidor, pedido);
+  } else {
+    const raizRepo = path.join(__dirname, '..');
+    const raiz = raizServidor(app.isPackaged ? process.resourcesPath : null, raizRepo);
+    const python = elegirPython(raiz);
+    if (!python) {
+      fallar('No encontré el motor',
+        'MV Project Management no pudo encontrar ni el motor empaquetado ni un '
+        + 'Python con fastapi y uvicorn.\n\n'
+        + 'Si instalaste el programa desde el .exe, esto no debería pasar: '
+        + 'escribinos a vieraschiavi@gmail.com.\n\n'
+        + `Carpeta consultada:\n${raiz}`);
+      return;
+    }
+    // uvicorn con --port no negocia: o toma ese puerto o falla.
+    servidor = lanzarApi(python, raiz, pedido, dirUi());
   }
-  // Desarrollo: corre el launcher directo con el Python del sistema.
-  const raiz = path.join(__dirname, "..");
-  return {
-    comando: process.platform === "win32" ? "python" : "python3",
-    args: [path.join(raiz, "packaging", "mvpm_launcher.py")],
-  };
-}
 
-function esperarServidor(puerto, timeoutMs = 30000) {
-  const inicio = Date.now();
-  return new Promise((resolve, reject) => {
-    const intentar = () => {
-      const req = http.get({ host: "127.0.0.1", port: puerto, timeout: 1000 }, (res) => {
-        res.destroy();
-        resolve();
-      });
-      req.on("error", () => {
-        if (Date.now() - inicio > timeoutMs) {
-          reject(new Error("El servidor no respondió a tiempo."));
-        } else {
-          setTimeout(intentar, 300);
-        }
-      });
-    };
-    intentar();
-  });
-}
-
-async function iniciarStreamlit() {
-  const puertoPedido = await puertoLibre();
-  const { comando, args } = comandoStreamlit(puertoPedido);
-
-  procesoStreamlit = spawn(comando, args, {
-    env: { ...process.env, MVPM_PORT: String(puertoPedido), MVPM_ELECTRON: "1" },
-    windowsHide: true,
+  // El stderr del servidor va a la consola del proceso principal a propósito:
+  // si el arranque falla, el motivo real está ahí y no en el timeout genérico.
+  servidor.stderr.on('data', (d) => process.stderr.write(`[motor] ${d}`));
+  servidor.on('exit', (code) => {
+    if (code !== 0 && !app.isQuiting) {
+      fallar('El motor se cerró',
+        `El servidor local terminó con código ${code}. Volvé a abrir el `
+        + 'programa; si sigue pasando, escribinos a vieraschiavi@gmail.com.');
+    }
   });
 
-  // El launcher respeta MVPM_PORT si sigue libre, pero elige otro si otra
-  // aplicación se lo ganó en el medio (ver mvpm/puertos.py). Por eso el puerto
-  // real se toma de lo que anuncia el propio launcher y no del que pedimos:
-  // si no, la ventana se quedaba esperando en un puerto donde no había nadie.
-  let resolverPuertoReal;
-  const puertoReal = new Promise((resolve) => { resolverPuertoReal = resolve; });
-
-  procesoStreamlit.stdout?.on("data", (chunk) => {
-    process.stdout.write(chunk);
-    const m = /MVPM_READY_PORT:(\d+)/.exec(String(chunk));
-    if (m) resolverPuertoReal(Number(m[1]));
+  ventana = new BrowserWindow({
+    width: 1360,
+    height: 880,
+    minWidth: 960,
+    minHeight: 620,
+    show: false,
+    backgroundColor: '#F7F9F5',
+    title: 'MV Project Management',
+    icon: path.join(__dirname, '..', 'packaging', 'assets', 'icon.ico'),
+    webPreferences: {
+      // La ventana carga http://127.0.0.1 y nada más. Sin `nodeIntegration` y
+      // con `contextIsolation`, aunque alguien lograra inyectar algo en la
+      // interfaz, no tendría acceso al sistema de archivos ni a `require`.
+      nodeIntegration: false,
+      contextIsolation: true,
+      sandbox: true,
+    },
   });
-  procesoStreamlit.stderr?.on("data", (chunk) => process.stderr.write(chunk));
+  ventana.setMenuBarVisibility(false);
 
-  procesoStreamlit.on("error", (err) => {
-    dialog.showErrorBox(
-      "No se pudo iniciar MV Project Management",
-      `No se encontró el motor de la aplicación.\n\n${err.message}`
-    );
-    app.quit();
+  // Un enlace externo abre el navegador del sistema, no esta ventana: si se
+  // abriera acá, el usuario quedaría con una página web dentro de su programa
+  // y sin barra de navegación para volver.
+  ventana.webContents.setWindowOpenHandler(({ url }) => {
+    shell.openExternal(url);
+    return { action: 'deny' };
   });
 
-  // Si el launcher no llega a anunciar el puerto (versión vieja del .exe, o
-  // murió antes), se sigue con el que se pidió en vez de colgarse esperando.
-  const puerto = await Promise.race([
-    puertoReal,
-    new Promise((resolve) => setTimeout(() => resolve(puertoPedido), 5000)),
-  ]);
-
-  await esperarServidor(puerto);
-  return puerto;
-}
-
-async function crearVentana() {
-  let puerto;
-  try {
-    puerto = await iniciarStreamlit();
-  } catch (err) {
-    dialog.showErrorBox("MV Project Management no pudo arrancar", err.message);
-    app.quit();
+  const listo = await esperarServidor(puerto);
+  if (!listo) {
+    fallar('El motor no respondió',
+      'El servidor local no llegó a levantar. Suele ser un antivirus '
+      + 'bloqueando el proceso o el puerto.\n\n'
+      + 'Escribinos a vieraschiavi@gmail.com si vuelve a pasar.');
     return;
   }
 
-  ventanaPrincipal = new BrowserWindow({
-    width: 1400,
-    height: 900,
-    backgroundColor: "#081527",
-    title: "MV Project Management",
-    autoHideMenuBar: true,
-    webPreferences: {
-      contextIsolation: true,
-      nodeIntegration: false,
-    },
-  });
+  // La barra final importa: sin ella StaticFiles responde un 307 hacia `/app/`
+  // y la ventana muestra un parpadeo de redirección en cada arranque.
+  await ventana.loadURL(`http://127.0.0.1:${puerto}/app/`);
+  ventana.show();
+}
 
-  ventanaPrincipal.loadURL(`http://127.0.0.1:${puerto}`);
-  ventanaPrincipal.on("closed", () => {
-    ventanaPrincipal = null;
+app.whenReady().then(arrancar);
+
+// Una sola instancia: dos ventanas serían dos servidores sobre la MISMA base
+// SQLite, y la segunda escritura pisaría a la primera sin avisar.
+if (!app.requestSingleInstanceLock()) {
+  app.quit();
+} else {
+  app.on('second-instance', () => {
+    if (ventana) {
+      if (ventana.isMinimized()) ventana.restore();
+      ventana.focus();
+    }
   });
 }
 
-function detenerStreamlit() {
-  if (procesoStreamlit && !procesoStreamlit.killed) {
-    procesoStreamlit.kill();
-  }
-}
-
-app.whenReady().then(crearVentana);
-
-app.on("window-all-closed", () => {
-  detenerStreamlit();
-  if (process.platform !== "darwin") app.quit();
+app.on('window-all-closed', () => {
+  app.isQuiting = true;
+  detener(servidor);
+  servidor = null;
+  app.quit();
 });
 
-app.on("before-quit", detenerStreamlit);
-
-app.on("activate", () => {
-  if (BrowserWindow.getAllWindows().length === 0) crearVentana();
-});
+// Red de seguridad: si Electron se va por una excepción o una señal, el
+// `window-all-closed` de arriba puede no llegar a correr y el Python quedaría
+// vivo ocupando el puerto y la base.
+app.on('before-quit', () => { app.isQuiting = true; detener(servidor); });
+process.on('exit', () => detener(servidor));

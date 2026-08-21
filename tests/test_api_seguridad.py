@@ -151,19 +151,65 @@ def test_desde_otra_maquina_sin_api_key_configurada_se_niega(monkeypatch, tmp_pa
 
 def test_todos_los_endpoints_de_datos_llevan_el_gate():
     """Que ninguno se agregue en el futuro sin autorización: se comprueba
-    contra las rutas registradas, no contra una lista escrita a mano."""
+    contra las rutas registradas, no contra una lista escrita a mano.
+
+    Hay dos exenciones y las dos son deliberadas:
+
+    * **Las rutas de licencia** (`solo_local`). Ponerles `requiere_acceso`
+      sería un candado con la llave adentro: una instalación con la prueba
+      vencida recibiría 402 al preguntar por su propio estado, la interfaz no
+      podría explicar qué pasa ni ofrecer activar, y el cliente quedaría en
+      una pantalla de error sin salida justo cuando iba a pagar. No exponen
+      ningún dato del portafolio: sólo el estado del candado.
+    * **`/app`**, que sirve el bundle de React. Es HTML y JavaScript
+      estáticos, los mismos para todos; los DATOS siguen detrás del candado.
+      Si estuviera cerrado, la ventana no podría siquiera dibujar la pantalla
+      de licencia.
+
+    Todo lo demás que sirva datos del cliente tiene que llevar el gate, y por
+    eso la exención es una lista explícita y no una regla por prefijo: una
+    ruta nueva bajo `/licencias/` que devolviera datos se caería acá.
+    """
     import api.main as main
     ABIERTAS = {"/", "/health", "/licencias/planes",
                 "/openapi.json", "/docs", "/docs/oauth2-redirect", "/redoc"}
+    #: Control del candado, no datos. Cada una exige `solo_local`, que se
+    #: verifica abajo — no quedan abiertas a la red.
+    CONTROL = {"/licencias/acceso", "/licencias/activar", "/licencias/estado"}
+    #: El bundle estático de la interfaz de escritorio.
+    ESTATICAS = {"/app"}
+
     sin_gate = []
     for route in main.app.routes:
         path = getattr(route, "path", None)
-        if not path or path in ABIERTAS:
+        if not path or path in ABIERTAS | CONTROL | ESTATICAS:
             continue
         deps = getattr(route, "dependencies", [])
         if not any(getattr(d, "dependency", None) is main.requiere_acceso for d in deps):
             sin_gate.append(path)
     assert not sin_gate, f"endpoints sin requiere_acceso: {sin_gate}"
+
+    # Las de control no llevan licencia, pero SÍ tienen que exigir ser locales:
+    # sin esto, la exención de arriba las dejaría abiertas a toda la red.
+    for path in CONTROL:
+        rutas = [r for r in main.app.routes if getattr(r, "path", None) == path]
+        assert rutas, f"{path} ya no existe: sacala de CONTROL"
+        for r in rutas:
+            nombres = [d.call.__name__ for d in r.dependant.dependencies
+                       if getattr(d, "call", None)]
+            assert "solo_local" in nombres, (
+                f"{path} está exenta del candado de licencia Y no exige ser "
+                "local: queda abierta a la red")
+
+    # `/app` no puede servir nada que no sea el bundle: si algún día montara
+    # una carpeta con datos, esta exención se volvería un agujero.
+    estatica = [r for r in main.app.routes if getattr(r, "path", None) == "/app"]
+    if estatica:
+        from fastapi.staticfiles import StaticFiles
+
+        montada = getattr(estatica[0], "app", None)
+        assert isinstance(montada, StaticFiles), (
+            "/app dejó de ser un montaje estático: revisá la exención")
 
 
 def test_con_api_key_configurada_exige_el_header(monkeypatch, tmp_path):

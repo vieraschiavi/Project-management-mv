@@ -30,8 +30,13 @@ para BI son reales.
   las dependencias de las funciones serverless de pago (`api/checkout.js`,
   `api/verify-payment.js`, `api/_license.js`, MercadoPago) y del paso de
   publicación del instalador en Vercel Blob (CI). El producto en sí es Python.
-- **Desktop** — `desktop/`: envoltorio **Electron** (electron-builder) sobre el
-  mismo motor Python/Streamlit, sin reescribir la UI.
+- **Desktop** — `desktop/`: **Electron + React** (esbuild, sin CDN) sobre el
+  mismo motor. La UI React consume `api/main.py`, que la sirve en `/app`; el
+  `.exe` la levanta con `MVPM_MODO=api`. El `.bat` portable sigue con
+  Streamlit: son dos formas de ver EL MISMO motor, no dos productos. La lógica
+  de arranque vive en `desktop/lib/server-manager.js` —separada de `main.js`
+  para poder testearla sin el runtime de Electron— y `desktop/ui/dist` es un
+  artefacto de build que no se commitea.
 - **Tests**: `pytest` sobre `tests/` (`test_core.py`, `test_db.py`,
   `test_importer.py`, `test_conectores.py`, `test_conectores_bi.py`,
   `test_mcp_server.py`, `test_capacitacion.py`, `test_plantillas.py`).
@@ -78,7 +83,8 @@ api/checkout.js       checkout de MercadoPago (función serverless Vercel)
 api/verify-payment.js verifica el pago y emite la licencia (nunca confía en el cliente)
 api/_license.js        mismo esquema de licencias que mvpm/licensing.py, en JS
 landing/              landing pública trilingüe (HTML/CSS/JS, sin build)
-desktop/              instalador Electron — misma UI de Streamlit, ventana nativa
+desktop/              app de escritorio: Electron + React sobre la API del motor
+                        (ui/ interfaz, lib/ arranque, scripts/ build con esbuild)
 packaging/            empaquetado para PC (launcher, PyInstaller, Inno Setup)
 distribucion/         distribución y conectores de BI: powerbi/ (.pbids en vivo),
                         tableau/ (exportador a CSV), fabric/ (Power Query para
