@@ -293,3 +293,26 @@ def test_el_lockfile_no_se_desincroniza(paquete):
     lock = json.loads((DESKTOP / "package-lock.json").read_text(encoding="utf-8"))
     assert lock["version"] == paquete["version"]
     assert lock["packages"][""]["version"] == paquete["version"]
+
+    # Y las DEPENDENCIAS, que es por donde se rompió de verdad.
+    #
+    # Este test comparaba sólo la versión del paquete. Agregué esbuild, react y
+    # react-dom para la interfaz de escritorio, no regeneré el lockfile, y el
+    # test pasó en verde: `npm ci` aborta con "can only install packages when
+    # your package.json and package-lock.json are in sync", pero eso recién se
+    # ve en el runner de Windows, cinco minutos después y en otro workflow.
+    #
+    # Se comprueba en los dos sentidos: una dependencia agregada sin regenerar
+    # el lock, y una sacada del package.json que quedó en el lock.
+    en_lock = lock["packages"][""]
+    for grupo in ("dependencies", "devDependencies"):
+        declaradas = set(paquete.get(grupo, {}))
+        bloqueadas = set(en_lock.get(grupo, {}))
+        faltan = sorted(declaradas - bloqueadas)
+        sobran = sorted(bloqueadas - declaradas)
+        assert not faltan, (
+            f"{grupo} en package.json que no están en el lockfile: {faltan}. "
+            "`npm ci` va a abortar el build de Windows. Corré `npm install` "
+            "en desktop/ y commiteá el package-lock.json.")
+        assert not sobran, (
+            f"{grupo} en el lockfile que ya no están en package.json: {sobran}")
