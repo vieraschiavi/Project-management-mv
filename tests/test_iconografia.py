@@ -41,7 +41,13 @@ CON_ETIQUETA = SOPORTAN_ICON | {
     "number_input", "date_input", "slider", "file_uploader", "toggle",
 }
 
-_EMOJI = re.compile("[\U0001F300-\U0001FAFF\U0001F1E6-\U0001F1FF☀-➿⬀-⯿]")
+#: Los rangos donde vive un emoji. El de U+2300–U+23FF (⏳ ⌚ ⏰ ⏱ ⏸) estaba
+#: afuera, y por eso se coló un `st.sidebar.info(f"⏳ Prueba: ...")` con el
+#: resto de la interfaz ya convertida: el reloj de arena no es "Miscellaneous
+#: Symbols and Pictographs" sino "Miscellaneous Technical", que el rango
+#: original no tocaba. Lo encontré barriendo por categoría Unicode (So), no
+#: leyendo: el test decía verde con el emoji ahí.
+_EMOJI = re.compile("[\U0001F300-\U0001FAFF\U0001F1E6-\U0001F1FF⌀-⏿☀-➿⬀-⯿]")
 
 
 def _textos_de(nodo: ast.AST) -> list[str]:
@@ -79,6 +85,16 @@ def test_ninguna_etiqueta_de_la_interfaz_lleva_un_emoji():
     assert not sobrantes, (
         'Emojis dentro de etiquetas — van en `icon=":material/...:"`:\n'
         + "\n".join(map(str, sobrantes)))
+
+
+def test_el_detector_de_emojis_cubre_los_relojes():
+    """Fija el agujero por el que se coló el ⏳. Sin esto, el rango se puede
+    volver a angostar sin que ningún test lo note — que es exactamente lo que
+    había pasado."""
+    # Lista y no una cadena: "⚠️" son DOS puntos de código (el signo más el
+    # selector de variación U+FE0F) y recorrer la cadena los separaría.
+    for glifo in ["⏳", "⌚", "⏰", "⏱", "⏸", "✅", "⚠️", "🔴", "📋"]:
+        assert _EMOJI.search(glifo), f"{glifo} (U+{ord(glifo[0]):04X}) no se detecta"
 
 
 def test_los_semaforos_de_estado_siguen_estando():

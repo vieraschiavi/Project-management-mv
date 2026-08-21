@@ -75,21 +75,24 @@ def requiere_acceso(request: Request) -> None:
        aunque la prueba del dashboard ya hubiera vencido, porque nunca
        consultaba nada de licencias.
 
-       Nota de alcance: `licensing.estado_acceso` se llama con `token=None`
-       porque hoy no hay forma de que este proceso reciba el token que un
-       cliente pagó — `LICENSE_TOKEN` en app.py vive sólo en el campo de texto
-       de esa sesión de Streamlit, no se persiste a disco ni a variable de
-       entorno en ningún lado. Con esto, un cliente que YA PAGÓ pero cuya
-       prueba de 7 días venció tampoco puede usar la API hasta que exista esa
-       persistencia — es una limitación real, no algo que este chequeo pueda
-       resolver sin inventar un mecanismo de guardado que nadie pidió.
+       El token sale de `licensing.token_guardado()`: el archivo que el
+       dashboard escribe cuando el cliente pega su licencia. Este proceso no
+       puede ver la sesión de Streamlit —es otro proceso—, y mientras el token
+       vivió sólo ahí, un cliente que YA HABÍA PAGADO recibía 402 de esta API
+       para siempre pasados los 7 días. Pagaba por los conectores de BI y no
+       los podía usar, que es de las dos formas de fallar la peor: silenciosa
+       y después de cobrar.
+
+       `token_guardado()` devuelve None si el archivo no está o si dejó de
+       verificar, así que esto no es una puerta nueva: sin licencia válida el
+       402 sigue igual.
 
     2. Red — desde la propia máquina se permite sin clave (es el caso normal,
        Power BI y el dashboard corriendo al lado). Desde cualquier otra IP hay
        que presentar MVPM_API_KEY.
     """
     if not owner.es_owner():
-        acceso = licensing.estado_acceso(None)
+        acceso = licensing.estado_acceso(licensing.token_guardado())
         if not acceso["acceso"]:
             raise HTTPException(status_code=402, detail=acceso["mensaje"])
 
