@@ -45,3 +45,19 @@ desktop/resources/motor/
 # que pasó con el ZIP de la landing.
 desktop/ui/dist/
 desktop/node_modules/
+
+# Instaladores compilados. NUNCA se commitean, por dos motivos:
+#
+#   1. 71 MB por build. Estuvieron commiteados 27 veces y `.git` llegó a 1,9 GB:
+#      cada clon se baja eso y cada push lo arrastra. Los pushes tardaban
+#      minutos y se cortaban.
+#   2. `api/download-installer.js` entrega el instalador SÓLO a quien presenta
+#      una licencia válida. Un .exe en el árbol de un repositorio público se
+#      baja sin licencia y sin dejar rastro — el candado puesto y la puerta de
+#      al lado abierta.
+#
+# Canales: Vercel Blob para el cliente (respeta el candado) y el artefacto de
+# Actions para el dueño (exige estar logueado). tests/test_workflows.py lo fija.
+INSTALADOR/
+packaging/Output/
+*.exe

@@ -72,13 +72,20 @@ def test_no_se_sube(se_ignora, ruta):
     assert se_ignora(ruta), f"{ruta} se estaría subiendo a Vercel y no debería"
 
 
-def test_el_instalador_no_viaja_en_el_deploy(se_ignora):
-    """Los .exe pesan 144 MB y se sirven desde Vercel Blob
-    (`api/download-installer.js`), no desde el repo."""
-    exes = [p for p in _rastreados() if p.endswith(".exe")]
-    assert exes, "se esperaba encontrar instaladores rastreados"
-    for exe in exes:
-        assert se_ignora(exe), exe
+def test_ningun_ejecutable_viajaria_en_el_deploy(se_ignora):
+    """Antes esto recorría los `.exe` RASTREADOS y comprobaba que `.vercelignore`
+    los excluyera. Ya no hay ninguno: los instaladores salieron del árbol de git
+    (`tests/test_workflows.py::test_ningun_ejecutable_esta_versionado`), que es
+    una garantía más fuerte — no se suben a Vercel porque no existen en el repo.
+
+    El test se mantiene mirando rutas hipotéticas, no archivos reales, porque
+    `.vercelignore` sigue siendo la última red: si mañana alguien commitea un
+    `.exe` esquivando el otro test, esto asegura que al menos no se despliegue.
+    `git check-ignore --no-index` responde sobre una ruta que no existe."""
+    for ruta in ("INSTALADOR/CLIENTE/loquesea.exe",
+                 "packaging/Output/MVProjectManagement_Setup.exe",
+                 "desktop/release/MVProjectManagement-Desktop-Setup.exe"):
+        assert se_ignora(ruta), f"{ruta} se subiría a Vercel"
 
 
 # -------------------------------------------------- lo que SÍ tiene que subir
