@@ -153,6 +153,61 @@ def test_un_token_manoseado_lo_rechazan_los_dos_lados(prueba_vencida):
                  f"{json.dumps(falso)})));") == "null"
 
 
+def test_las_dos_mitades_coinciden_en_cuando_vence_una_licencia(prueba_vencida):
+    """El servidor y el programa tienen que estar de acuerdo sobre si una
+    licencia sigue viva.
+
+    No lo estaban, y el desacuerdo era en la dirección cara: el lado JS no
+    tenía NINGUNA noción de vencimiento —`verifyLicense` mira la firma y la
+    lista de revocados y nada más— así que `/api/download-installer` entregaba
+    el instalador contra un token emitido hace dos años. El programa sí lo
+    bloqueaba. Alguien que pagó una vez y canceló seguía bajando versiones
+    nuevas para siempre.
+
+    Se comparan las dos implementaciones en los bordes, que es donde un
+    off-by-one se esconde: el día anterior al vencimiento, el mismo día, y el
+    día después.
+
+    El reloj se pasa FIJO a los dos lados en vez de dejar que cada uno consulte
+    el suyo. La primera versión no lo hacía y fallaba justo en el borde exacto
+    —365 días clavados— con Python diciendo False y Node True. No era un
+    desacuerdo de código: las fórmulas son idénticas. Era que Python lee
+    `time.time()` (float, con microsegundos) y Node `Math.floor(Date.now()/1000)`
+    (entero, trunca), y en el instante exacto del vencimiento esa diferencia de
+    microsegundos alcanza para invertir el `<=`. Comparar relojes distintos
+    medía el jitter; con el reloj fijo se mide la fórmula, que es lo único que
+    puede divergir de verdad.
+    """
+    ahora = 1_800_000_000  # instante fijo: si cada lado lee su reloj, el borde
+                           # exacto depende de microsegundos y no de la fórmula
+    for plan in ("professional", "professional_anual", "enterprise"):
+        vigencia = licensing.PLANES[plan]["vigencia_dias"]
+        for delta in (-1, 0, 1):
+            dias = vigencia + delta
+            payload = {"plan": plan, "iat": ahora - dias * DIA}
+            en_python = licensing.licencia_vigente(payload, ahora=ahora)
+            en_node = _node(
+                f"process.stdout.write(String(L.licenciaVigente("
+                f"{json.dumps(payload)}, {ahora})));") == "true"
+            assert en_python == en_node, (
+                f"plan {plan}, {dias} días desde la emisión: Python dice "
+                f"{en_python} y Node dice {en_node}")
+            # Y que el borde caiga donde tiene que caer, no sólo que coincidan:
+            # los dos podrían estar igual de mal.
+            assert en_python is (delta <= 0), (
+                f"plan {plan} a {dias} días: se esperaba "
+                f"{'vigente' if delta <= 0 else 'vencida'}")
+
+
+def test_los_dos_lados_coinciden_en_que_planes_se_pagan(prueba_vencida):
+    """Un plan que un lado considera pago y el otro no abre el mismo agujero
+    por otra puerta: el servidor entregaría el instalador a un plan que el
+    programa no desbloquea, o al revés."""
+    en_node = json.loads(_node(
+        "process.stdout.write(JSON.stringify(L.PLANES_PAGOS));"))
+    assert sorted(en_node) == sorted(licensing.PLANES_PAGOS)
+
+
 def test_las_dos_listas_de_revocacion_dicen_lo_mismo():
     """Un token revocado tiene la firma perfecta: lo único que lo frena es
     estar en la lista. Si las listas se desincronizan, el token sigue valiendo

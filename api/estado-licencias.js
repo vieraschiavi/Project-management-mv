@@ -22,6 +22,7 @@
 
 const crypto = require('crypto');
 const { CLAVE_PUBLICA_EMBEBIDA } = require('./_license');
+const { limitar } = require('./_ratelimit');
 
 function b64url(buf) {
   return buf.toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
@@ -54,6 +55,11 @@ module.exports = (req, res) => {
     res.status(405).json({ error: 'method' });
     return;
   }
+  // Era el único endpoint sin límite, y no es gratis: cada llamada deriva una
+  // clave Ed25519 desde la privada. Un bucle contra esta URL quema CPU e
+  // invocaciones sin que nadie tenga que autenticarse. 10/min alcanza de sobra
+  // para lo que existe: mirarlo después de configurar una variable.
+  if (limitar(req, res, 'estado-licencias', { max: 10, ventanaMs: 60_000 })) return;
 
   const pagos_configurados = Boolean(process.env.MP_ACCESS_TOKEN);
 

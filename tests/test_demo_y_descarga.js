@@ -121,6 +121,69 @@ console.log('descarga del instalador — la puerta cerrada');
     assert.strictEqual(res.cuerpo.error, 'no_publicado');
   });
 
+  await testA('una licencia VENCIDA no baja nada', async () => {
+    // El agujero que esto cierra: `verifyLicense` sólo mira la firma y la lista
+    // de revocados, así que un token emitido hace dos años seguía siendo
+    // "válido" para este endpoint. Alguien que pagó una vez y canceló bajaba
+    // versiones nuevas para siempre. El programa sí lo bloqueaba —calcula la
+    // vigencia desde el `iat` firmado— y la descarga no: las dos mitades del
+    // mismo candado, y sólo una cerrada.
+    //
+    // Se fabrica el token con un `iat` viejo firmando a mano, porque
+    // `issueLicense` siempre sella con la hora actual.
+    const { PLANES } = require(path.join(API, '_license.js'));
+    const viejoIat = Math.floor(Date.now() / 1000)
+      - (PLANES.professional.vigencia_dias + 30) * 86400;
+    const cuerpo = Buffer.from(JSON.stringify({
+      plan: 'professional', email: 'c@e.com', payment_id: 'mp-1',
+      iat: viejoIat, cupo_mensual_ia: 1000,
+    })).toString('base64url');
+    const der = Buffer.from('302e020100300506032b657004220420', 'hex');
+    const semilla = Buffer.from(
+      process.env.MVPM_LICENSE_PRIVATE_KEY.replace(/-/g, '+').replace(/_/g, '/')
+        + '=', 'base64');
+    const clave = crypto.createPrivateKey({
+      key: Buffer.concat([der, semilla]), format: 'der', type: 'pkcs8' });
+    const firma = crypto.sign(null, Buffer.from(cuerpo, 'ascii'), clave)
+      .toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+    const vencida = `MVPM2.${cuerpo}.${firma}`;
+
+    // La firma ES auténtica: si no lo fuera, el test pasaría por el motivo
+    // equivocado y no probaría nada sobre el vencimiento.
+    const { verifyLicense, licenciaVigente } = require(path.join(API, '_license.js'));
+    assert.ok(verifyLicense(vencida), 'la firma de prueba no es válida');
+    assert.strictEqual(licenciaVigente(verifyLicense(vencida)), false);
+
+    process.env.BLOB_READ_WRITE_TOKEN = 'token-de-prueba';
+    const res = falsoRes();
+    await descargar({ method: 'GET', headers: {}, query: { token: vencida } }, res);
+    delete process.env.BLOB_READ_WRITE_TOKEN;
+    assert.strictEqual(res.code, 403, `esperaba 403 y dio ${res.code}`);
+    assert.strictEqual(res.cabeceras, null, 'redirigió a la descarga con licencia vencida');
+  });
+
+  await testA('un plan demo no baja el instalador', async () => {
+    // La demo se muestra en vivo, no se entrega. Un token demo sólo lo puede
+    // emitir el panel del dueño, pero si existiera no da derecho a la descarga.
+    process.env.BLOB_READ_WRITE_TOKEN = 'token-de-prueba';
+    const res = falsoRes();
+    await descargar({
+      method: 'GET', headers: {}, query: { token: issueLicense('demo', 'c@e.com', null) },
+    }, res);
+    delete process.env.BLOB_READ_WRITE_TOKEN;
+    assert.strictEqual(res.code, 403, `esperaba 403 y dio ${res.code}`);
+  });
+
+  test('el mensaje de rechazo no dice POR QUÉ falló', () => {
+    // Distinguir "inventada" de "vencida" de "plan sin derecho" le diría a
+    // quien prueba tokens cuándo va por buen camino.
+    const fuente = require('fs').readFileSync(
+      path.join(API, 'download-installer.js'), 'utf-8');
+    const mensajes = [...fuente.matchAll(/error: '([a-z_]+)'/g)].map((m) => m[1]);
+    assert.ok(!mensajes.includes('licencia_vencida'),
+      'el endpoint distingue vencida de inválida en la respuesta');
+  });
+
   test('el token se acepta por header, query y cuerpo', () => {
     assert.strictEqual(descargar.tokenDe({ headers: { authorization: 'Bearer abc' }, query: {} }), 'abc');
     assert.strictEqual(descargar.tokenDe({ headers: {}, query: { token: 'def' } }), 'def');

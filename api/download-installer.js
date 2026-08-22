@@ -27,7 +27,7 @@
 // esto el módulo entero no se puede cargar — o sea que la parte que MÁS
 // importa testear (que no se entregue el instalador sin licencia) quedaría sin
 // cubrir por una dependencia que ni siquiera participa de esa decisión.
-const { verifyLicense } = require('./_license');
+const { verifyLicense, licenciaVigente } = require('./_license');
 const { limitar } = require('./_ratelimit');
 
 const BLOB_PATHNAME = 'installers/MVProjectManagement_Setup_latest.exe';
@@ -75,14 +75,21 @@ module.exports = async (req, res) => {
     return;
   }
 
+  // Firma auténtica Y vigente. Verificar sólo la firma no alcanzaba: alguien
+  // que pagó una vez hace dos años y canceló seguía bajando versiones nuevas
+  // para siempre, porque `verifyLicense` no sabe nada de vencimientos. El
+  // programa sí lo bloqueaba; la descarga no. Eran las dos mitades del mismo
+  // candado y sólo una estaba cerrada.
+  //
+  // Un plan `demo` tampoco pasa: es gratis y la demo se muestra en vivo.
   const payload = verifyLicense(licencia);
-  if (!payload) {
-    // Mismo mensaje para "token inventado" y "token vencido": distinguirlos
-    // le diría a quien prueba tokens cuándo va por buen camino.
+  if (!payload || !licenciaVigente(payload)) {
+    // Mismo mensaje para "token inventado", "vencido" y "plan sin derecho":
+    // distinguirlos le diría a quien prueba tokens cuándo va por buen camino.
     res.status(403).json({
       error: 'licencia_invalida',
-      mensaje: 'Esa licencia no es válida. Si acabás de pagar y te da esto, '
-        + `escribinos a ${CONTACTO}.`,
+      mensaje: 'Esa licencia no es válida o ya venció. Si acabás de pagar y te '
+        + `da esto, escribinos a ${CONTACTO}.`,
       contacto: CONTACTO,
     });
     return;
