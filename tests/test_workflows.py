@@ -210,146 +210,138 @@ def test_el_build_del_dueno_sigue_sin_publicarse_en_ningun_canal_publico():
     assert "prerelease: true" in wf
 
 
-# ------------------------------------------- la carpeta INSTALADOR/
+# --------------------------- los binarios NO viven en el árbol de git
 
-@pytest.mark.parametrize("workflow, sub", [
-    ("build_windows.yml", "CLIENTE"),
-    ("build_windows_owner.yml", "OWNER"),
-])
-def test_cada_build_deja_su_exe_en_la_carpeta_instalador(workflow, sub):
-    """El instalador se baja del repo, no de Actions. Si el paso desaparece, la
-    carpeta queda con un .exe viejo y nadie se entera: el build sigue en verde
-    porque compiló bien, sólo que el resultado no llegó a ningún lado."""
-    wf = _sin_comentarios(workflow)
-    assert "publicar_en_carpeta_instalador.ps1" in wf
-    assert f"-Subcarpeta {sub}" in wf
+def test_ningun_ejecutable_esta_versionado():
+    """EL test de esto. Ningún `.exe` puede estar seguido por git.
 
+    Estuvieron: los dos instaladores, 71 MB cada uno, recommiteados en cada
+    build. Veintisiete veces. `.git` llegó a **1,9 GB** para un proyecto cuyo
+    código fuente pesa unos pocos MB — cada clon se bajaba eso entero y cada
+    push arrastraba el objeto nuevo, así que los pushes tardaban minutos y se
+    cortaban solos.
 
-@pytest.mark.parametrize("workflow", ["build_windows.yml", "build_windows_owner.yml"])
-def test_los_builds_pueden_escribir_en_el_repo(workflow):
-    """Sin `contents: write` el commit del instalador falla con 403 al final de
-    un build de varios minutos."""
-    assert "contents: write" in _sin_comentarios(workflow)
+    Y costaba algo peor que tiempo. `api/download-installer.js` entrega el
+    instalador SÓLO a quien presenta una licencia MVPM2 válida. Con el .exe en
+    el árbol de un repositorio público, cualquiera se lo bajaba del repo sin
+    licencia y sin dejar rastro: el candado puesto, y la puerta de al lado
+    abierta de par en par.
 
-
-def test_el_instalador_del_dueno_y_el_del_cliente_no_se_pisan():
-    """Van a subcarpetas distintas. Si los dos escribieran en la misma, el
-    borrado previo de .exe dejaría un solo instalador y el otro desaparecería —
-    y con esa mezcla el .exe del dueño podría terminar donde no va."""
-    cliente = _sin_comentarios("build_windows.yml")
-    owner = _sin_comentarios("build_windows_owner.yml")
-    assert "-Subcarpeta CLIENTE" in cliente and "-Subcarpeta OWNER" not in cliente
-    assert "-Subcarpeta OWNER" in owner and "-Subcarpeta CLIENTE" not in owner
-
-
-# ------------------------------ el push de los dos builds a la misma rama
-
-def _publicador() -> str:
-    return (RAIZ / "packaging" / "publicar_en_carpeta_instalador.ps1").read_text(
-        encoding="utf-8")
-
-
-def test_el_push_del_instalador_reintenta():
-    """Los dos builds —cliente y dueño— se disparan con el MISMO push a main,
-    corren en paralelo y terminan los dos pusheando a esa misma rama. El que
-    llega segundo se encuentra con que main avanzó entre su `pull --rebase` y su
-    `push`, y muere con "cannot lock ref 'refs/heads/main'".
-
-    Ya pasó una vez: el build de cliente entró y el del dueño quedó en rojo con
-    el .exe compilado y tirado. Un solo `pull --rebase` no cierra el caso porque
-    la ventana es justamente la que hay entre el pull y el push: lo que lo cierra
-    es reintentar el par completo.
-    """
-    ps = _publicador()
-    assert "git pull --rebase origin main" in ps
-    assert "git push origin HEAD:main" in ps
-    assert "maxIntentos" in ps, "el push no reintenta: la carrera entre los dos builds vuelve"
-    assert "git rebase --abort" in ps, (
-        "sin abortar el rebase a medio hacer, el reintento se encuentra uno en "
-        "curso y falla siempre")
-
-
-def test_el_publicador_limpia_el_arbol_antes_de_rebasar():
-    """`git pull --rebase` se niega a correr con cambios sin commitear:
-
-        error: cannot pull with rebase: You have unstaged changes.
-
-    y los reintentos no limpian nada, así que los cinco fallaban idénticos y el
-    .exe recién compilado se perdía. No era la carrera entre los dos builds
-    —eso es lo que arregla el reintento— sino el árbol sucio.
-
-    Quién lo ensucia, en los DOS builds: packaging/strip_py_sources.py borra los
-    mvpm/*.py después de que Cython los compila, y están versionados. El del
-    dueño suma mvpm/edicion.py, que marcar_build_owner.py reescribe.
-
-    Los dos builds del merge de #39 murieron acá con el mismo error, después de
-    compilar el .exe entero.
-    """
-    ps = _publicador()
-    assert "git checkout -- ." in ps, (
-        "el publicador no limpia el árbol antes del rebase: con mvpm/edicion.py "
-        "modificado por marcar_build_owner.py, `git pull --rebase` falla siempre")
-    assert ps.index("git checkout -- .") < ps.index("git pull --rebase origin main"), (
-        "la limpieza tiene que ir ANTES del primer pull, no adentro del bucle")
-    assert ps.index("git commit -m") < ps.index("git checkout -- ."), (
-        "limpiar ANTES de commitear borraría el .exe que se acaba de copiar")
-
-
-def test_el_build_ensucia_archivos_versionados():
-    """Fija la razón de ser del test de arriba: que los pasos de compilación
-    tocan archivos que git sigue. Si algún día dejaran de hacerlo, la limpieza
-    pasa a sobrar y este test lo dice.
-
-    Se comprueba contra git, no contra una lista escrita a mano: es git quien
-    decide si el árbol queda sucio.
+    Git no olvida por sí solo —los 1,9 GB de historia siguen ahí hasta que
+    alguien la reescriba— pero desde acá deja de crecer.
     """
     import subprocess
 
-    # El que rompe los dos builds: borra los mvpm/*.py ya compilados a .pyd.
+    seguidos = subprocess.run(
+        ["git", "ls-files"], cwd=RAIZ, capture_output=True, text=True).stdout.split()
+    exes = [f for f in seguidos if f.lower().endswith((".exe", ".msi", ".dmg"))]
+    assert not exes, (
+        "ejecutables versionados: " + ", ".join(exes)
+        + "\n\nVan a Vercel Blob (cliente, con licencia) o al artefacto de "
+          "Actions (dueño, con login). Nunca al árbol.")
+
+
+def test_ningun_archivo_versionado_es_enorme():
+    """El complemento del de arriba, por tamaño y no por extensión.
+
+    Renombrar el instalador a `.dat` esquivaría el test anterior y volvería a
+    inflar el repositorio igual. Lo que importa no es la extensión: es que un
+    binario grande, recommiteado build tras build, hace que el repositorio
+    crezca sin techo.
+
+    El límite duro de GitHub por archivo son 100 MiB; 25 MB deja lugar de sobra
+    para el video de la landing (3 MB) y corta cualquier instalador.
+    """
+    import subprocess
+
+    LIMITE_MB = 25
+    seguidos = subprocess.run(
+        ["git", "ls-files"], cwd=RAIZ, capture_output=True, text=True).stdout.split()
+    gordos = []
+    for nombre in seguidos:
+        ruta = RAIZ / nombre
+        if ruta.is_file() and ruta.stat().st_size > LIMITE_MB * 1024 * 1024:
+            gordos.append(f"{nombre} ({ruta.stat().st_size / 1024 / 1024:.0f} MB)")
+    assert not gordos, (
+        f"archivos versionados de más de {LIMITE_MB} MB: " + ", ".join(gordos))
+
+
+@pytest.mark.parametrize("workflow", ["build_windows.yml", "build_windows_owner.yml"])
+def test_ningun_build_commitea_su_resultado(workflow):
+    """La otra mitad: que los workflows no vuelvan a meter el .exe en el árbol.
+
+    Sin esto, el test de arriba pasa hoy y se cae dentro de un mes, con el
+    repositorio ya inflado de nuevo y sin que nadie sepa cuándo empezó.
+    """
+    wf = _sin_comentarios(workflow)
+    for prohibido in ("git commit", "git push", "publicar_en_carpeta_instalador"):
+        assert prohibido not in wf, (
+            f"{workflow} vuelve a commitear el instalador ({prohibido!r})")
+
+
+@pytest.mark.parametrize("workflow", ["build_windows.yml", "build_windows_owner.yml"])
+def test_cada_build_deja_su_instalador_en_algun_lado(workflow):
+    """No commitear no puede significar que el .exe se pierda: el build tarda
+    minutos y el resultado tiene que quedar en un canal que alguien pueda usar.
+
+    El artefacto de Actions es ese canal, y exige estar logueado con acceso al
+    repositorio — que es exactamente la propiedad que faltaba cuando el .exe
+    colgaba del árbol de un repo público.
+    """
+    wf = _sin_comentarios(workflow)
+    assert "actions/upload-artifact" in wf, (
+        f"{workflow} ya no publica el instalador en ningún lado: compila y tira "
+        "el resultado")
+    assert "retention-days" in wf, (
+        "sin retención explícita el artefacto se borra a los 90 días por "
+        "defecto y nadie se entera")
+
+
+def test_solo_el_del_cliente_va_al_canal_publico():
+    """El del cliente va a Vercel Blob, que es lo que `download-installer`
+    entrega contra una licencia. El del dueño no va a ningún canal servido por
+    la web."""
+    cliente = _sin_comentarios("build_windows.yml")
+    owner = _sin_comentarios("build_windows_owner.yml")
+    assert "publish_blob" in cliente
+    assert "publish_blob" not in owner.lower()
+
+
+def test_el_instalador_del_dueno_y_el_del_cliente_no_se_pisan():
+    """Van a artefactos con nombres distintos. Si compartieran nombre, el
+    segundo build pisaría al primero y quedaría un solo instalador — con el
+    riesgo de que el que sobreviva sea el del dueño."""
+    import re as _re
+
+    nombres = {}
+    for wf in ("build_windows.yml", "build_windows_owner.yml"):
+        m = _re.search(r"upload-artifact@v\d+\s*\n\s*with:\s*\n\s*name:\s*(.+)",
+                       _sin_comentarios(wf))
+        assert m, f"{wf} no declara nombre de artefacto"
+        nombres[wf] = m.group(1).strip()
+    assert len(set(nombres.values())) == 2, f"los dos builds comparten artefacto: {nombres}"
+
+
+def test_el_build_ensucia_archivos_versionados():
+    """Los pasos de compilación tocan archivos que git sigue —
+    `strip_py_sources.py` borra los `mvpm/*.py` ya compilados a `.pyd`.
+
+    Mientras el build commiteaba su resultado, eso importaba muchísimo: `git
+    pull --rebase` se niega a correr con el árbol sucio y los dos builds
+    murieron por eso después de compilar entero. Ahora que no commitea nada, el
+    árbol sucio es inofensivo — pero el test queda porque el día que alguien
+    quiera volver a escribir en el repo desde un build, esto es lo que le va a
+    recordar por qué no era gratis.
+    """
+    import subprocess
+
     strip = (RAIZ / "packaging" / "strip_py_sources.py").read_text(encoding="utf-8")
-    assert ".unlink()" in strip and 'MVPM_DIR.glob("*.py")' in strip, (
-        "strip_py_sources.py ya no borra los mvpm/*.py: revisar si el "
-        "publicador sigue necesitando limpiar el árbol antes del rebase")
+    assert ".unlink()" in strip and 'MVPM_DIR.glob("*.py")' in strip
 
     seguidos = subprocess.run(
         ["git", "ls-files", "mvpm/"], cwd=RAIZ, capture_output=True, text=True,
     ).stdout.split()
-    assert len([f for f in seguidos if f.endswith(".py")]) > 1, (
-        "los mvpm/*.py dejaron de estar versionados: borrarlos ya no ensucia "
-        "el árbol y la limpieza del publicador sobra")
-
-    # El extra del build del dueño.
-    marcar = (RAIZ / "packaging" / "marcar_build_owner.py").read_text(encoding="utf-8")
-    assert 'ROOT / "mvpm" / "edicion.py"' in marcar
-    versionado = subprocess.run(
-        ["git", "ls-files", "--error-unmatch", "mvpm/edicion.py"],
-        cwd=RAIZ, capture_output=True, text=True,
-    )
-    assert versionado.returncode == 0
-
-
-def test_el_publicador_corta_antes_del_limite_de_github():
-    """GitHub rechaza todo archivo de 100 MiB o más, y no hay forma de forzarlo:
-    el push muere del lado del servidor DESPUÉS de subir el archivo entero. El
-    instalador de cliente ronda los 98 MiB, así que el margen es de un par de MB.
-    Sin este corte, el día que se pase, el build falla con un error remoto que no
-    dice cuál archivo fue, al final de quince minutos de compilación."""
-    ps = _publicador()
-    assert "100MB" in ps
-    assert "exit 1" in ps
-
-
-def test_el_publicador_no_deja_pasar_un_push_fallido_como_exito():
-    """Si el bucle se queda sin intentos tiene que terminar en rojo. Salir 0 con
-    el instalador sin pushear es el peor caso: el build queda en verde y la
-    carpeta INSTALADOR/ se queda con el .exe viejo sin que nada lo avise."""
-    ps = _publicador()
-    assert "for (" in ps, "no hay bucle de reintentos que revisar"
-    cola = ps[ps.rindex("for ("):]
-    assert "Write-Error" in cola, "quedarse sin intentos no reporta nada"
-    assert cola.rstrip().endswith("exit 1"), (
-        "el script termina en verde después de agotar los reintentos: el build "
-        "quedaría en verde con INSTALADOR/ sin actualizar")
+    assert len([f for f in seguidos if f.endswith(".py")]) > 1
 
 
 # ------------------------------------------- lo que cuesta correr el CI

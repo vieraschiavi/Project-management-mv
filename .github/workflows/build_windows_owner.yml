@@ -103,21 +103,21 @@ jobs:
         run: |
           & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" packaging\instalador_owner.iss
 
-      # Deja el instalador en INSTALADOR/OWNER/ y lo commitea, para poder
-      # bajarlo directo del repositorio sin entrar a Actions. El push usa
-      # GITHUB_TOKEN, que no dispara workflows: no hay bucle con este mismo
-      # build. Ver packaging/publicar_en_carpeta_instalador.ps1.
-      - name: Publicar en INSTALADOR/OWNER/
-        if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
-        shell: pwsh
-        run: |
-          ./packaging/publicar_en_carpeta_instalador.ps1 -Subcarpeta OWNER -Origen packaging/Output
-
+      # El .exe del dueño tampoco se commitea, y acá el motivo pesa más: iba a
+      # INSTALADOR/OWNER/ de un repositorio PÚBLICO, o sea que el instalador
+      # que abre el producto completo lo bajaba cualquiera que pasara por el
+      # repo. Que hoy no lleve nada que desbloquee nada (ver mvpm_owner.spec)
+      # lo hace tolerable, no correcto.
+      #
+      # El canal del dueño es el artefacto de Actions: para bajarlo hay que
+      # estar logueado con acceso al repositorio. Un visitante anónimo no
+      # puede, sea el repo público o privado.
       - name: Subir instalador como artefacto
         uses: actions/upload-artifact@v4
         with:
           name: MVProjectManagement-Owner-Setup-Windows
           path: packaging/Output/*.exe
+          retention-days: 90
 
       # A diferencia de build_windows.yml, esto no se publica en Vercel Blob ni
       # se linkea desde la landing. Ojo con lo que eso significa y con lo que

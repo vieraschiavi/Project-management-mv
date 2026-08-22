@@ -16,11 +16,15 @@
 const crypto = require('crypto');
 
 const PLANES = {
-  demo: { nombre: 'Demo de evaluación', precio_usd: 0, cupo_mensual_ia: 20 },
-  professional: { nombre: 'Professional', precio_usd: 9, cupo_mensual_ia: 1000 },
-  professional_anual: { nombre: 'Professional (12 meses)', precio_usd: 90, cupo_mensual_ia: 1000 },
-  enterprise: { nombre: 'Enterprise', precio_usd: null, cupo_mensual_ia: null },
+  demo: { nombre: 'Demo de evaluación', precio_usd: 0, cupo_mensual_ia: 20, vigencia_dias: null },
+  professional: { nombre: 'Professional', precio_usd: 9, cupo_mensual_ia: 1000, vigencia_dias: 365 },
+  professional_anual: { nombre: 'Professional (12 meses)', precio_usd: 90, cupo_mensual_ia: 1000, vigencia_dias: 365 },
+  enterprise: { nombre: 'Enterprise', precio_usd: null, cupo_mensual_ia: null, vigencia_dias: 365 },
 };
+
+//: Los planes que se pagan. `demo` no está: es gratis y no da derecho a nada
+//: que se entregue contra licencia. Espeja PLANES_PAGOS de mvpm/licensing.py.
+const PLANES_PAGOS = ['professional', 'professional_anual', 'enterprise'];
 
 // Node no toma los 32 bytes crudos de una clave Ed25519 directamente: hay que
 // envolverlos en DER. Estos son los encabezados fijos de la norma (PKCS#8 para
@@ -96,6 +100,33 @@ function clavePublica() {
   return crypto.createPublicKey(clavePrivada());
 }
 
+/**
+ * ¿Esta licencia sigue vigente HOY?
+ *
+ * `verifyLicense` sólo dice que la firma es auténtica y que el token no está
+ * revocado. Eso no alcanza para decidir nada del lado del servidor, y el
+ * agujero era concreto: `api/download-installer.js` entregaba el instalador
+ * contra cualquier firma válida, así que alguien que pagó una vez hace dos
+ * años y canceló seguía bajando versiones nuevas para siempre. El programa sí
+ * lo bloqueaba —`mvpm/licensing.py` calcula la vigencia desde el `iat`
+ * firmado— pero la descarga no, y eran las dos mitades del mismo candado.
+ *
+ * Espejo exacto de `licencia_vigente()` de Python, salvo el atado a la
+ * máquina: eso sólo lo puede saber la instalación del cliente, no el servidor.
+ * `tests/test_licencia_extremo_a_extremo.py` fija que las dos coincidan.
+ */
+function licenciaVigente(payload, ahoraSegundos = null) {
+  if (!payload) return false;
+  const plan = payload.plan;
+  if (!PLANES_PAGOS.includes(plan)) return false;
+  const vigencia = (PLANES[plan] || {}).vigencia_dias;
+  if (vigencia === null || vigencia === undefined) return true;  // paga sin vencimiento
+  const iat = Number(payload.iat || 0);
+  if (!Number.isFinite(iat) || iat <= 0) return false;
+  const ahora = ahoraSegundos === null ? Math.floor(Date.now() / 1000) : ahoraSegundos;
+  return (ahora - iat) <= vigencia * 86400;
+}
+
 function issueLicense(plan, email, paymentId = null) {
   if (!PLANES[plan]) throw new Error(`Plan desconocido: ${plan}`);
   const payload = {
@@ -150,5 +181,6 @@ function verifyLicense(token) {
   }
 }
 
-module.exports = { PLANES, issueLicense, verifyLicense, FIRMAS_REVOCADAS,
+module.exports = { PLANES, PLANES_PAGOS, issueLicense, verifyLicense,
+                   licenciaVigente, FIRMAS_REVOCADAS,
                    CLAVE_PUBLICA_EMBEBIDA, clavePublicaDelPrograma };

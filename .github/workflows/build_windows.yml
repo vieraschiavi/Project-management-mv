@@ -64,21 +64,26 @@ jobs:
         run: |
           & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" packaging\instalador.iss
 
-      # Deja el instalador en INSTALADOR/CLIENTE/ y lo commitea, para poder
-      # bajarlo directo del repositorio sin entrar a Actions. El push usa
-      # GITHUB_TOKEN, que no dispara workflows: no hay bucle con este mismo
-      # build. Ver packaging/publicar_en_carpeta_instalador.ps1.
-      - name: Publicar en INSTALADOR/CLIENTE/
-        if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
-        shell: pwsh
-        run: |
-          ./packaging/publicar_en_carpeta_instalador.ps1 -Subcarpeta CLIENTE -Origen packaging/Output
-
+      # El .exe NO se commitea. Se hacía, en INSTALADOR/CLIENTE/, y costaba dos
+      # cosas a la vez:
+      #
+      #   1. Peso. 71 MB por build, 27 builds: `.git` llegó a 1,9 GB. Cada
+      #      clon se baja eso entero y cada push arrastra el objeto nuevo —
+      #      los pushes empezaron a tardar minutos y a cortarse.
+      #   2. El candado de licencia. `api/download-installer.js` sólo entrega
+      #      el instalador a quien presenta un token MVPM2 válido. Con el .exe
+      #      commiteado en un repositorio PÚBLICO, cualquiera se lo bajaba del
+      #      árbol sin licencia: el candado estaba puesto y la puerta de al
+      #      lado abierta.
+      #
+      # El canal del cliente es Vercel Blob, que es el que respeta el candado.
+      # Para el dueño queda el artefacto de Actions, que exige estar logueado.
       - name: Subir instalador como artefacto
         uses: actions/upload-artifact@v4
         with:
           name: MVProjectManagement-Setup-Windows
           path: packaging/Output/*.exe
+          retention-days: 90
 
       - name: Publicar en el release (solo en tags)
         if: startsWith(github.ref, 'refs/tags/v')
