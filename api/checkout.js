@@ -33,6 +33,7 @@ try { ({ checkBotId } = require("botid/server")); } catch (_) { /* opcional */ }
 const { CURRENCY, TASA_UYU, PLANS } = require("./_planes");
 
 const { limitar } = require("./_ratelimit");
+const { registrar, porMail } = require("./_aviso");
 
 module.exports = async (req, res) => {
   if (req.method !== "POST") { res.status(405).json({ error: "method" }); return; }
@@ -53,6 +54,31 @@ module.exports = async (req, res) => {
   const plan = String(body.plan || "").toLowerCase();
   const p = PLANS[plan];
   if (!p) { res.status(400).json({ error: "plan_invalido" }); return; }
+
+  // Aviso de INTENCIÓN de compra: alguien apretó "Comprar".
+  //
+  // Va acá, antes de hablar con MercadoPago, y no en los cuatro caminos de
+  // éxito de abajo. Dos motivos:
+  //
+  //   1. Un solo lugar. Con cuatro `res.status(200)` distintos, poner el aviso
+  //      en cada uno es garantía de que alguno quede sin él la próxima vez que
+  //      se toque este archivo.
+  //   2. Lo que MÁS interesa saber es justamente lo que hoy no se ve. El
+  //      tablero (`/api/metricas`) muestra pagos APROBADOS: quien intentó
+  //      comprar y no pudo —MercadoPago caído, tarjeta rechazada, se
+  //      arrepintió— es invisible. Avisar antes del intento los captura a
+  //      todos, y el desenlace se lee después comparando contra los pagos.
+  //
+  // `void` y sin `await`: el aviso no puede demorar ni romper el checkout. Una
+  // venta perdida por un mail que no salió sería absurdo.
+  const intencion = { plan, referer: String(req.headers.referer || "").slice(0, 200) };
+  void registrar("intenciones/", intencion).catch(() => {});
+  void porMail({
+    asunto: `Alguien apretó Comprar — plan ${plan}`,
+    filas: [["Plan", plan], ["Vino de", intencion.referer || "(sin referer)"]],
+    extra: '<p>Todavía no pagó: esto es el click, no la venta. '
+      + 'El resultado real se ve en <code>/api/metricas</code>.</p>',
+  }).catch(() => {});
 
   const base = "https://" + (req.headers.host || "");
   const token = process.env.MP_ACCESS_TOKEN;

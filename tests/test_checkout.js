@@ -201,6 +201,97 @@ function req(body, metodo = 'POST') {
     delete process.env.MP_ACCESS_TOKEN;
   });
 
+  console.log('\ncheckout.js — aviso de intención de compra');
+
+  /** Carga checkout con `_aviso` espiado.
+   *
+   * El orden importa: checkout.js hace `const { registrar } = require(...)`,
+   * o sea que se queda con la función del momento en que se carga. Parchear el
+   * módulo DESPUÉS no tendría ningún efecto — el test pasaría creyendo que
+   * espía algo que no espía. Por eso se parchea antes y se recarga checkout.
+   */
+  function checkoutEspiado(romper = false) {
+    const registros = [];
+    for (const m of ['../api/_aviso', '../api/checkout', '../api/_planes',
+                     '../api/_ratelimit']) {
+      delete require.cache[require.resolve(m)];
+    }
+    const aviso = require('../api/_aviso');
+    aviso.registrar = async (prefijo, datos) => {
+      if (romper) throw new Error('almacén caído');
+      registros.push([prefijo, datos]);
+      return true;
+    };
+    aviso.porMail = async () => {
+      if (romper) throw new Error('resend caído');
+      return { enviado: true };
+    };
+    return { checkout: require('../api/checkout'), registros };
+  }
+
+  await test('un click en Comprar queda registrado aunque el checkout falle', async () => {
+    // Lo que este aviso existe para capturar: el intento que NO termina en
+    // venta. Para MercadoPago ese cliente nunca existió, así que no figura en
+    // ningún panel — y es justo al que hay que llamar por teléfono.
+    const previo = process.env.MP_ACCESS_TOKEN;
+    const previoLink = process.env.MP_LINK_PROFESSIONAL;
+    delete process.env.MP_ACCESS_TOKEN;
+    delete process.env.MP_LINK_PROFESSIONAL;
+    try {
+      const { checkout, registros } = checkoutEspiado();
+      const res = fakeRes();
+      await checkout(req({ plan: 'professional' }), res);
+      assert.strictEqual(res.statusCode, 503, 'se esperaba 503 sin medio de pago');
+      assert.strictEqual(registros.length, 1, 'no se registró el click en Comprar');
+      assert.strictEqual(registros[0][0], 'intenciones/');
+      assert.strictEqual(registros[0][1].plan, 'professional');
+    } finally {
+      if (previo !== undefined) process.env.MP_ACCESS_TOKEN = previo;
+      if (previoLink !== undefined) process.env.MP_LINK_PROFESSIONAL = previoLink;
+    }
+  });
+
+  await test('un plan inválido NO cuenta como intención de compra', async () => {
+    // Si contara, cualquiera inflaría el número mandando basura al endpoint y
+    // la métrica dejaría de servir para tomar una decisión.
+    const { checkout, registros } = checkoutEspiado();
+    const res = fakeRes();
+    await checkout(req({ plan: 'inventado' }), res);
+    assert.strictEqual(res.statusCode, 400);
+    assert.strictEqual(registros.length, 0, 'un plan inexistente contó como intención');
+  });
+
+  await test('si el aviso explota, el checkout responde igual', async () => {
+    // El caso real: Resend caído o el almacén sin cuota. El cliente tiene que
+    // llegar a MercadoPago lo mismo — una venta perdida por un mail que no
+    // salió sería absurdo.
+    const previo = process.env.MP_ACCESS_TOKEN;
+    const previoLink = process.env.MP_LINK_PROFESSIONAL;
+    delete process.env.MP_ACCESS_TOKEN;
+    process.env.MP_LINK_PROFESSIONAL = 'https://mpago.la/loquesea';
+    try {
+      const { checkout } = checkoutEspiado(true);
+      const res = fakeRes();
+      await checkout(req({ plan: 'professional' }), res);
+      assert.strictEqual(res.statusCode, 200, 'el aviso caído tumbó el checkout');
+      assert.strictEqual(res.body.url, 'https://mpago.la/loquesea');
+    } finally {
+      if (previo !== undefined) process.env.MP_ACCESS_TOKEN = previo;
+      if (previoLink === undefined) delete process.env.MP_LINK_PROFESSIONAL;
+      else process.env.MP_LINK_PROFESSIONAL = previoLink;
+    }
+  });
+
+  await test('el aviso se dispara sin await', async () => {
+    // Complemento del test de arriba: que no explote no alcanza, tampoco puede
+    // DEMORAR. Con await, un Resend lento suma su latencia a cada checkout.
+    const fuente = require('fs').readFileSync(
+      require.resolve('../api/checkout'), 'utf-8');
+    for (const fn of ['registrar(', 'porMail(']) {
+      assert.ok(fuente.includes('void ' + fn),
+        `${fn} no se llama con void: podría demorar el checkout`);
+    }
+  });
   console.log('\ncheckout.js — rate limiting');
 
   await test('corta al pasarse del límite por IP', async () => {
