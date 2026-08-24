@@ -33,7 +33,7 @@ try { ({ checkBotId } = require("botid/server")); } catch (_) { /* opcional */ }
 const { CURRENCY, TASA_UYU, PLANS } = require("./_planes");
 
 const { limitar } = require("./_ratelimit");
-const { registrar, porMail } = require("./_aviso");
+const { registrarUnaVez, porMail, huella } = require("./_aviso");
 
 module.exports = async (req, res) => {
   if (req.method !== "POST") { res.status(405).json({ error: "method" }); return; }
@@ -71,14 +71,23 @@ module.exports = async (req, res) => {
   //
   // `void` y sin `await`: el aviso no puede demorar ni romper el checkout. Una
   // venta perdida por un mail que no salió sería absurdo.
+  //
+  // El mail sale UNA vez por persona, plan y día. Alguien indeciso que aprieta
+  // cinco veces generaba cinco mails idénticos, y a la tercera notificación
+  // igual uno deja de mirarlas — ahí el aviso deja de servir para lo único que
+  // sirve. La clave es la huella (IP hasheada, no la IP) más el plan.
   const intencion = { plan, referer: String(req.headers.referer || "").slice(0, 200) };
-  void registrar("intenciones/", intencion).catch(() => {});
-  void porMail({
-    asunto: `Alguien apretó Comprar — plan ${plan}`,
-    filas: [["Plan", plan], ["Vino de", intencion.referer || "(sin referer)"]],
-    extra: '<p>Todavía no pagó: esto es el click, no la venta. '
-      + 'El resultado real se ve en <code>/api/metricas</code>.</p>',
-  }).catch(() => {});
+  void (async () => {
+    const { nuevo } = await registrarUnaVez(
+      "intenciones/", `${huella(req)}-${plan}`, intencion);
+    if (!nuevo) return;   // ya avisé por esta persona y este plan, hoy
+    await porMail({
+      asunto: `Alguien apretó Comprar — plan ${plan}`,
+      filas: [["Plan", plan], ["Vino de", intencion.referer || "(sin referer)"]],
+      extra: '<p>Todavía no pagó: esto es el click, no la venta. '
+        + 'El resultado real se ve en <code>/api/metricas</code>.</p>',
+    });
+  })().catch(() => {});
 
   const base = "https://" + (req.headers.host || "");
   const token = process.env.MP_ACCESS_TOKEN;

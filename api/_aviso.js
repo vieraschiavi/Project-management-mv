@@ -12,7 +12,20 @@
 // falla es una molestia; un checkout que no se abre porque el mail falló es
 // una venta perdida.
 
+const crypto = require('crypto');
+
 const DESTINO = 'vieraschiavi@gmail.com';
+
+/** Identificador estable y ANÓNIMO de quien pide, para deduplicar.
+ *
+ * Se hashea la IP en vez de guardarla. Lo que hace falta es distinguir a dos
+ * personas entre sí, no saber quién es ninguna: un hash cumple eso y no deja
+ * un dato personal acumulado de gente que todavía ni siquiera es cliente. */
+function huella(req) {
+  const ip = (req.headers['x-forwarded-for'] || '').split(',')[0].trim()
+    || (req.socket && req.socket.remoteAddress) || 'sin-ip';
+  return crypto.createHash('sha256').update(ip).digest('hex').slice(0, 16);
+}
 
 function escapar(s) {
   return String(s).replace(/[&<>"']/g, (c) => (
@@ -40,6 +53,48 @@ async function registrar(prefijo, datos) {
   } catch (e) {
     console.error(`No se pudo registrar en ${prefijo}:`, String(e.message || e));
     return false;
+  }
+}
+
+/**
+ * Registra el hecho UNA sola vez por clave, y dice si era nuevo.
+ *
+ * El problema que resuelve: alguien indeciso que aprieta "Comprar" cinco veces
+ * generaba cinco registros y cinco mails. A la tercera notificación idéntica
+ * uno deja de mirarlas, y ahí el aviso deja de servir para lo único que sirve.
+ *
+ * La ruta es determinista —día + huella + clave— y `addRandomSuffix: false`,
+ * así el segundo `put` pisa al primero en vez de sumar. El `head` previo es lo
+ * que distingue "primera vez" de "otra vez": si ya existe, se registra igual
+ * (para que el dato quede fresco) pero se devuelve `nuevo: false` y quien
+ * llama decide no mandar el mail.
+ *
+ * Se deduplica POR DÍA. Alguien que vuelve mañana es una intención nueva de
+ * verdad, y ahí sí querés enterarte.
+ */
+async function registrarUnaVez(prefijo, clave, datos) {
+  const token = process.env.BLOB_READ_WRITE_TOKEN;
+  if (!token) return { registrado: false, nuevo: true };
+  const dia = new Date().toISOString().slice(0, 10);
+  const ruta = `${prefijo}${dia}/${String(clave).replace(/[^A-Za-z0-9_-]/g, '_')}.json`;
+  let nuevo = true;
+  try {
+    const { head, put } = require('@vercel/blob');
+    try {
+      await head(ruta, { token });
+      nuevo = false;      // ya existía: mismo día, misma persona, mismo plan
+    } catch (_) { /* no existe todavía: es la primera vez */ }
+    await put(ruta, JSON.stringify({ ...datos, en: new Date().toISOString() }), {
+      access: 'public', contentType: 'application/json',
+      addRandomSuffix: false, allowOverwrite: true, token,
+    });
+    return { registrado: true, nuevo };
+  } catch (e) {
+    console.error(`No se pudo registrar en ${prefijo}:`, String(e.message || e));
+    // Si el almacén falla no se puede saber si era repetido. Se devuelve
+    // `nuevo: true` a propósito: mejor un mail de más que perderse el aviso
+    // de que alguien quiso comprar.
+    return { registrado: false, nuevo: true };
   }
 }
 
@@ -76,4 +131,4 @@ async function porMail({ asunto, filas, extra = '', responderA = null }) {
   }
 }
 
-module.exports = { registrar, porMail, escapar, DESTINO };
+module.exports = { registrar, registrarUnaVez, porMail, escapar, huella, DESTINO };
