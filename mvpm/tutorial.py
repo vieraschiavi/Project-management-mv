@@ -352,6 +352,31 @@ SECTIONS = [
         ],
     },
     {
+        "id": "nav_data_eng",
+        "titulo": "Ingeniería de datos",
+        "resumen": "Perfilá cualquier tabla —no sólo proyectos y tareas— antes de "
+                   "importarla o conectarla a un ERP: nulos, duplicados, outliers, la "
+                   "clave primaria candidata y un CREATE TABLE de partida.",
+        "pasos": [
+            "Elegí el origen: un archivo CSV/Excel de cualquier esquema, o una base SQL "
+            "con una consulta SELECT propia.",
+            "Mirá el score de calidad y la lista de problemas: cada uno trae la acción "
+            "concreta para resolverlo, no sólo el diagnóstico.",
+            "Revisá la clave primaria candidata y, si hay una columna de fecha, la "
+            "cobertura temporal —desde cuándo hay datos y qué días faltan.",
+            "Descargá el CREATE TABLE sugerido o el informe completo en Excel para "
+            "compartirlo con quien vaya a diseñar la base o revisar el archivo.",
+        ],
+        "tips": [
+            "La conexión SQL es de solo lectura y la cadena de conexión no se guarda en "
+            "ningún lado: vive únicamente en la sesión del navegador.",
+            "Un ID con ceros a la izquierda («007») se deja como texto a propósito: "
+            "convertirlo a número le borraría el cero.",
+            "Está incluido en el mismo plan que los reportes automáticos, sin cargo "
+            "aparte.",
+        ],
+    },
+    {
         "id": "nav_capacitacion",
         "titulo": "Capacitación por rol",
         "resumen": "Currícula, guion de grabación y preguntas de verificación para cada rol, "
