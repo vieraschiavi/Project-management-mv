@@ -22,6 +22,7 @@ const { limitar } = require('./_ratelimit');
 const PREFIJO_CANJES = 'licencias/canjeadas/';
 const PREFIJO_DESCARGAS = 'descargas/';
 const PREFIJO_DEMOS = 'demos/';
+const PREFIJO_INTENCIONES = 'intenciones/';
 
 function autorizado(req) {
   const esperado = process.env.MVPM_OWNER_TOKEN || '';
@@ -91,7 +92,7 @@ module.exports = async (req, res) => {
   if (!blobToken) faltan.push('BLOB_READ_WRITE_TOKEN (sin esto no hay licencias ni descargas)');
 
   try {
-    const [pagos, canjes, descargas, demos] = await Promise.all([
+    const [pagos, canjes, descargas, demos, intenciones] = await Promise.all([
       mp ? pagosAprobados(mp) : Promise.resolve([]),
       blobToken ? leerCanjes(blobToken) : Promise.resolve([]),
       blobToken
@@ -104,10 +105,20 @@ module.exports = async (req, res) => {
       blobToken
         ? listarTodo(PREFIJO_DEMOS, blobToken).then((b) => b.length)
         : Promise.resolve(0),
+      blobToken
+        ? listarTodo(PREFIJO_INTENCIONES, blobToken).then((b) => b.length)
+        : Promise.resolve(0),
     ]);
 
     const resumen = resumir({ pagos, canjes, descargas });
     resumen.demos = { pedidas: demos };
+    // Clicks en "Comprar" contra pagos aprobados. La diferencia es la gente
+    // que quiso comprar y no pudo — el número que ningún panel de MercadoPago
+    // muestra, porque para MercadoPago esa venta nunca existió.
+    resumen.intenciones = {
+      clicks_comprar: intenciones,
+      sin_concretar: Math.max(0, intenciones - resumen.pagos.aprobados),
+    };
     // Se dice qué NO se pudo medir, en vez de devolver ceros que se leen como
     // "todavía no vendiste nada".
     resumen.sin_medir = faltan;

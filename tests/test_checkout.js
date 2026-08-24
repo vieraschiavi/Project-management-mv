@@ -201,6 +201,209 @@ function req(body, metodo = 'POST') {
     delete process.env.MP_ACCESS_TOKEN;
   });
 
+  console.log('\ncheckout.js — aviso de intención de compra');
+
+  /** Carga checkout con `_aviso` espiado.
+   *
+   * El orden importa: checkout.js hace `const { registrar } = require(...)`,
+   * o sea que se queda con la función del momento en que se carga. Parchear el
+   * módulo DESPUÉS no tendría ningún efecto — el test pasaría creyendo que
+   * espía algo que no espía. Por eso se parchea antes y se recarga checkout.
+   */
+  function checkoutEspiado(romper = false) {
+    const registros = [];
+    for (const m of ['../api/_aviso', '../api/checkout', '../api/_planes',
+                     '../api/_ratelimit']) {
+      delete require.cache[require.resolve(m)];
+    }
+    const mails = [];
+    const vistos = new Set();
+    const aviso = require('../api/_aviso');
+    aviso.registrarUnaVez = async (prefijo, clave, datos) => {
+      if (romper) throw new Error('almacén caído');
+      registros.push([prefijo, clave, datos]);
+      const nuevo = !vistos.has(clave);
+      vistos.add(clave);
+      return { registrado: true, nuevo };
+    };
+    aviso.porMail = async (m) => {
+      if (romper) throw new Error('resend caído');
+      mails.push(m);
+      return { enviado: true };
+    };
+    return { checkout: require('../api/checkout'), registros, mails };
+  }
+
+  await test('un click en Comprar queda registrado aunque el checkout falle', async () => {
+    // Lo que este aviso existe para capturar: el intento que NO termina en
+    // venta. Para MercadoPago ese cliente nunca existió, así que no figura en
+    // ningún panel — y es justo al que hay que llamar por teléfono.
+    const previo = process.env.MP_ACCESS_TOKEN;
+    const previoLink = process.env.MP_LINK_PROFESSIONAL;
+    delete process.env.MP_ACCESS_TOKEN;
+    delete process.env.MP_LINK_PROFESSIONAL;
+    try {
+      const { checkout, registros } = checkoutEspiado();
+      const res = fakeRes();
+      await checkout(req({ plan: 'professional' }), res);
+      assert.strictEqual(res.statusCode, 503, 'se esperaba 503 sin medio de pago');
+      assert.strictEqual(registros.length, 1, 'no se registró el click en Comprar');
+      assert.strictEqual(registros[0][0], 'intenciones/');
+      assert.strictEqual(registros[0][2].plan, 'professional');
+    } finally {
+      if (previo !== undefined) process.env.MP_ACCESS_TOKEN = previo;
+      if (previoLink !== undefined) process.env.MP_LINK_PROFESSIONAL = previoLink;
+    }
+  });
+
+  await test('un plan inválido NO cuenta como intención de compra', async () => {
+    // Si contara, cualquiera inflaría el número mandando basura al endpoint y
+    // la métrica dejaría de servir para tomar una decisión.
+    const { checkout, registros } = checkoutEspiado();
+    const res = fakeRes();
+    await checkout(req({ plan: 'inventado' }), res);
+    assert.strictEqual(res.statusCode, 400);
+    assert.strictEqual(registros.length, 0, 'un plan inexistente contó como intención');
+  });
+
+  await test('cinco clicks del mismo visitante mandan UN solo mail', async () => {
+    // Un indeciso que aprieta cinco veces generaba cinco mails idénticos. A la
+    // tercera notificación igual uno deja de mirarlas, y ahí el aviso deja de
+    // servir para lo único que sirve.
+    const previo = process.env.MP_ACCESS_TOKEN;
+    const previoLink = process.env.MP_LINK_PROFESSIONAL;
+    delete process.env.MP_ACCESS_TOKEN;
+    process.env.MP_LINK_PROFESSIONAL = 'https://mpago.la/x';
+    try {
+      const { checkout, registros, mails } = checkoutEspiado();
+      // La MISMA IP las cinco veces: `req()` da una distinta por llamada, así
+      // que se arma a mano — si no, el test probaría cinco personas y pasaría
+      // sin que exista ninguna deduplicación.
+      const mismo = () => ({ method: 'POST', body: { plan: 'professional' },
+                             headers: { 'x-forwarded-for': '200.40.1.1' } });
+      for (let i = 0; i < 5; i++) await checkout(mismo(), fakeRes());
+      assert.strictEqual(registros.length, 5, 'se registran los cinco intentos');
+      assert.strictEqual(mails.length, 1, `se mandaron ${mails.length} mails, esperaba 1`);
+    } finally {
+      if (previo !== undefined) process.env.MP_ACCESS_TOKEN = previo;
+      if (previoLink === undefined) delete process.env.MP_LINK_PROFESSIONAL;
+      else process.env.MP_LINK_PROFESSIONAL = previoLink;
+    }
+  });
+
+  await test('dos visitantes distintos mandan DOS mails', async () => {
+    // El complemento imprescindible: si la deduplicación fuera demasiado
+    // agresiva, el segundo cliente del día no te avisaría — y ese es
+    // exactamente el mail que no te podés perder.
+    const previo = process.env.MP_ACCESS_TOKEN;
+    const previoLink = process.env.MP_LINK_PROFESSIONAL;
+    delete process.env.MP_ACCESS_TOKEN;
+    process.env.MP_LINK_PROFESSIONAL = 'https://mpago.la/x';
+    try {
+      const { checkout, mails } = checkoutEspiado();
+      for (const ip of ['200.40.1.1', '190.64.2.2']) {
+        await checkout({ method: 'POST', body: { plan: 'professional' },
+                         headers: { 'x-forwarded-for': ip } }, fakeRes());
+      }
+      assert.strictEqual(mails.length, 2, `se mandaron ${mails.length} mails, esperaba 2`);
+    } finally {
+      if (previo !== undefined) process.env.MP_ACCESS_TOKEN = previo;
+      if (previoLink === undefined) delete process.env.MP_LINK_PROFESSIONAL;
+      else process.env.MP_LINK_PROFESSIONAL = previoLink;
+    }
+  });
+
+  await test('la misma persona en DOS planes distintos manda dos mails', async () => {
+    // La deduplicación es por persona Y plan, no sólo por persona. Alguien que
+    // mira el mensual y después se decide por el anual —diez veces más caro—
+    // es la señal más valiosa del embudo, y con la clave sin el plan ese
+    // segundo aviso quedaba mudo. Lo encontré mutando: sacar el plan de la
+    // clave no volteaba ningún test.
+    const previo = process.env.MP_ACCESS_TOKEN;
+    const previoLink = process.env.MP_LINK_PROFESSIONAL;
+    const previoLinkAnual = process.env.MP_LINK_PROFESSIONAL_ANUAL;
+    delete process.env.MP_ACCESS_TOKEN;
+    process.env.MP_LINK_PROFESSIONAL = 'https://mpago.la/x';
+    process.env.MP_LINK_PROFESSIONAL_ANUAL = 'https://mpago.la/y';
+    try {
+      const { checkout, mails } = checkoutEspiado();
+      for (const plan of ['professional', 'professional_anual']) {
+        await checkout({ method: 'POST', body: { plan },
+                         headers: { 'x-forwarded-for': '200.40.1.1' } }, fakeRes());
+      }
+      assert.strictEqual(mails.length, 2,
+        `se mandaron ${mails.length} mails, esperaba 2 (uno por plan)`);
+      assert.ok(mails[1].asunto.includes('professional_anual'),
+        `el segundo mail no menciona el plan anual: ${mails[1].asunto}`);
+    } finally {
+      if (previo !== undefined) process.env.MP_ACCESS_TOKEN = previo;
+      if (previoLink === undefined) delete process.env.MP_LINK_PROFESSIONAL;
+      else process.env.MP_LINK_PROFESSIONAL = previoLink;
+      if (previoLinkAnual === undefined) delete process.env.MP_LINK_PROFESSIONAL_ANUAL;
+      else process.env.MP_LINK_PROFESSIONAL_ANUAL = previoLinkAnual;
+    }
+  });
+
+  await test('si el aviso explota, el checkout responde igual', async () => {
+    // El caso real: Resend caído o el almacén sin cuota. El cliente tiene que
+    // llegar a MercadoPago lo mismo — una venta perdida por un mail que no
+    // salió sería absurdo.
+    const previo = process.env.MP_ACCESS_TOKEN;
+    const previoLink = process.env.MP_LINK_PROFESSIONAL;
+    delete process.env.MP_ACCESS_TOKEN;
+    process.env.MP_LINK_PROFESSIONAL = 'https://mpago.la/loquesea';
+    try {
+      const { checkout } = checkoutEspiado(true);
+      const res = fakeRes();
+      await checkout(req({ plan: 'professional' }), res);
+      assert.strictEqual(res.statusCode, 200, 'el aviso caído tumbó el checkout');
+      assert.strictEqual(res.body.url, 'https://mpago.la/loquesea');
+    } finally {
+      if (previo !== undefined) process.env.MP_ACCESS_TOKEN = previo;
+      if (previoLink === undefined) delete process.env.MP_LINK_PROFESSIONAL;
+      else process.env.MP_LINK_PROFESSIONAL = previoLink;
+    }
+  });
+
+  await test('un aviso lento no demora la respuesta del checkout', async () => {
+    // La versión anterior de este test buscaba `void ` en el TEXTO del archivo.
+    // Se cayó apenas cambió la forma del código —el aviso pasó a ser una
+    // función async suelta— aunque la propiedad seguía cumpliéndose: miraba la
+    // sintaxis, no lo que importa. Ahora se mide.
+    //
+    // Con Resend lento o el almacén caído, esos milisegundos se le sumarían a
+    // cada checkout de cada cliente.
+    const previo = process.env.MP_ACCESS_TOKEN;
+    const previoLink = process.env.MP_LINK_PROFESSIONAL;
+    delete process.env.MP_ACCESS_TOKEN;
+    process.env.MP_LINK_PROFESSIONAL = 'https://mpago.la/x';
+    for (const m of ['../api/_aviso', '../api/checkout', '../api/_planes',
+                     '../api/_ratelimit']) {
+      delete require.cache[require.resolve(m)];
+    }
+    const aviso = require('../api/_aviso');
+    const DEMORA = 400;
+    aviso.registrarUnaVez = async () => {
+      await new Promise((r) => setTimeout(r, DEMORA));
+      return { registrado: true, nuevo: true };
+    };
+    aviso.porMail = async () => ({ enviado: true });
+    const checkout = require('../api/checkout');
+    try {
+      const res = fakeRes();
+      const t0 = Date.now();
+      await checkout(req({ plan: 'professional' }), res);
+      const tardo = Date.now() - t0;
+      assert.strictEqual(res.statusCode, 200);
+      assert.ok(tardo < DEMORA / 2,
+        `el checkout tardó ${tardo}ms con un aviso de ${DEMORA}ms: lo está esperando`);
+    } finally {
+      if (previo !== undefined) process.env.MP_ACCESS_TOKEN = previo;
+      if (previoLink === undefined) delete process.env.MP_LINK_PROFESSIONAL;
+      else process.env.MP_LINK_PROFESSIONAL = previoLink;
+    }
+  });
+
   console.log('\ncheckout.js — rate limiting');
 
   await test('corta al pasarse del límite por IP', async () => {
