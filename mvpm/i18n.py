@@ -25,6 +25,7 @@ _STRINGS = {
     "nav_organigrama": {"es": "Organigrama y responsables", "en": "Org chart & owners", "pt": "Organograma e responsáveis"},
     "nav_plantillas": {"es": "Plantillas por rubro", "en": "Industry templates", "pt": "Modelos por setor"},
     "nav_conectores": {"es": "Conectores ERP", "en": "ERP connectors", "pt": "Conectores ERP"},
+    "nav_data_eng": {"es": "Ingeniería de datos", "en": "Data engineering", "pt": "Engenharia de dados"},
     "nav_capacitacion": {"es": "Capacitación por rol", "en": "Training by role", "pt": "Treinamento por função"},
     "nav_config_ia": {"es": "Configuración de IA", "en": "AI settings", "pt": "Configuração de IA"},
     "cfg_titulo": {"es": "Configuración de IA",

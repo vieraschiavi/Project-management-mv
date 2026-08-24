@@ -8,6 +8,7 @@ de un login con usuario y contraseña (mvpm/auth.py).
 """
 
 import pathlib
+import re
 import sys
 from datetime import date
 from pathlib import Path
@@ -26,6 +27,7 @@ from mvpm import (
     case_study,
     catalog,
     conectores,
+    data_engineering as dataeng,
     db,
     demo_pharma,
     demo_real,
@@ -341,7 +343,7 @@ else:
         T("nav_backlog"), T("nav_copilot"), T("nav_advisor"), T("nav_reports"),
         T("nav_governance"), T("nav_organigrama"), T("nav_pmbok"), T("nav_plantillas"),
         T("nav_reviews"), T("nav_glossary"), T("nav_policies"),
-        T("nav_import"), T("nav_conectores"), T("nav_capacitacion"),
+        T("nav_import"), T("nav_conectores"), T("nav_data_eng"), T("nav_capacitacion"),
         T("nav_config_ia"),
     ]
     if user["rol"] == "admin":
@@ -1451,6 +1453,113 @@ elif section == T("nav_conectores"):
                 st.session_state.pop("erp_df", None)
                 st.success(f"Listo: se importaron {_n} {_destino} desde el ERP.")
                 st.rerun()
+
+elif section == T("nav_data_eng"):
+    st.subheader(T("nav_data_eng"))
+    if not (_es_owner or licensing.tiene_feature(LICENSE_TOKEN, "reportes_automaticos")):
+        st.warning("Tu plan no incluye la ingeniería de datos. El plan "
+                   "Professional sí la incluye.", icon=":material/lock:")
+        st.stop()
+    st.caption("Perfilá cualquier tabla —no sólo proyectos y tareas— antes de importarla "
+               "o de conectarla a un ERP: nulos, duplicados, outliers, la clave primaria "
+               "candidata y un `CREATE TABLE` de partida. Sin cargo aparte, incluido en "
+               "el mismo plan que los reportes automáticos.")
+
+    _origen = st.radio("¿De dónde vienen los datos?",
+                       ["Archivo (CSV/Excel)", "Base de datos (SQL)"], horizontal=True)
+
+    _df_de = None
+    _nombre_de = "tabla"
+
+    if _origen == "Archivo (CSV/Excel)":
+        _subido_de = st.file_uploader("Subí un CSV/Excel — cualquier esquema",
+                                      type=["csv", "xlsx"], key="dataeng_uploader")
+        if _subido_de is not None:
+            try:
+                _df_de = (pd.read_csv(_subido_de) if _subido_de.name.lower().endswith("csv")
+                          else pd.read_excel(_subido_de))
+                _nombre_de = re.sub(r"\.\w+$", "", _subido_de.name)
+            except Exception as _exc:                                # archivo ilegible
+                st.error(f"No pude leer el archivo: {_exc}")
+    else:
+        st.caption("Sólo lectura: la consulta tiene que empezar con SELECT. La cadena "
+                   "de conexión no se guarda en ningún lado — vive únicamente en esta sesión.")
+        _cadena_de = st.text_input(
+            "Cadena de conexión", type="password", placeholder="postgresql://usuario:clave@host/base",
+            key="dataeng_cadena",
+            help="Usá un usuario de solo lectura. Es la protección de verdad: el "
+                 "candado del software es sólo la segunda línea.")
+        _consulta_de = st.text_area(
+            "Consulta SELECT", placeholder="SELECT * FROM mi_tabla", key="dataeng_consulta")
+        _nombre_de = st.text_input("Nombre para el reporte", value="consulta_sql",
+                                   key="dataeng_nombre")
+        if st.button("Perfilar", disabled=not (_cadena_de and _consulta_de),
+                     type="primary", icon=":material/search:"):
+            try:
+                st.session_state["dataeng_reporte"] = dataeng.perfilar_consulta_sql(
+                    _cadena_de, _consulta_de, nombre=_nombre_de or "consulta_sql")
+            except conectores.ConsultaInsegura as _exc:
+                st.error(str(_exc))
+            except RuntimeError as _exc:                    # falta SQLAlchemy/driver
+                st.error(str(_exc))
+            except Exception as _exc:
+                st.error(f"Falló la consulta: {_exc}")
+
+    if _df_de is not None:
+        if _df_de.empty:
+            st.warning("El archivo no tiene filas.")
+        else:
+            st.session_state["dataeng_reporte"] = dataeng.perfilar_tabla(_nombre_de, _df_de)
+
+    _reporte_de = st.session_state.get("dataeng_reporte")
+    if _reporte_de is not None:
+        st.markdown(f"### Resultado — {_reporte_de.nombre}")
+        _p = _reporte_de.perfil
+        _c = _reporte_de.calidad
+        _m1, _m2, _m3, _m4 = st.columns(4)
+        _m1.metric("Filas", _p["filas"])
+        _m2.metric("Columnas", _p["columnas"])
+        _m3.metric("Score de calidad", f"{_c['score']:.0f} / 100")
+        _m4.metric("Problemas detectados", len(_c["issues"]))
+
+        if _reporte_de.cambios_tipado:
+            with st.expander(f"Tipos corregidos antes de perfilar ({len(_reporte_de.cambios_tipado)})"):
+                st.dataframe(pd.DataFrame(_reporte_de.cambios_tipado,
+                                          columns=["Columna", "Tipo antes", "Tipo después"]),
+                            use_container_width=True, hide_index=True)
+
+        st.markdown("#### Perfil por columna")
+        st.dataframe(pd.DataFrame(_p["detalle"]), use_container_width=True, hide_index=True)
+
+        st.markdown("#### Problemas de calidad")
+        if _c["issues"]:
+            st.dataframe(pd.DataFrame(_c["issues"]), use_container_width=True, hide_index=True)
+        else:
+            st.success("No se detectaron problemas de calidad.")
+
+        if _reporte_de.claves["pk"]:
+            st.markdown("#### Clave primaria candidata")
+            st.dataframe(pd.DataFrame(_reporte_de.claves["pk"]),
+                        use_container_width=True, hide_index=True)
+
+        if _reporte_de.tiempo:
+            st.markdown("#### Cobertura temporal")
+            _t = _reporte_de.tiempo
+            _t1, _t2, _t3 = st.columns(3)
+            _t1.metric("Desde", str(_t["desde"])[:10])
+            _t2.metric("Hasta", str(_t["hasta"])[:10])
+            _t3.metric("Días sin datos", _t["dias_faltantes"])
+            if _t["futuras"]:
+                st.warning(f"{_t['futuras']} fecha(s) en el futuro en «{_t['columna']}».")
+
+        st.markdown("#### Descargas")
+        _dd1, _dd2 = st.columns(2)
+        _dd1.download_button("DDL sugerido (.sql)", _reporte_de.ddl,
+                             file_name=f"{_reporte_de.nombre}.sql", icon=":material/download:")
+        _dd2.download_button("Informe completo (Excel)",
+                             dataeng.exportar_excel_bytes(_reporte_de),
+                             file_name=f"perfil_{_reporte_de.nombre}.xlsx",
+                             icon=":material/download:")
 
 elif section == T("nav_capacitacion"):
     st.subheader(T("nav_capacitacion"))
