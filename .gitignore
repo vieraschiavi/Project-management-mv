@@ -46,6 +46,16 @@ desktop/resources/motor/
 desktop/ui/dist/
 desktop/node_modules/
 
+# Secretos de verdad. `.env.example` SÍ se versiona (sólo nombres y de dónde
+# sale cada valor); `.env` y sus variantes NUNCA, porque ahí viven los valores.
+#
+# Esto faltaba y era un agujero real: este repositorio es PÚBLICO, así que un
+# `.env` con MVPM_LICENSE_PRIVATE_KEY adentro quedaba publicado en el mismo
+# commit — y con esa clave cualquiera se emite licencias infinitas.
+.env
+.env.*
+!.env.example
+
 # Instaladores compilados. NUNCA se commitean, por dos motivos:
 #
 #   1. 71 MB por build. Estuvieron commiteados 27 veces y `.git` llegó a 1,9 GB:
@@ -61,3 +71,23 @@ desktop/node_modules/
 INSTALADOR/
 packaging/Output/
 *.exe
+
+# EXCEPCIÓN, pedida y decidida por el dueño: el instalador de la Owner Edition
+# SÍ se versiona, en INSTALADOR_OWNER/, para poder bajar la versión completa de
+# un clic sin depender de Actions ni de un tag.
+#
+# Lo que cuesta, dicho sin adornos y a propósito acá, que es donde se va a leer
+# la próxima vez que alguien se pregunte por qué:
+#
+#   * Este repositorio es PÚBLICO (verificado contra la API de GitHub, no
+#     contra un comentario). El .exe se compila con ES_OWNER_BUILD = True, así
+#     que abre el producto completo sin prueba de 7 días, sin token y sin clave,
+#     en cualquier máquina. Cualquiera que pase por el repo se lo baja.
+#   * Git no olvida: aunque mañana se borre el archivo, el objeto queda en el
+#     historial hasta que alguien lo reescriba.
+#
+# Si en algún momento el repo pasa a privado (Settings → General → Change
+# repository visibility), esta excepción deja de tener costo y queda igual que
+# el patrón de Buscador-Inmobiliario, que es privado.
+!INSTALADOR_OWNER/
+!INSTALADOR_OWNER/*.exe

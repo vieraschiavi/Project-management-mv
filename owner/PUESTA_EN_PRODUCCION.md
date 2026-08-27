@@ -10,7 +10,20 @@ que pase por tus manos.
 
 ---
 
-## 1. El estado de hoy, en un comando
+## 1. El estado de hoy, en dos comandos
+
+**Qué me falta configurar** (mira tu entorno local y el archivo `.env`; nunca
+imprime el valor de nada, sólo si está o no está):
+
+```bash
+./run.sh doctor
+```
+
+Sale la lista separada en dos: lo que **bloquea la venta** y lo que sólo
+degrada. La plantilla con todos los nombres y de dónde sale cada valor está en
+[`.env.example`](../.env.example) — se copia a `.env` y se completa.
+
+**Qué está realmente cargado en producción:**
 
 ```bash
 curl https://mv-project-management.vercel.app/api/estado-licencias
@@ -119,10 +132,15 @@ curl https://mv-project-management.vercel.app/api/estado-licencias
 
 ## 6. Tu propia instalación (edición Owner)
 
-**No necesitás emitirte ninguna licencia.** El instalador owner
-(artefacto del workflow `build_windows_owner.yml` en GitHub Actions — ya no
-se commitea en el repo, ver §8) trae `ES_OWNER_BUILD = True` compilado
-adentro: corre sin el reloj de 7 días y sin pedir token.
+**No necesitás emitirte ninguna licencia.** El instalador owner trae
+`ES_OWNER_BUILD = True` compilado adentro: corre sin el reloj de 7 días y sin
+pedir token. Hay tres formas de conseguirlo:
+
+| Canal | Cómo | Depende de que el repo sea privado |
+|---|---|---|
+| **`INSTALADOR_OWNER/`** en este repo | descarga directa, un clic | **sí** — ver la advertencia de §8 |
+| Artefacto de Actions | workflow *Build Windows installer (Owner Edition)* → Summary | no (exige login con acceso al repo) |
+| Prerelease | push de un tag `owner-v*` | no |
 
 Si además usás el repo o el paquete portable, una sola vez:
 
@@ -155,16 +173,25 @@ licencia.
 
 ## 8. Qué queda pendiente del lado del repositorio
 
-- **El repositorio es público.** Los instaladores ya NO viven en el árbol de
-  git (antes eran 71 MB commiteados en cada build; ahora salen por Vercel
-  Blob al cliente y por artefacto de Actions al dueño), pero el código
-  fuente sigue siendo visible para cualquiera. Pasalo a privado cuando
-  quieras: *Settings* → *General* → abajo de todo, *Change repository
-  visibility*.
-- El instalador del cliente ya no es descargable sin pagar: `/api/download-installer`
-  exige una licencia `MVPM2` válida y vigente (verificado, medido hoy: `HTTP
-  401` sin token). El del dueño no está en ningún canal público: se baja del
-  artefacto de Actions, que exige estar logueado con acceso al repo.
+- ⚠️ **El repositorio es público Y tiene el instalador owner commiteado** en
+  `INSTALADOR_OWNER/`. Ese `.exe` abre el producto completo en cualquier
+  máquina, sin prueba, sin token y sin clave. Mientras el repo siga público,
+  **cualquiera que pase por él se baja la versión paga gratis**, sin dejar
+  rastro.
+
+  Se hizo así a pedido, para poder probar la versión completa de un clic. El
+  costo desaparece con un solo cambio: *Settings* → *General* → abajo de todo →
+  *Change repository visibility* → **Private**. Con el repo privado esto queda
+  igual que el patrón de `Buscador-Inmobiliario`, que es privado.
+
+  Mientras tanto: **no compartas el link de ese archivo con nadie**.
+- El instalador del **cliente** sí sigue protegido y nunca se commitea:
+  `/api/download-installer` exige una licencia `MVPM2` válida y vigente
+  (verificado: `HTTP 401` sin token). Lo fijan
+  `test_ningun_ejecutable_esta_versionado` y
+  `test_el_instalador_de_cliente_nunca_esta_versionado`.
+- El código fuente también es visible para cualquiera mientras el repo sea
+  público.
 
 ---
 
