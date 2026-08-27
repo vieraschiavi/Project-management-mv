@@ -26,7 +26,13 @@ from . import ai, db
 
 ENTIDAD = "responsable_etapa"
 
-# Las 5 etapas = grupos de procesos del PMBOK.
+# Las 5 etapas = grupos de procesos del PMBOK. "cargos_clave" es la lista de
+# palabras clave contra la que se puntúa el cargo/área de cada persona del
+# organigrama subido — se deja en minúsculas y mezclando es/en a propósito
+# (ya incluye "pmo", "ceo", "vp", "team lead", etc.) porque son cargos reales
+# que aparecen así tal cual en organigramas de cualquier idioma; NO son texto
+# de interfaz, así que no se traducen con `lang` — traducirlos rompería el
+# matching contra organigramas ya cargados.
 ETAPAS = [
     {"clave": "inicio", "nombre": "Inicio",
      "desc": "Autorizar el proyecto, definir objetivos e identificar sponsor e interesados.",
@@ -50,6 +56,30 @@ ETAPAS = [
 ]
 
 _ETAPAS_POR_CLAVE = {e["clave"]: e for e in ETAPAS}
+
+_ETAPAS_TRAD = {
+    "en": {
+        "inicio": ("Initiation", "Authorize the project, define objectives and identify sponsor and stakeholders."),
+        "planificacion": ("Planning", "Define scope, schedule, costs, risks and the work plan."),
+        "ejecucion": ("Execution", "Carry out the plan's work, coordinate the team and resources."),
+        "monitoreo": ("Monitoring & Control", "Measure progress vs. baseline, control changes, risks and quality."),
+        "cierre": ("Closing", "Formalize acceptance, close contracts and document lessons learned."),
+    },
+    "pt": {
+        "inicio": ("Início", "Autorizar o projeto, definir objetivos e identificar sponsor e interessados."),
+        "planificacion": ("Planejamento", "Definir escopo, cronograma, custos, riscos e o plano de trabalho."),
+        "ejecucion": ("Execução", "Realizar o trabalho do plano, coordenar a equipe e os recursos."),
+        "monitoreo": ("Monitoramento e Controle", "Medir avanço vs. linha de base, controlar mudanças, riscos e qualidade."),
+        "cierre": ("Encerramento", "Formalizar a aceitação, encerrar contratos e documentar lições aprendidas."),
+    },
+}
+
+
+def _etapa_tr(e: dict, lang: str) -> dict:
+    if lang not in _ETAPAS_TRAD:
+        return e
+    nombre, desc = _ETAPAS_TRAD[lang].get(e["clave"], (e["nombre"], e["desc"]))
+    return {**e, "nombre": nombre, "desc": desc}
 
 
 def _col(df: pd.DataFrame, *nombres: str) -> str | None:
@@ -89,28 +119,52 @@ def _puntuar(persona: dict, etapa: dict) -> int:
     return sum(1 for kw in etapa["cargos_clave"] if kw in texto)
 
 
-def sugerir_responsables(personas: list[dict], proveedor: str | None = None) -> list[dict]:
+_IA_SISTEMA = {
+    "es": "Sos un experto en gestión de proyectos. Respondés en una sola frase, en español "
+          "rioplatense, sin inventar datos.",
+    "en": "You are a project management expert. You answer in a single sentence, in "
+          "professional English, without inventing data.",
+    "pt": "Você é um especialista em gestão de projetos. Você responde em uma única frase, em "
+          "português, sem inventar dados.",
+}
+_IA_PEDIDO = {
+    "es": "Etapa del proyecto: {nombre} — {desc}\nPersona candidata: {persona}, cargo {cargo}, "
+          "área {area}.\nEn una frase, justificá por qué encaja como responsable de esta etapa.",
+    "en": "Project stage: {nombre} — {desc}\nCandidate: {persona}, title {cargo}, area {area}.\n"
+          "In one sentence, justify why they fit as the owner of this stage.",
+    "pt": "Etapa do projeto: {nombre} — {desc}\nPessoa candidata: {persona}, cargo {cargo}, "
+          "área {area}.\nEm uma frase, justifique por que ela se encaixa como responsável "
+          "desta etapa.",
+}
+_MOTOR_POR_CARGO = {"es": "motor de reglas (por cargo)", "en": "rules engine (by title)",
+                    "pt": "motor de regras (por cargo)"}
+
+
+def sugerir_responsables(personas: list[dict], proveedor: str | None = None,
+                         lang: str = "es") -> list[dict]:
     """Para cada etapa, recomienda la persona cuyo cargo mejor encaja (motor de
     reglas). Si hay proveedor de IA, agrega una breve justificación. Devuelve
     una entrada por etapa; 'persona' es None si el organigrama no tiene un
-    cargo que encaje (ahí el usuario asigna a mano)."""
+    cargo que encaje (ahí el usuario asigna a mano). `lang` decide el idioma
+    del nombre/descripción de la etapa y el de la justificación de IA."""
+    lang = lang if lang in ("es", "en", "pt") else "es"
+    sin_dato = {"es": "s/d", "en": "n/a", "pt": "s/d"}[lang]
     sugerencias = []
-    for etapa in ETAPAS:
+    for etapa_base in ETAPAS:
+        etapa = _etapa_tr(etapa_base, lang)
         mejor, mejor_score = None, 0
         for p in personas:
-            s = _puntuar(p, etapa)
+            s = _puntuar(p, etapa_base)
             if s > mejor_score:
                 mejor, mejor_score = p, s
         justificacion = None
-        recomendado_por = "motor de reglas (por cargo)"
+        recomendado_por = _MOTOR_POR_CARGO.get(lang, _MOTOR_POR_CARGO["es"])
         if mejor and proveedor:
             texto = ai.completar(
-                system="Sos un experto en gestión de proyectos. Respondés en una sola frase, "
-                       "en español rioplatense, sin inventar datos.",
-                user=f"Etapa del proyecto: {etapa['nombre']} — {etapa['desc']}\n"
-                     f"Persona candidata: {mejor['nombre']}, cargo {mejor.get('cargo') or 's/d'}, "
-                     f"área {mejor.get('area') or 's/d'}.\n"
-                     "En una frase, justificá por qué encaja como responsable de esta etapa.",
+                system=_IA_SISTEMA.get(lang, _IA_SISTEMA["es"]),
+                user=_IA_PEDIDO.get(lang, _IA_PEDIDO["es"]).format(
+                    nombre=etapa["nombre"], desc=etapa["desc"], persona=mejor["nombre"],
+                    cargo=mejor.get("cargo") or sin_dato, area=mejor.get("area") or sin_dato),
                 proveedor=proveedor,
             )
             if texto and texto.strip():
