@@ -55,6 +55,21 @@ case "$cmd" in
   test)
     pytest tests/ -v
     ;;
+  doctor)
+    # Qué variable falta, dónde va y qué se rompe sin ella. El inventario vive
+    # en mvpm/configuracion.py, en un solo lugar, para que la respuesta a
+    # "¿está todo configurado?" sea un dato y no una opinión.
+    #
+    # Lee `.env` si existe (sin pisar lo que ya esté exportado, que manda), y
+    # NUNCA imprime el valor de nada: sólo si está o no está.
+    if [ -f .env ]; then
+      set -a
+      # shellcheck disable=SC1091
+      . ./.env
+      set +a
+    fi
+    python -m mvpm.configuracion
+    ;;
   ci)
     # LAS MISMAS compuertas que corre GitHub Actions, en el mismo orden
     # (.github/workflows/tests.yml). Correr sólo `./run.sh test` deja pasar dos

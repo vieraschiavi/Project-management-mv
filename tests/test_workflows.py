@@ -212,8 +212,25 @@ def test_el_build_del_dueno_sigue_sin_publicarse_en_ningun_canal_publico():
 
 # --------------------------- los binarios NO viven en el árbol de git
 
+#: La ÚNICA ruta de este repositorio donde se acepta un binario versionado.
+#:
+#: Es una excepción pedida y decidida por el dueño: quiere bajar la Owner
+#: Edition completa de un clic, sin depender del artefacto de Actions ni de un
+#: tag. Se acota a esta carpeta —y no se borran los tests— para que todo lo
+#: demás siga protegido: el instalador de CLIENTE nunca puede volver al árbol.
+#:
+#: Lo que cuesta, escrito acá a propósito porque es donde se va a leer:
+#: este repositorio es PÚBLICO (verificado contra la API de GitHub), y este
+#: .exe se compila con ES_OWNER_BUILD = True, así que abre el producto
+#: completo sin prueba, sin token y sin clave, en cualquier máquina. Mientras
+#: el repo sea público, cualquiera se lo baja. Pasar el repo a privado
+#: (Settings → General → Change repository visibility) elimina ese costo y
+#: deja esta excepción sin contraindicación.
+CARPETA_OWNER_VERSIONADA = "INSTALADOR_OWNER/"
+
+
 def test_ningun_ejecutable_esta_versionado():
-    """EL test de esto. Ningún `.exe` puede estar seguido por git.
+    """Ningún `.exe` puede estar seguido por git, salvo el de la Owner Edition.
 
     Estuvieron: los dos instaladores, 71 MB cada uno, recommiteados en cada
     build. Veintisiete veces. `.git` llegó a **1,9 GB** para un proyecto cuyo
@@ -222,23 +239,52 @@ def test_ningun_ejecutable_esta_versionado():
     cortaban solos.
 
     Y costaba algo peor que tiempo. `api/download-installer.js` entrega el
-    instalador SÓLO a quien presenta una licencia MVPM2 válida. Con el .exe en
-    el árbol de un repositorio público, cualquiera se lo bajaba del repo sin
+    instalador SÓLO a quien presenta una licencia MVPM2 válida. Con el .exe de
+    CLIENTE en el árbol de un repositorio público, cualquiera se lo bajaba sin
     licencia y sin dejar rastro: el candado puesto, y la puerta de al lado
-    abierta de par en par.
+    abierta de par en par. Eso sigue prohibido y es lo que este test cuida.
 
-    Git no olvida por sí solo —los 1,9 GB de historia siguen ahí hasta que
-    alguien la reescriba— pero desde acá deja de crecer.
+    Lo único admitido es `INSTALADOR_OWNER/` (ver CARPETA_OWNER_VERSIONADA):
+    UN archivo, que se reemplaza en vez de acumularse, así el repositorio no
+    vuelve a crecer sin techo.
     """
     import subprocess
 
     seguidos = subprocess.run(
         ["git", "ls-files"], cwd=RAIZ, capture_output=True, text=True).stdout.split()
-    exes = [f for f in seguidos if f.lower().endswith((".exe", ".msi", ".dmg"))]
+    exes = [f for f in seguidos
+            if f.lower().endswith((".exe", ".msi", ".dmg"))
+            and not f.startswith(CARPETA_OWNER_VERSIONADA)]
     assert not exes, (
-        "ejecutables versionados: " + ", ".join(exes)
+        "ejecutables versionados fuera de " + CARPETA_OWNER_VERSIONADA + ": "
+        + ", ".join(exes)
         + "\n\nVan a Vercel Blob (cliente, con licencia) o al artefacto de "
           "Actions (dueño, con login). Nunca al árbol.")
+
+
+def test_el_instalador_de_cliente_nunca_esta_versionado():
+    """El complemento del de arriba: la excepción es SÓLO para el del dueño.
+
+    Sin esto, `INSTALADOR_OWNER/` sería un agujero por el que también podría
+    colarse el instalador de cliente — y ése sí rompe el cobro, porque
+    `api/download-installer.js` existe justamente para entregarlo únicamente a
+    quien presenta una licencia válida.
+    """
+    import subprocess
+
+    seguidos = subprocess.run(
+        ["git", "ls-files"], cwd=RAIZ, capture_output=True, text=True).stdout.split()
+    en_owner = [f for f in seguidos if f.startswith(CARPETA_OWNER_VERSIONADA)]
+    binarios = [f for f in en_owner if f.lower().endswith((".exe", ".msi", ".dmg"))]
+    assert len(binarios) <= 1, (
+        "en " + CARPETA_OWNER_VERSIONADA + " tiene que haber UN solo binario "
+        "(se reemplaza, no se acumula): " + ", ".join(binarios))
+    for f in binarios:
+        nombre = f.rsplit("/", 1)[-1].lower()
+        assert "owner" in nombre, (
+            f"{f} no se llama como el instalador del dueño. Esta carpeta es "
+            "sólo para la Owner Edition — el instalador de CLIENTE nunca se "
+            "versiona: se entrega por Vercel Blob contra licencia válida.")
 
 
 def test_ningun_archivo_versionado_es_enorme():
@@ -251,19 +297,28 @@ def test_ningun_archivo_versionado_es_enorme():
 
     El límite duro de GitHub por archivo son 100 MiB; 25 MB deja lugar de sobra
     para el video de la landing (3 MB) y corta cualquier instalador.
+
+    `INSTALADOR_OWNER/` queda exento por decisión del dueño, pero con techo
+    propio: 60 MB, bien por debajo del límite de GitHub. Un instalador que
+    crezca más que eso es una señal de que algo se empaquetó de más.
     """
     import subprocess
 
     LIMITE_MB = 25
+    LIMITE_OWNER_MB = 60
     seguidos = subprocess.run(
         ["git", "ls-files"], cwd=RAIZ, capture_output=True, text=True).stdout.split()
     gordos = []
     for nombre in seguidos:
         ruta = RAIZ / nombre
-        if ruta.is_file() and ruta.stat().st_size > LIMITE_MB * 1024 * 1024:
-            gordos.append(f"{nombre} ({ruta.stat().st_size / 1024 / 1024:.0f} MB)")
-    assert not gordos, (
-        f"archivos versionados de más de {LIMITE_MB} MB: " + ", ".join(gordos))
+        if not ruta.is_file():
+            continue
+        mb = ruta.stat().st_size / 1024 / 1024
+        techo = (LIMITE_OWNER_MB if nombre.startswith(CARPETA_OWNER_VERSIONADA)
+                 else LIMITE_MB)
+        if mb > techo:
+            gordos.append(f"{nombre} ({mb:.0f} MB, techo {techo} MB)")
+    assert not gordos, "archivos versionados por encima de su techo: " + ", ".join(gordos)
 
 
 @pytest.mark.parametrize("workflow", ["build_windows.yml", "build_windows_owner.yml"])
