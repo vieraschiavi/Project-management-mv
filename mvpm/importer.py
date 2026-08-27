@@ -21,10 +21,125 @@ from __future__ import annotations
 
 import re
 import unicodedata
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import date, datetime
 
 import pandas as pd
+
+# ------------------------------------------------------------------- idioma
+#
+# Todo el texto que ve el usuario (etiquetas de campo, ayuda, motivos de
+# detección, mensajes de validación, resumen del informe) vive acá, separado
+# de la lógica. El español (`_MSG["es"]`) es el comportamiento de siempre: con
+# `lang="es"` (el default) el resultado es idéntico al de antes de agregar
+# idiomas. Nunca se traducen: los `clave` de los campos, los valores
+# parseados (números, fechas) ni los códigos internos de estado/nivel
+# ("todo"/"in_progress"/"blocked"/"done", "Alta"/"Media"/"Baja") — esos se
+# guardan tal cual en la base y se comparan en otros módulos del motor.
+
+_MSG: dict[str, dict[str, str]] = {
+    "es": {
+        "no_es_numero": "no se entiende como número",
+        "no_es_fecha": "no se entiende como fecha",
+        "estado_no_reconocido": "estado no reconocido, queda como pendiente",
+        "nivel_no_reconocido": "nivel no reconocido, queda como Media",
+        "proyecto_no_existe": "no existe un proyecto con ese nombre",
+        "proyecto_no_existe_default": "no existe ese proyecto, va al proyecto por defecto",
+        "usuario_no_existe": "no hay un usuario con ese nombre o email, queda sin asignar",
+        "vacio": "está vacío",
+        "campo_proyecto": "Proyecto",
+        "sin_proyecto_default": "no hay proyecto al que asociar la tarea",
+        "coincidencia_exacta": "coincidencia exacta",
+        "parecido_a": "parecido a «{s}»",
+        "mismas_palabras": "mismas palabras",
+        "contiene": "contiene «{tokens}»",
+        "sin_detectar": "sin detectar",
+        "aviso_miles": ("«{etiqueta}»: se interpretó el punto como separador de miles "
+                        "(1.500 = mil quinientos). Si en tu archivo es decimal, "
+                        "corregilo antes de importar."),
+        "aviso_fecha_ambigua": ("«{etiqueta}»: hay fechas donde día y mes son ambos ≤ 12 "
+                                "(ej. 03/04). Se leyeron como día/mes."),
+        "aviso_nivel_numerico": ("«{etiqueta}»: la columna viene con números. Se leyó "
+                                 "1 = Alta, 2 = Media, 3 = Baja. Si en tu escala 3 es lo "
+                                 "más grave, está al revés — conviene reemplazar los "
+                                 "números por Alta/Media/Baja antes de importar."),
+        "falta_mapear": "Falta mapear: {campos}.",
+        "filas_listas": "{validas} de {total} filas listas",
+        "se_descartan": "{n} se descartan",
+        "repetidas_archivo": "{n} repetidas en el archivo",
+        "ya_existen_sistema": "{n} ya existen en el sistema",
+    },
+    "en": {
+        "no_es_numero": "doesn't look like a number",
+        "no_es_fecha": "doesn't look like a date",
+        "estado_no_reconocido": "status not recognized, left as pending",
+        "nivel_no_reconocido": "level not recognized, left as Media",
+        "proyecto_no_existe": "no project with that name",
+        "proyecto_no_existe_default": "no such project, goes to the default project",
+        "usuario_no_existe": "no user with that name or email, left unassigned",
+        "vacio": "is empty",
+        "campo_proyecto": "Project",
+        "sin_proyecto_default": "no project to associate the task with",
+        "coincidencia_exacta": "exact match",
+        "parecido_a": "similar to «{s}»",
+        "mismas_palabras": "same words",
+        "contiene": "contains «{tokens}»",
+        "sin_detectar": "not detected",
+        "aviso_miles": ("«{etiqueta}»: the period was read as a thousands "
+                        "separator (1.500 = one thousand five hundred). If in your file "
+                        "it's a decimal point, fix it before importing."),
+        "aviso_fecha_ambigua": ("«{etiqueta}»: some dates have both day and month "
+                                "≤ 12 (e.g. 03/04). They were read as day/month."),
+        "aviso_nivel_numerico": ("«{etiqueta}»: the column comes in as numbers. "
+                                 "1 = Alta, 2 = Media, 3 = Baja was assumed. If in your "
+                                 "scale 3 is the most severe, it's reversed — consider "
+                                 "replacing the numbers with Alta/Media/Baja before "
+                                 "importing."),
+        "falta_mapear": "Fields still to map: {campos}.",
+        "filas_listas": "{validas} of {total} rows ready",
+        "se_descartan": "{n} discarded",
+        "repetidas_archivo": "{n} repeated in the file",
+        "ya_existen_sistema": "{n} already exist in the system",
+    },
+    "pt": {
+        "no_es_numero": "não parece um número",
+        "no_es_fecha": "não parece uma data",
+        "estado_no_reconocido": "status não reconhecido, fica como pendente",
+        "nivel_no_reconocido": "nível não reconhecido, fica como Media",
+        "proyecto_no_existe": "não existe um projeto com esse nome",
+        "proyecto_no_existe_default": "esse projeto não existe, vai para o projeto padrão",
+        "usuario_no_existe": "não há usuário com esse nome ou e-mail, fica sem responsável",
+        "vacio": "está vazio",
+        "campo_proyecto": "Projeto",
+        "sin_proyecto_default": "não há projeto para associar a tarefa",
+        "coincidencia_exacta": "coincidência exata",
+        "parecido_a": "parecido com «{s}»",
+        "mismas_palabras": "mesmas palavras",
+        "contiene": "contém «{tokens}»",
+        "sin_detectar": "não detectado",
+        "aviso_miles": ("«{etiqueta}»: o ponto foi interpretado como separador de "
+                        "milhar (1.500 = mil e quinhentos). Se no seu arquivo é decimal, "
+                        "corrija antes de importar."),
+        "aviso_fecha_ambigua": ("«{etiqueta}»: há datas em que dia e mês são ambos "
+                                "≤ 12 (ex. 03/04). Foram lidas como dia/mês."),
+        "aviso_nivel_numerico": ("«{etiqueta}»: a coluna vem com números. Foi lido "
+                                 "1 = Alta, 2 = Media, 3 = Baja. Se na sua escala 3 é o "
+                                 "mais grave, está invertido — o ideal é substituir os "
+                                 "números por Alta/Media/Baja antes de importar."),
+        "falta_mapear": "Falta mapear: {campos}.",
+        "filas_listas": "{validas} de {total} linhas prontas",
+        "se_descartan": "{n} são descartadas",
+        "repetidas_archivo": "{n} repetidas no arquivo",
+        "ya_existen_sistema": "{n} já existem no sistema",
+    },
+}
+
+
+def _tx(lang: str, clave: str, **kwargs) -> str:
+    tabla = _MSG.get(lang, _MSG["es"])
+    plantilla = tabla.get(clave, _MSG["es"][clave])
+    return plantilla.format(**kwargs) if kwargs else plantilla
+
 
 # --------------------------------------------------------------- normalizado
 
@@ -60,16 +175,21 @@ def _tokens(texto, sin_vacias: bool = True) -> set[str]:
 _ESTADOS = {
     "todo": ["todo", "to do", "pendiente", "pendientes", "sin empezar", "sin iniciar",
              "no iniciada", "no iniciado", "nueva", "nuevo", "backlog", "abierta",
-             "abierto", "por hacer", "planificada", "planificado", "a fazer"],
+             "abierto", "por hacer", "planificada", "planificado", "a fazer",
+             # inglés/portugués que faltaba: "pending"/"pendente" y "not started"
+             # son la forma más común de decir "todavía no arrancó" en esos idiomas.
+             "pending", "not started", "pendente"],
     "in_progress": ["in progress", "in_progress", "en curso", "en progreso", "en proceso",
                     "en ejecucion", "haciendo", "doing", "wip", "activa", "activo",
-                    "iniciada", "iniciado", "trabajando", "em andamento"],
+                    "iniciada", "iniciado", "trabajando", "em andamento", "fazendo"],
     "blocked": ["blocked", "bloqueada", "bloqueado", "trabada", "trabado", "detenida",
                 "detenido", "en espera", "on hold", "pausada", "pausado", "impedimento",
-                "frenada", "frenado", "bloqueada por dependencia", "bloqueado"],
+                "frenada", "frenado", "bloqueada por dependencia", "bloqueado",
+                "travada", "travado"],
     "done": ["done", "hecha", "hecho", "terminada", "terminado", "finalizada",
              "finalizado", "completada", "completado", "cerrada", "cerrado", "lista",
-             "listo", "ok", "entregada", "entregado", "concluida", "100", "concluido"],
+             "listo", "ok", "entregada", "entregado", "concluida", "100", "concluido",
+             "completed", "closed"],
 }
 
 _NIVELES = {
@@ -77,7 +197,7 @@ _NIVELES = {
              "muy alto", "maxima", "p1", "a", "1", "3"],
     "Media": ["media", "medio", "medium", "normal", "moderada", "moderado", "estandar",
               "p2", "b", "2"],
-    "Baja": ["baja", "bajo", "low", "menor", "minima", "p3", "c"],
+    "Baja": ["baja", "bajo", "low", "menor", "minima", "p3", "c", "baixa"],
 }
 
 # "1" y "3" aparecen en las dos escalas que se usan en la práctica: 1=Alta con
@@ -327,10 +447,69 @@ CAMPOS: dict[str, list[Campo]] = {
 }
 
 
-def campos_de(tipo: str) -> list[Campo]:
+# Etiqueta y ayuda por `clave`, sólo para en/pt — el español vive en `CAMPOS`
+# arriba y sigue siendo la fuente de verdad (y el default). `sinonimos` no se
+# traduce: es la lista de encabezados que se reconocen en el archivo del
+# cliente, y esa lista ya mezcla español/inglés/portugués a propósito.
+_ETIQUETAS: dict[str, dict[str, str]] = {
+    "en": {
+        "nombre": "Project name",
+        "portafolio": "Portfolio / program",
+        "sponsor": "Sponsor",
+        "criticidad": "Criticality",
+        "presupuesto": "Budget",
+        "ejecutado": "Spent",
+        "fecha_inicio": "Start date",
+        "fecha_fin": "End date",
+        "segmento": "Segment",
+        "titulo": "Task title",
+        "proyecto": "Project it belongs to",
+        "responsable": "Assignee",
+        "estado": "Status",
+        "prioridad": "Priority",
+        "vencimiento": "Due date",
+    },
+    "pt": {
+        "nombre": "Nome do projeto",
+        "portafolio": "Portfólio / programa",
+        "sponsor": "Patrocinador",
+        "criticidad": "Criticidade",
+        "presupuesto": "Orçamento",
+        "ejecutado": "Executado",
+        "fecha_inicio": "Data de início",
+        "fecha_fin": "Data de término",
+        "segmento": "Segmento",
+        "titulo": "Título da tarefa",
+        "proyecto": "Projeto ao qual pertence",
+        "responsable": "Responsável",
+        "estado": "Status",
+        "prioridad": "Prioridade",
+        "vencimiento": "Vencimento",
+    },
+}
+
+_AYUDA: dict[str, dict[str, str]] = {
+    "en": {
+        "proyecto": "Matched by name against the projects already loaded.",
+        "responsable": "Matched by name or email against the team's users.",
+    },
+    "pt": {
+        "proyecto": "É buscado pelo nome entre os projetos já cadastrados.",
+        "responsable": "É buscado pelo nome ou e-mail entre os usuários da equipe.",
+    },
+}
+
+
+def campos_de(tipo: str, lang: str = "es") -> list[Campo]:
     if tipo not in CAMPOS:
         raise ValueError(f"Tipo de importación desconocido: {tipo!r}")
-    return CAMPOS[tipo]
+    base = CAMPOS[tipo]
+    if lang not in _ETIQUETAS:
+        return base
+    etiquetas, ayudas = _ETIQUETAS[lang], _AYUDA[lang]
+    return [replace(c, etiqueta=etiquetas.get(c.clave, c.etiqueta),
+                    ayuda=ayudas.get(c.clave, c.ayuda) if c.ayuda else c.ayuda)
+            for c in base]
 
 
 # ------------------------------------------------------------ detección de columnas
@@ -343,7 +522,7 @@ class Sugerencia:
     motivo: str = ""
 
 
-def _puntaje(columna: str, campo: Campo) -> tuple[float, str]:
+def _puntaje(columna: str, campo: Campo, lang: str = "es") -> tuple[float, str]:
     col_n = normalizar(columna)
     if not col_n:
         return 0.0, ""
@@ -351,7 +530,7 @@ def _puntaje(columna: str, campo: Campo) -> tuple[float, str]:
     normalizados = {normalizar(s) for s in sinonimos}
 
     if col_n in normalizados:
-        return 1.0, "coincidencia exacta"
+        return 1.0, _tx(lang, "coincidencia_exacta")
 
     # Contención: "nombredelproyecto" contiene "nombreproyecto"? No, pero sí
     # contiene "proyecto". Se pondera por cuánto del nombre cubre el sinónimo.
@@ -363,7 +542,7 @@ def _puntaje(columna: str, campo: Campo) -> tuple[float, str]:
             cobertura = len(s) / max(len(col_n), len(s))
             puntaje = 0.55 + 0.35 * cobertura
             if puntaje > mejor:
-                mejor, motivo = puntaje, f"parecido a «{s}»"
+                mejor, motivo = puntaje, _tx(lang, "parecido_a", s=s)
 
     # Palabras en común, ignorando las vacías: "Fecha de Inicio" == "fecha inicio".
     col_tokens = _tokens(columna)
@@ -372,26 +551,28 @@ def _puntaje(columna: str, campo: Campo) -> tuple[float, str]:
         if not s_tokens:
             continue
         if s_tokens == col_tokens:
-            return 1.0, "mismas palabras"
+            return 1.0, _tx(lang, "mismas_palabras")
         comunes = col_tokens & s_tokens
         if comunes and s_tokens <= col_tokens:
             puntaje = 0.6 + 0.3 * (len(comunes) / max(len(col_tokens), 1))
             if puntaje > mejor:
-                mejor, motivo = puntaje, f"contiene «{' '.join(sorted(comunes))}»"
+                mejor, motivo = puntaje, _tx(lang, "contiene", tokens=" ".join(sorted(comunes)))
     return mejor, motivo
 
 
-def detectar_columnas(df: pd.DataFrame, tipo: str) -> dict[str, Sugerencia]:
+def detectar_columnas(df: pd.DataFrame, tipo: str, lang: str = "es") -> dict[str, Sugerencia]:
     """Propone qué columna del archivo corresponde a cada campo del sistema.
 
     Cada columna se asigna a un solo campo: se resuelven primero las parejas de
     mayor puntaje, así "prioridad" no se lleva a la vez `criticidad` y `prioridad`.
     """
+    # El matcheo usa siempre los campos base (clave + sinónimos no se traducen);
+    # sólo el `motivo` que se le muestra al usuario sale en `lang`.
     campos = campos_de(tipo)
     pares = []
     for campo in campos:
         for columna in df.columns:
-            puntaje, motivo = _puntaje(str(columna), campo)
+            puntaje, motivo = _puntaje(str(columna), campo, lang)
             if puntaje >= 0.55:
                 pares.append((puntaje, campo.clave, str(columna), motivo))
     pares.sort(key=lambda p: (-p[0], p[1], p[2]))
@@ -405,7 +586,7 @@ def detectar_columnas(df: pd.DataFrame, tipo: str) -> dict[str, Sugerencia]:
         asignadas.add(columna)
 
     for campo in campos:
-        resuelto.setdefault(campo.clave, Sugerencia(None, 0.0, "sin detectar"))
+        resuelto.setdefault(campo.clave, Sugerencia(None, 0.0, _tx(lang, "sin_detectar")))
     return resuelto
 
 
@@ -453,16 +634,16 @@ class Reporte:
     def puede_importar(self) -> bool:
         return not self.faltan_requeridos and bool(self.filas)
 
-    def resumen(self) -> str:
+    def resumen(self, lang: str = "es") -> str:
         if self.faltan_requeridos:
-            return f"Falta mapear: {', '.join(self.faltan_requeridos)}."
-        partes = [f"{self.filas_validas} de {self.total_filas} filas listas"]
+            return _tx(lang, "falta_mapear", campos=", ".join(self.faltan_requeridos))
+        partes = [_tx(lang, "filas_listas", validas=self.filas_validas, total=self.total_filas)]
         if self.filas_rechazadas:
-            partes.append(f"{self.filas_rechazadas} se descartan")
+            partes.append(_tx(lang, "se_descartan", n=self.filas_rechazadas))
         if self.duplicados_archivo:
-            partes.append(f"{self.duplicados_archivo} repetidas en el archivo")
+            partes.append(_tx(lang, "repetidas_archivo", n=self.duplicados_archivo))
         if self.duplicados_base:
-            partes.append(f"{self.duplicados_base} ya existen en el sistema")
+            partes.append(_tx(lang, "ya_existen_sistema", n=self.duplicados_base))
         return " · ".join(partes) + "."
 
     def problemas_df(self) -> pd.DataFrame:
@@ -500,7 +681,7 @@ class _Ctx:
 
 
 def _convertir_campo(campo: Campo, crudo, pos: int, rep: Reporte,
-                     ctx: _Ctx) -> tuple[dict, bool]:
+                     ctx: _Ctx, lang: str = "es") -> tuple[dict, bool]:
     """Convierte el valor crudo de UNA celda al valor que va a la base.
 
     Devuelve `(updates, invalida_fila)`: lo que hay que volcar en la fila y si
@@ -514,7 +695,7 @@ def _convertir_campo(campo: Campo, crudo, pos: int, rep: Reporte,
         r = parsear_numero(crudo)
         if r.valor is None:
             rep.problemas.append(Problema(
-                pos, campo.etiqueta, str(crudo), "no se entiende como número", "aviso"))
+                pos, campo.etiqueta, str(crudo), _tx(lang, "no_es_numero"), "aviso"))
             return {}, False
         if r.ambiguo:
             ctx.numeros_ambiguos.add(campo.etiqueta)
@@ -524,7 +705,7 @@ def _convertir_campo(campo: Campo, crudo, pos: int, rep: Reporte,
         r = parsear_fecha(crudo)
         if r.valor is None:
             rep.problemas.append(Problema(
-                pos, campo.etiqueta, str(crudo), "no se entiende como fecha", "aviso"))
+                pos, campo.etiqueta, str(crudo), _tx(lang, "no_es_fecha"), "aviso"))
             return {}, False
         if r.ambiguo:
             ctx.fechas_ambiguas.add(campo.etiqueta)
@@ -535,7 +716,7 @@ def _convertir_campo(campo: Campo, crudo, pos: int, rep: Reporte,
         if v is None:
             rep.problemas.append(Problema(
                 pos, campo.etiqueta, str(crudo),
-                "estado no reconocido, queda como pendiente", "aviso"))
+                _tx(lang, "estado_no_reconocido"), "aviso"))
             return {}, False
         return {campo.clave: v}, False
 
@@ -544,7 +725,7 @@ def _convertir_campo(campo: Campo, crudo, pos: int, rep: Reporte,
         if v is None:
             rep.problemas.append(Problema(
                 pos, campo.etiqueta, str(crudo),
-                "nivel no reconocido, queda como Media", "aviso"))
+                _tx(lang, "nivel_no_reconocido"), "aviso"))
             return {}, False
         return {campo.clave: v}, False
 
@@ -555,11 +736,11 @@ def _convertir_campo(campo: Campo, crudo, pos: int, rep: Reporte,
         if ctx.proyecto_default_id is None:
             rep.problemas.append(Problema(
                 pos, campo.etiqueta, str(crudo),
-                "no existe un proyecto con ese nombre", "error"))
+                _tx(lang, "proyecto_no_existe"), "error"))
             return {}, True
         rep.problemas.append(Problema(
             pos, campo.etiqueta, str(crudo),
-            "no existe ese proyecto, va al proyecto por defecto", "aviso"))
+            _tx(lang, "proyecto_no_existe_default"), "aviso"))
         return {"proyecto_id": ctx.proyecto_default_id}, False
 
     if campo.tipo == "persona":
@@ -567,28 +748,22 @@ def _convertir_campo(campo: Campo, crudo, pos: int, rep: Reporte,
         if uid is None:
             rep.problemas.append(Problema(
                 pos, campo.etiqueta, str(crudo),
-                "no hay un usuario con ese nombre o email, queda sin asignar", "aviso"))
+                _tx(lang, "usuario_no_existe"), "aviso"))
             return {}, False
         return {"responsable_id": uid}, False
 
     return {}, False
 
 
-def _avisos_de_columna(rep: Reporte, ctx: _Ctx, niveles_numericos: list[str]) -> None:
+def _avisos_de_columna(rep: Reporte, ctx: _Ctx, niveles_numericos: list[str],
+                       lang: str = "es") -> None:
     """Agrega los avisos que aplican a una columna entera, no a una celda."""
     for etiqueta in sorted(ctx.numeros_ambiguos):
-        rep.avisos_columna.append(
-            f"«{etiqueta}»: se interpretó el punto como separador de miles "
-            f"(1.500 = mil quinientos). Si en tu archivo es decimal, corregilo antes de importar.")
+        rep.avisos_columna.append(_tx(lang, "aviso_miles", etiqueta=etiqueta))
     for etiqueta in sorted(ctx.fechas_ambiguas):
-        rep.avisos_columna.append(
-            f"«{etiqueta}»: hay fechas donde día y mes son ambos ≤ 12 (ej. 03/04). "
-            f"Se leyeron como día/mes.")
+        rep.avisos_columna.append(_tx(lang, "aviso_fecha_ambigua", etiqueta=etiqueta))
     for etiqueta in niveles_numericos:
-        rep.avisos_columna.append(
-            f"«{etiqueta}»: la columna viene con números. Se leyó 1 = Alta, 2 = Media, "
-            f"3 = Baja. Si en tu escala 3 es lo más grave, está al revés — conviene "
-            f"reemplazar los números por Alta/Media/Baja antes de importar.")
+        rep.avisos_columna.append(_tx(lang, "aviso_nivel_numerico", etiqueta=etiqueta))
 
 
 def validar(df: pd.DataFrame, tipo: str, mapeo: dict[str, str], *,
@@ -596,13 +771,14 @@ def validar(df: pd.DataFrame, tipo: str, mapeo: dict[str, str], *,
             usuarios: pd.DataFrame | None = None,
             existentes: pd.DataFrame | None = None,
             proyecto_default_id: int | None = None,
-            omitir_duplicados: bool = True) -> Reporte:
+            omitir_duplicados: bool = True,
+            lang: str = "es") -> Reporte:
     """Simula la importación completa sin escribir nada.
 
     Es el corazón del importador guiado: el cliente ve exactamente qué va a
     entrar, qué se va a descartar y por qué, antes de tocar la base.
     """
-    campos = {c.clave: c for c in campos_de(tipo)}
+    campos = {c.clave: c for c in campos_de(tipo, lang)}
     mapeo = {k: v for k, v in mapeo.items() if v and k in campos}
     rep = Reporte(tipo=tipo, total_filas=len(df), mapeo=dict(mapeo))
 
@@ -643,11 +819,11 @@ def validar(df: pd.DataFrame, tipo: str, mapeo: dict[str, str], *,
 
             if vacio:
                 if campo.requerido:
-                    rep.problemas.append(Problema(pos, campo.etiqueta, "", "está vacío", "error"))
+                    rep.problemas.append(Problema(pos, campo.etiqueta, "", _tx(lang, "vacio"), "error"))
                     errores_fila = True
                 continue
 
-            updates, invalida = _convertir_campo(campo, crudo, pos, rep, ctx)
+            updates, invalida = _convertir_campo(campo, crudo, pos, rep, ctx, lang)
             fila.update(updates)
             if invalida:
                 errores_fila = True
@@ -670,14 +846,14 @@ def validar(df: pd.DataFrame, tipo: str, mapeo: dict[str, str], *,
         if tipo == "tareas" and "proyecto_id" not in fila:
             if proyecto_default_id is None:
                 rep.problemas.append(Problema(
-                    pos, "Proyecto", "", "no hay proyecto al que asociar la tarea", "error"))
+                    pos, _tx(lang, "campo_proyecto"), "", _tx(lang, "sin_proyecto_default"), "error"))
                 continue
             fila["proyecto_id"] = proyecto_default_id
 
         fila["_fila_origen"] = pos
         rep.filas.append(fila)
 
-    _avisos_de_columna(rep, ctx, niveles_numericos)
+    _avisos_de_columna(rep, ctx, niveles_numericos, lang)
     return rep
 
 
@@ -714,9 +890,63 @@ def aplicar(rep: Reporte, crear_proyecto, crear_tarea) -> int:
 
 # ------------------------------------------------------------------ plantilla
 
+# Los encabezados de columna quedan como el `clave` interno en los 3 idiomas
+# (nunca se traducen: son justamente lo que `detectar_columnas` reconoce con
+# certeza, así que el archivo se auto-importa sin importar el idioma). Lo que
+# cambia con `lang` es el contenido de ejemplo — nombres, estado, prioridad —
+# para que el archivo que se descarga se sienta local. Las fechas quedan en
+# dd/mm/yyyy en los tres idiomas porque `parsear_fecha` siempre asume día
+# primero, sin importar `lang`. Los valores de ejemplo de estado/prioridad se
+# probaron contra `normalizar_estado`/`normalizar_nivel` para que se sigan
+# reconociendo igual que el resto del archivo.
+_PLANTILLA_TX: dict[str, dict[str, list[dict]]] = {
+    "en": {
+        "proyectos": [
+            {"nombre": "Server migration", "portafolio": "Infrastructure",
+             "sponsor": "IT Management", "criticidad": "High",
+             "presupuesto": 1500000, "ejecutado": 320000,
+             "fecha_inicio": "01/03/2026", "fecha_fin": "30/09/2026"},
+            {"nombre": "Website redesign", "portafolio": "Commercial",
+             "sponsor": "Marketing", "criticidad": "Medium",
+             "presupuesto": 400000, "ejecutado": 0,
+             "fecha_inicio": "15/04/2026", "fecha_fin": "15/07/2026"},
+        ],
+        "tareas": [
+            {"titulo": "Survey current servers", "proyecto": "Server migration",
+             "responsable": "", "estado": "In progress", "prioridad": "High",
+             "vencimiento": "30/04/2026"},
+            {"titulo": "Choose cloud provider", "proyecto": "Server migration",
+             "responsable": "", "estado": "Pending", "prioridad": "Medium",
+             "vencimiento": "15/05/2026"},
+        ],
+    },
+    "pt": {
+        "proyectos": [
+            {"nombre": "Migração de servidores", "portafolio": "Infraestrutura",
+             "sponsor": "Gerência de TI", "criticidad": "Alta",
+             "presupuesto": 1500000, "ejecutado": 320000,
+             "fecha_inicio": "01/03/2026", "fecha_fin": "30/09/2026"},
+            {"nombre": "Redesign do site", "portafolio": "Comercial",
+             "sponsor": "Marketing", "criticidad": "Média",
+             "presupuesto": 400000, "ejecutado": 0,
+             "fecha_inicio": "15/04/2026", "fecha_fin": "15/07/2026"},
+        ],
+        "tareas": [
+            {"titulo": "Levantar servidores atuais", "proyecto": "Migração de servidores",
+             "responsable": "", "estado": "Em andamento", "prioridad": "Alta",
+             "vencimiento": "30/04/2026"},
+            {"titulo": "Definir provedor de nuvem", "proyecto": "Migração de servidores",
+             "responsable": "", "estado": "Pendente", "prioridad": "Média",
+             "vencimiento": "15/05/2026"},
+        ],
+    },
+}
 
-def plantilla(tipo: str) -> pd.DataFrame:
+
+def plantilla(tipo: str, lang: str = "es") -> pd.DataFrame:
     """Archivo de ejemplo para que el cliente arranque sin inventar el formato."""
+    if lang in _PLANTILLA_TX:
+        return pd.DataFrame(_PLANTILLA_TX[lang][tipo])
     if tipo == "proyectos":
         return pd.DataFrame([
             {"nombre": "Migración de servidores", "portafolio": "Infraestructura",

@@ -1,16 +1,29 @@
 # © 2026 Martín Viera. Todos los derechos reservados.
 """
 MV Project Management · Generador del video demo (PIL + imageio-ffmpeg) con
-narración en los 3 idiomas del producto (Piper TTS: es_AR "daniela",
-en_US "amy", pt_BR "faber").
+contenido en pantalla Y narración en los 3 idiomas del producto (Piper TTS:
+es_AR "daniela", en_US "amy", pt_BR "faber").
 
 Produce un ``demo.mp4`` por idioma (1280×720): el mismo recorrido animado del
-producto con la voz en off sincronizada escena por escena (la duración de cada
-escena se ajusta a su narración, sin desfases). Es una animación explicativa
-del producto —no un screencast— y así se declara en la landing. Las escenas
-(lo que se dibuja en pantalla) son las mismas para los tres idiomas; lo que
-cambia es sólo el audio — la landing ya declara "100% WEB + PC · ES / EN / PT"
-en pantalla, en las tres versiones.
+producto, pero renderizado ENTERO en ese idioma —texto en pantalla y voz en
+off, no sólo la voz— con la duración de cada escena ajustada a su narración,
+sin desfases. Es una animación explicativa del producto —no un screencast— y
+así se declara en la landing.
+
+Por qué el texto en pantalla también se traduce (y no sólo el audio, como en
+la versión anterior de este script): una persona viendo el video en inglés
+que lee "Portafolio con salud en 6 dimensiones" en pantalla mientras escucha
+"Portfolio health across 6 dimensions" en el audio no experimenta un producto
+en inglés — experimenta una traducción a medias. El texto de cada escena vive
+en ``TEXTS[lang]``, con la misma clave en los tres idiomas.
+
+Ningún tamaño de fuente ni ancho de caja está fijo a mano por idioma: todo
+texto que entra en una caja (tarjeta, pastilla, párrafo) pasa por
+``fit_font``/``fit_paragraph``, que reducen el tamaño hasta que el texto
+entra en el ancho/alto disponible. Sin esto, una traducción más larga que el
+español original (frecuente en inglés y portugués) se saldría de su caja o se
+superpondría con el elemento de al lado — el tamaño se ajusta al marco del
+contenido, no al revés.
 
 Ejecutar desde la raíz del repo:
     python assets/video/build_video.py
@@ -61,6 +74,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)
 # "es" mantiene el nombre de archivo histórico (demo.mp4) porque la landing
 # ya apunta ahí por defecto; en/pt suman el sufijo de idioma.
 _SUFFIX = {"es": "", "en": "_en", "pt": "_pt"}
+LANGS = ("es", "en", "pt")
 
 
 def _out_path(lang: str) -> str:
@@ -108,11 +122,75 @@ def badge(d: ImageDraw.ImageDraw, cx: int, y: int, text: str, f):
     d.text((cx - w / 2, y - 1), text, font=f, fill=AMBER)
 
 
+# ------------------------------------------------------------ texto que cabe
+#
+# Nada de lo que sigue fija un tamaño de fuente "a ojo" para una traducción en
+# particular: cada función mide el texto real contra el ancho/alto de SU caja
+# y reduce el tamaño hasta que entra. Así una traducción más larga (el inglés
+# y el portugués suelen serlo frente al español) nunca se sale de su marco ni
+# pisa al elemento de al lado — el tamaño se adapta al contenido, no al revés.
+
+
+def fit_font(d: ImageDraw.ImageDraw, text: str, max_width: float,
+             max_size: int, min_size: int = 13, bold: bool = True) -> ImageFont.FreeTypeFont:
+    size = max_size
+    while size > min_size:
+        f = font(size, bold)
+        if d.textlength(text, font=f) <= max_width:
+            return f
+        size -= 1
+    return font(min_size, bold)
+
+
+def center_text_fit(d: ImageDraw.ImageDraw, y: int, text: str, max_size: int,
+                    max_width: float, fill, bold: bool = True, min_size: int = 15):
+    f = fit_font(d, text, max_width, max_size, min_size, bold)
+    center_text(d, y, text, f, fill)
+
+
+def wrap_lines(d: ImageDraw.ImageDraw, text: str, f: ImageFont.FreeTypeFont,
+              max_width: float) -> list[str]:
+    words = text.split()
+    lines: list[str] = []
+    cur = ""
+    for w in words:
+        trial = f"{cur} {w}".strip()
+        if not cur or d.textlength(trial, font=f) <= max_width:
+            cur = trial
+        else:
+            lines.append(cur)
+            cur = w
+    if cur:
+        lines.append(cur)
+    return lines
+
+
+def fit_paragraph(d: ImageDraw.ImageDraw, text: str, max_width: float, max_height: float,
+                  max_size: int, min_size: int = 14, bold: bool = False,
+                  line_gap: float = 1.35) -> tuple[ImageFont.FreeTypeFont, list[str], float]:
+    """Reduce el tamaño hasta que el párrafo entero —ya wrappeado a
+    ``max_width``— entra en ``max_height``. Devuelve la fuente, las líneas y
+    el alto de línea a usar para dibujarlas."""
+    size = max_size
+    while size >= min_size:
+        f = font(size, bold)
+        lines = wrap_lines(d, text, f, max_width)
+        line_h = size * line_gap
+        if line_h * len(lines) <= max_height:
+            return f, lines, line_h
+        size -= 1
+    f = font(min_size, bold)
+    lines = wrap_lines(d, text, f, max_width)
+    return f, lines, min_size * line_gap
+
+
 def _kpi_card(d, x, y, w, h, label, value, vcolor):
     d.rounded_rectangle([x, y, x + w, y + h], radius=14,
                         fill=(15, 33, 53), outline=(29, 49, 73), width=2)
-    d.text((x + 18, y + 14), label, font=font(14, False), fill=MUTED)
-    d.text((x + 18, y + 38), value, font=font(32), fill=vcolor)
+    lf = fit_font(d, label, w - 36, 14, 10, bold=False)
+    d.text((x + 18, y + 14), label, font=lf, fill=MUTED)
+    vf = fit_font(d, value, w - 36, 32, 20, bold=True)
+    d.text((x + 18, y + 38), value, font=vf, fill=vcolor)
 
 
 def _pill(d, x, y, text, col, f):
@@ -123,9 +201,192 @@ def _pill(d, x, y, text, col, f):
     return pw + 18
 
 
-# ------------------------------------------------------------------- escenas
+# -------------------------------------------------------- texto en pantalla
+#
+# Misma clave en los 3 idiomas — cada escena la lee con TEXTS[lang]["clave"].
+# Los nombres propios (laboratorios reales, "Ana Pérez", el endpoint técnico
+# de la API) no se traducen a propósito: son datos o código, no prosa.
 
-def scene_intro(p: float) -> Image.Image:
+TEXTS = {
+    "es": {
+        "intro_tagline": "Portafolio con salud medible, no reuniones de estado",
+        "intro_badge": "100% WEB + PC · ES / EN / PT · IA ADITIVA",
+        "portfolio_h": "Portafolio con salud en 6 dimensiones",
+        "portfolio_sub": "Alcance · cronograma · presupuesto · riesgo · dependencias · equipo",
+        "portfolio_kpi1": "PROYECTOS", "portfolio_kpi2": "ÍNDICE DE SALUD",
+        "portfolio_kpi3": "TAREAS BLOQUEADAS",
+        "portfolio_proyectos": ["Migración de facturación", "Expansión Paraguay",
+                                "Migración de CRM", "Portal de clientes"],
+        "pharma_h": "Dataset real de laboratorio → Power BI",
+        "pharma_sub": "474 ensayos clínicos reales · ClinicalTrials.gov (NIH) · dominio público",
+        "pharma_crit": "Estado clínico → criticidad de portafolio:",
+        "pharma_pill1": "135 completados → Baja", "pharma_pill2": "120 reclutando → Media",
+        "pharma_pill3": "9 suspendidos → Alta",
+        "pharma_connector": "Conector .pbids de un clic → Power BI",
+        "pharma_honest": "Honesto: ClinicalTrials.gov no publica presupuesto → queda en 0 con nota",
+        "gov_h": "La IA propone, el responsable valida",
+        "gov_sub": "Definiciones preestablecidas · validadas por el data owner · versionadas",
+        "gov_steps": [
+            ("1 · IA RECOMIENDA", "Alcance: trabajo incluido y excluido que define el límite del proyecto.", BLUE),
+            ("2 · EL DUEÑO VALIDA", "Ana Pérez (Data Owner) revisa, ajusta el texto y lo guarda.", AMBER),
+            ("3 · QUEDA VERSIONADO", "Historial por empresa: quién, cuándo, nombre y cargo.", GREEN),
+        ],
+        "org_h": "Organigrama → responsables por etapa",
+        "org_sub": "Subís Excel, CSV o base SQL · la IA autocompleta áreas y responsables",
+        "org_file": "▤ organigrama.xlsx", "org_cols": "cargos · áreas · reporta_a",
+        "org_arrow": "→  IA  →",
+        "org_etapas": [("Inicio", "M. Rodríguez · PMO"),
+                       ("Planificación", "L. Fernández · Jefa de Proyectos"),
+                       ("Ejecución", "C. Gómez · Líder Técnico"),
+                       ("Seguimiento", "A. Pérez · Data Owner"),
+                       ("Cierre", "R. Silva · Sponsor")],
+        "pmbok_h": "PMBOK técnico y \"en criollo\"",
+        "pmbok_sub": "10 áreas de conocimiento + 5 grupos de proceso · con nota editable por empresa",
+        "pmbok_tag_tec": "TÉCNICO", "pmbok_tag_criollo": "EN CRIOLLO",
+        "pmbok_tecnico": "Gestión del Cronograma: procesos para administrar la terminación en plazo "
+                        "del proyecto — secuenciar actividades, estimar duraciones, controlar la "
+                        "línea base del cronograma.",
+        "pmbok_criollo": "Que las tareas estén en orden y que sepas si vas a llegar con los tiempos. "
+                         "Si algo se atrasa, cuánto te corre todo lo demás — antes de que te "
+                         "explote encima.",
+        "pmbok_footer": "Cada etapa no automatizable se anota a mano y se guarda por empresa",
+        "trial_h": "Prueba completa de 7 días",
+        "trial_sub": "Descargás el programa completo — todo desbloqueado, sin recortes",
+        "trial_line1": "Al día 8 se bloquea — pero tus datos NO se borran.",
+        "trial_line2": "Cargás tu licencia Professional y seguís exactamente donde estabas.",
+        "trial_badge": "US$9 / usuario / mes · se cobra en pesos al cambio del día",
+        "outro_tagline": "Tu portafolio, gobernado de punta a punta.",
+        "outro_badge": "DESCARGA COMPLETA · PROBALA 7 DÍAS · SIN RECORTES",
+        "outro_footer": "Descargá el programa completo y conservá todo lo que cargues",
+    },
+    "en": {
+        "intro_tagline": "A project portfolio with measurable health, not status meetings",
+        "intro_badge": "100% WEB + DESKTOP · ES / EN / PT · ADDITIVE AI",
+        "portfolio_h": "Portfolio health across 6 dimensions",
+        "portfolio_sub": "Scope · schedule · budget · risk · dependencies · team",
+        "portfolio_kpi1": "PROJECTS", "portfolio_kpi2": "HEALTH INDEX",
+        "portfolio_kpi3": "BLOCKED TASKS",
+        "portfolio_proyectos": ["Billing migration", "Paraguay expansion",
+                                "CRM migration", "Customer portal"],
+        "pharma_h": "Real lab dataset → Power BI",
+        "pharma_sub": "474 real clinical trials · ClinicalTrials.gov (NIH) · public domain",
+        "pharma_crit": "Clinical status → portfolio criticality:",
+        "pharma_pill1": "135 completed → Low", "pharma_pill2": "120 recruiting → Medium",
+        "pharma_pill3": "9 suspended → High",
+        "pharma_connector": "One-click .pbids connector → Power BI",
+        "pharma_honest": "Honest by design: ClinicalTrials.gov has no budget field → stays 0, with a note",
+        "gov_h": "AI proposes, the owner validates",
+        "gov_sub": "Preset definitions · validated by the data owner · versioned",
+        "gov_steps": [
+            ("1 · AI RECOMMENDS", "Scope: work included and excluded, defining the project's boundary.", BLUE),
+            ("2 · THE OWNER VALIDATES", "Ana Pérez (Data Owner) reviews, edits the text and saves it.", AMBER),
+            ("3 · IT STAYS VERSIONED", "History per company: who, when, full name and role.", GREEN),
+        ],
+        "org_h": "Org chart → owners per stage",
+        "org_sub": "Upload Excel, CSV or a SQL database · AI auto-fills areas and owners",
+        "org_file": "▤ org_chart.xlsx", "org_cols": "roles · areas · reports_to",
+        "org_arrow": "→  AI  →",
+        "org_etapas": [("Initiation", "M. Rodríguez · PMO"),
+                       ("Planning", "L. Fernández · Project Lead"),
+                       ("Execution", "C. Gómez · Tech Lead"),
+                       ("Monitoring", "A. Pérez · Data Owner"),
+                       ("Closing", "R. Silva · Sponsor")],
+        "pmbok_h": "PMBOK: technical & plain-spoken",
+        "pmbok_sub": "10 knowledge areas + 5 process groups · with an editable note per company",
+        "pmbok_tag_tec": "TECHNICAL", "pmbok_tag_criollo": "PLAIN ENGLISH",
+        "pmbok_tecnico": "Schedule Management: the processes to manage timely completion of the "
+                        "project — sequencing activities, estimating durations, controlling the "
+                        "schedule baseline.",
+        "pmbok_criollo": "Whether your tasks are in order and whether you'll hit your dates. If "
+                         "something slips, how much it drags everything else — before it blows "
+                         "up on you.",
+        "pmbok_footer": "Any stage that can't be automated gets noted by hand and saved per company",
+        "trial_h": "A full 7-day trial",
+        "trial_sub": "You download the complete program — everything unlocked, no cuts",
+        "trial_line1": "On day 8 it locks — but your data is NEVER deleted.",
+        "trial_line2": "Load your Professional license and pick up exactly where you left off.",
+        "trial_badge": "US$9 / user / month · charged in local currency at the day's rate",
+        "outro_tagline": "Your portfolio, governed end to end.",
+        "outro_badge": "FULL DOWNLOAD · TRY IT 7 DAYS · NO CUTS",
+        "outro_footer": "Download the complete program and keep everything you load",
+    },
+    "pt": {
+        "intro_tagline": "Portfólio de projetos com saúde mensurável, não reuniões de status",
+        "intro_badge": "100% WEB + PC · ES / EN / PT · IA ADITIVA",
+        "portfolio_h": "Saúde do portfólio em 6 dimensões",
+        "portfolio_sub": "Escopo · cronograma · orçamento · risco · dependências · equipe",
+        "portfolio_kpi1": "PROJETOS", "portfolio_kpi2": "ÍNDICE DE SAÚDE",
+        "portfolio_kpi3": "TAREFAS BLOQUEADAS",
+        "portfolio_proyectos": ["Migração de faturamento", "Expansão Paraguai",
+                                "Migração de CRM", "Portal de clientes"],
+        "pharma_h": "Dataset real de laboratório → Power BI",
+        "pharma_sub": "474 ensaios clínicos reais · ClinicalTrials.gov (NIH) · domínio público",
+        "pharma_crit": "Status clínico → criticidade de portfólio:",
+        "pharma_pill1": "135 concluídos → Baixa", "pharma_pill2": "120 recrutando → Média",
+        "pharma_pill3": "9 suspensos → Alta",
+        "pharma_connector": "Conector .pbids de um clique → Power BI",
+        "pharma_honest": "Honesto: ClinicalTrials.gov não publica orçamento → fica em 0, com nota",
+        "gov_h": "A IA propõe, o responsável valida",
+        "gov_sub": "Definições preestabelecidas · validadas pelo data owner · versionadas",
+        "gov_steps": [
+            ("1 · A IA RECOMENDA", "Escopo: trabalho incluído e excluído que define o limite do projeto.", BLUE),
+            ("2 · O DONO VALIDA", "Ana Pérez (Data Owner) revisa, ajusta o texto e salva.", AMBER),
+            ("3 · FICA VERSIONADO", "Histórico por empresa: quem, quando, nome e cargo.", GREEN),
+        ],
+        "org_h": "Organograma → responsáveis por etapa",
+        "org_sub": "Envie Excel, CSV ou base SQL · a IA autocompleta áreas e responsáveis",
+        "org_file": "▤ organograma.xlsx", "org_cols": "cargos · áreas · reporta_a",
+        "org_arrow": "→  IA  →",
+        "org_etapas": [("Início", "M. Rodríguez · PMO"),
+                       ("Planejamento", "L. Fernández · Líder de Projetos"),
+                       ("Execução", "C. Gómez · Líder Técnico"),
+                       ("Monitoramento", "A. Pérez · Data Owner"),
+                       ("Encerramento", "R. Silva · Sponsor")],
+        "pmbok_h": "PMBOK técnico e em linguagem simples",
+        "pmbok_sub": "10 áreas de conhecimento + 5 grupos de processo · com nota editável por empresa",
+        "pmbok_tag_tec": "TÉCNICO", "pmbok_tag_criollo": "LINGUAGEM SIMPLES",
+        "pmbok_tecnico": "Gestão do Cronograma: processos para administrar a conclusão no prazo do "
+                        "projeto — sequenciar atividades, estimar durações, controlar a linha de "
+                        "base do cronograma.",
+        "pmbok_criollo": "Se as tarefas estão em ordem e se você vai chegar nos prazos. Se algo "
+                         "atrasa, o quanto isso empurra tudo o resto — antes que exploda em cima "
+                         "de você.",
+        "pmbok_footer": "Toda etapa não automatizável é anotada à mão e fica salva por empresa",
+        "trial_h": "Teste completo de 7 dias",
+        "trial_sub": "Você baixa o programa completo — tudo desbloqueado, sem cortes",
+        "trial_line1": "No dia 8, bloqueia — mas seus dados NÃO são apagados.",
+        "trial_line2": "Você carrega sua licença Professional e continua exatamente de onde parou.",
+        "trial_badge": "US$9 / usuário / mês · cobrado em moeda local à cotação do dia",
+        "outro_tagline": "Seu portfólio, governado de ponta a ponta.",
+        "outro_badge": "DOWNLOAD COMPLETO · TESTE 7 DIAS · SEM CORTES",
+        "outro_footer": "Baixe o programa completo e mantenha tudo o que você carregar",
+    },
+}
+
+for _lang, _dict in TEXTS.items():
+    assert set(_dict) == set(TEXTS["es"]), (
+        f"TEXTS[{_lang!r}] no tiene las mismas claves que TEXTS['es'] — "
+        f"faltan: {set(TEXTS['es']) - set(_dict)}, sobran: {set(_dict) - set(TEXTS['es'])}")
+
+
+def _others(lang: str) -> str:
+    """Las taglines de los OTROS dos idiomas, para el guiño trilingüe de
+    intro/outro — en vez de repetir la misma frase, cada versión muestra en
+    qué otros dos idiomas también existe el producto."""
+    keys = [k for k in LANGS if k != lang]
+    return " · ".join(TEXTS[k]["intro_tagline"] for k in keys)
+
+
+# ------------------------------------------------------------------- escenas
+#
+# Cada escena recibe (p, lang): p es el progreso 0-1 de ESA escena (para la
+# animación), lang decide qué texto de TEXTS mostrar. El dibujo (posiciones,
+# colores, curvas de aparición) es el mismo entre idiomas; lo que cambia es
+# el string y, cuando ese string es más largo, el tamaño de fuente que
+# fit_font/fit_paragraph calculan para que siga entrando en su caja.
+
+def scene_intro(p: float, lang: str) -> Image.Image:
+    t = TEXTS[lang]
     img = base_frame()
     d = ImageDraw.Draw(img)
     size = 66
@@ -137,35 +398,33 @@ def scene_intro(p: float) -> Image.Image:
     if p > 0.18:
         center_text(d, 310, "MV Project Management", font(52), INK)
     if p > 0.38:
-        center_text(d, 388, "Portafolio con salud medible, no reuniones de estado", font(24, False), MUTED)
+        center_text_fit(d, 388, t["intro_tagline"], 24, 1080, MUTED, bold=False)
     if p > 0.55:
-        center_text(d, 428, "Measurable portfolio health · Saúde de portfólio mensurável", font(19, False), FAINT)
+        center_text_fit(d, 428, _others(lang), 19, 1080, FAINT, bold=False, min_size=14)
     if p > 0.72:
-        badge(d, W // 2, 505, "100% WEB + PC · ES / EN / PT · IA ADITIVA", font(18))
+        badge(d, W // 2, 505, t["intro_badge"], fit_font(d, t["intro_badge"], 1080, 18, 14))
     return img
 
 
-def scene_portfolio(p: float) -> Image.Image:
+def scene_portfolio(p: float, lang: str) -> Image.Image:
+    t = TEXTS[lang]
     img = base_frame()
     d = ImageDraw.Draw(img)
-    center_text(d, 40, "Portafolio con salud en 6 dimensiones", font(32), INK)
-    center_text(d, 86, "Alcance · cronograma · presupuesto · riesgo · dependencias · equipo",
-                font(17, False), MUTED)
+    center_text_fit(d, 40, t["portfolio_h"], 32, 1080, INK)
+    center_text_fit(d, 86, t["portfolio_sub"], 17, 1080, MUTED, bold=False, min_size=13)
     a = ease(p * 1.6)
-    _kpi_card(d, 120, 140, 300, 86, "PROYECTOS", f"{int(round(20 * a))}", INK)
-    _kpi_card(d, 445, 140, 300, 86, "ÍNDICE DE SALUD", f"{76.8 * a:.1f}/100", GREEN)
-    _kpi_card(d, 770, 140, 300, 86, "TAREAS BLOQUEADAS", f"{int(round(22 * a))}/211", AMBER)
-    proyectos = [("Migración de facturación", 88, GREEN),
-                 ("Expansión Paraguay", 64, AMBER),
-                 ("Migración de CRM", 41, RED),
-                 ("Portal de clientes", 79, GREEN)]
+    _kpi_card(d, 120, 140, 300, 86, t["portfolio_kpi1"], f"{int(round(20 * a))}", INK)
+    _kpi_card(d, 445, 140, 300, 86, t["portfolio_kpi2"], f"{76.8 * a:.1f}/100", GREEN)
+    _kpi_card(d, 770, 140, 300, 86, t["portfolio_kpi3"], f"{int(round(22 * a))}/211", AMBER)
+    proyectos = list(zip(t["portfolio_proyectos"], [88, 64, 41, 79], [GREEN, AMBER, RED, GREEN]))
     y = 285
     for i, (name, score, col) in enumerate(proyectos):
         pa = ease(p * 2.2 - i * 0.16)
         if pa <= 0:
             continue
-        d.text((130, y + 2), name, font=font(18, False), fill=INK)
         bx0, bx1 = 470, 1040
+        nf = fit_font(d, name, bx0 - 130 - 20, 18, 13, bold=False)
+        d.text((130, y + 2), name, font=nf, fill=INK)
         d.rounded_rectangle([bx0, y + 2, bx1, y + 22], radius=10, fill=(20, 39, 60))
         fill_w = (bx1 - bx0) * (score / 100) * pa
         if fill_w > 16:
@@ -175,12 +434,12 @@ def scene_portfolio(p: float) -> Image.Image:
     return img
 
 
-def scene_pharma(p: float) -> Image.Image:
+def scene_pharma(p: float, lang: str) -> Image.Image:
+    t = TEXTS[lang]
     img = base_frame()
     d = ImageDraw.Draw(img)
-    center_text(d, 40, "Dataset real de laboratorio → Power BI", font(32), INK)
-    center_text(d, 86, "474 ensayos clínicos reales · ClinicalTrials.gov (NIH) · dominio público",
-                font(17, False), MUTED)
+    center_text_fit(d, 40, t["pharma_h"], 32, 1080, INK)
+    center_text_fit(d, 86, t["pharma_sub"], 17, 1080, MUTED, bold=False, min_size=13)
     labs = [("AstraZeneca", 163), ("Novartis", 156), ("Pfizer", 155)]
     y = 150
     maxv = 170
@@ -198,109 +457,111 @@ def scene_pharma(p: float) -> Image.Image:
         y += 62
     # estados → criticidad
     if p > 0.4:
-        d.text((130, 360), "Estado clínico → criticidad de portafolio:", font=font(18), fill=AMBER)
+        cf = fit_font(d, t["pharma_crit"], 1020, 18, 14)
+        d.text((130, 360), t["pharma_crit"], font=cf, fill=AMBER)
+        pf = fit_font(d, max((t["pharma_pill1"], t["pharma_pill2"], t["pharma_pill3"]), key=len),
+                     320, 15, 11, bold=True)
         x = 130
-        x += _pill(d, x, 400, "135 completados → Baja", GREEN, font(15)) + 14
-        x += _pill(d, x, 400, "120 reclutando → Media", AMBER, font(15)) + 14
-        _pill(d, x, 400, "9 suspendidos → Alta", RED, font(15))
+        x += _pill(d, x, 400, t["pharma_pill1"], GREEN, pf) + 14
+        x += _pill(d, x, 400, t["pharma_pill2"], AMBER, pf) + 14
+        _pill(d, x, 400, t["pharma_pill3"], RED, pf)
     if p > 0.62:
         d.rounded_rectangle([120, 470, 1160, 590], radius=14, fill=(9, 20, 35),
                             outline=(42, 65, 96), width=2)
         d.text((150, 492), "GET  http://127.0.0.1:8600/api/demo/pharma   (JSON · CSV)",
-               font=font(21), fill=(127, 212, 168))
-        d.text((150, 536), "Conector .pbids de un clic → Power BI", font=font(21), fill=AMBER)
+               font=fit_font(d, "GET  http://127.0.0.1:8600/api/demo/pharma   (JSON · CSV)",
+                            980, 21, 15), fill=(127, 212, 168))
+        cf2 = fit_font(d, t["pharma_connector"], 980, 21, 15)
+        d.text((150, 536), t["pharma_connector"], font=cf2, fill=AMBER)
     if p > 0.85:
-        center_text(d, 622, "Honesto: ClinicalTrials.gov no publica presupuesto → queda en 0 con nota",
-                    font(15, False), FAINT)
+        center_text_fit(d, 622, t["pharma_honest"], 15, 1080, FAINT, bold=False, min_size=11)
     return img
 
 
-def scene_governance(p: float) -> Image.Image:
+def scene_governance(p: float, lang: str) -> Image.Image:
+    t = TEXTS[lang]
     img = base_frame()
     d = ImageDraw.Draw(img)
-    center_text(d, 40, "La IA propone, el responsable valida", font(32), INK)
-    center_text(d, 86, "Definiciones preestablecidas · validadas por el data owner · versionadas",
-                font(17, False), MUTED)
-    steps = [("1 · IA RECOMIENDA", "Alcance: trabajo incluido y excluido\nque define el límite del proyecto.", BLUE),
-             ("2 · EL DUEÑO VALIDA", "Ana Pérez (Data Owner) revisa,\najusta el texto y lo guarda.", AMBER),
-             ("3 · QUEDA VERSIONADO", "Historial por empresa: quién,\ncuándo, nombre y cargo.", GREEN)]
+    center_text_fit(d, 40, t["gov_h"], 32, 1080, INK)
+    center_text_fit(d, 86, t["gov_sub"], 17, 1080, MUTED, bold=False, min_size=13)
     y = 150
-    for i, (tag, body, col) in enumerate(steps):
+    for i, (tag, body, col) in enumerate(t["gov_steps"]):
         pa = ease(p * 2.0 - i * 0.24)
         if pa <= 0:
             continue
         d.rounded_rectangle([130, y, 1150, y + 128], radius=14, fill=(13, 30, 51),
                             outline=col, width=2)
-        d.text((155, y + 18), tag, font=font(17), fill=col)
-        for li, line in enumerate(body.split("\n")):
-            d.text((155, y + 52 + li * 30), line, font=font(19, False), fill=INK)
+        tf = fit_font(d, tag, 970, 17, 13)
+        d.text((155, y + 18), tag, font=tf, fill=col)
+        bf, lines, line_h = fit_paragraph(d, body, 970, 68, 19, min_size=14, bold=False)
+        for li, line in enumerate(lines[:3]):
+            d.text((155, y + 52 + li * line_h), line, font=bf, fill=INK)
         y += 150
     return img
 
 
-def scene_organigrama(p: float) -> Image.Image:
+def scene_organigrama(p: float, lang: str) -> Image.Image:
+    t = TEXTS[lang]
     img = base_frame()
     d = ImageDraw.Draw(img)
-    center_text(d, 40, "Organigrama → responsables por etapa", font(32), INK)
-    center_text(d, 86, "Subís Excel, CSV o base SQL · la IA autocompleta áreas y responsables",
-                font(17, False), MUTED)
+    center_text_fit(d, 40, t["org_h"], 32, 1080, INK)
+    center_text_fit(d, 86, t["org_sub"], 17, 1080, MUTED, bold=False, min_size=13)
     if p > 0.15:
         d.rounded_rectangle([130, 150, 470, 250], radius=14, fill=(9, 20, 35),
                             outline=(42, 65, 96), width=2)
-        d.text((155, 172), "📄 organigrama.xlsx", font=font(20), fill=INK)
-        d.text((155, 206), "cargos · áreas · reporta_a", font=font(15, False), fill=MUTED)
+        ff = fit_font(d, t["org_file"], 300, 20, 15)
+        d.text((155, 172), t["org_file"], font=ff, fill=INK)
+        cf = fit_font(d, t["org_cols"], 300, 15, 11, bold=False)
+        d.text((155, 206), t["org_cols"], font=cf, fill=MUTED)
     if p > 0.3:
-        d.text((500, 190), "→  IA  →", font=font(26), fill=AMBER)
-    etapas = [("Inicio", "M. Rodríguez · PMO"),
-              ("Planificación", "L. Fernández · Jefa de Proyectos"),
-              ("Ejecución", "C. Gómez · Líder Técnico"),
-              ("Seguimiento", "A. Pérez · Data Owner"),
-              ("Cierre", "R. Silva · Sponsor")]
+        d.text((500, 190), t["org_arrow"], font=font(26), fill=AMBER)
     y = 285
-    for i, (etapa, resp) in enumerate(etapas):
+    for i, (etapa, resp) in enumerate(t["org_etapas"]):
         pa = ease(p * 2.4 - i * 0.2)
         if pa <= 0:
             continue
         d.rounded_rectangle([130, y, 1150, y + 58], radius=12, fill=(13, 30, 51),
                             outline=(29, 49, 73), width=1)
-        d.text((155, y + 16), etapa, font=font(19), fill=AMBER)
-        d.text((470, y + 16), resp, font=font(18, False), fill=INK)
+        ef = fit_font(d, etapa, 300, 19, 14)
+        d.text((155, y + 16), etapa, font=ef, fill=AMBER)
+        rf = fit_font(d, resp, 660, 18, 13, bold=False)
+        d.text((470, y + 16), resp, font=rf, fill=INK)
         y += 70
     return img
 
 
-def scene_pmbok(p: float) -> Image.Image:
+def scene_pmbok(p: float, lang: str) -> Image.Image:
+    t = TEXTS[lang]
     img = base_frame()
     d = ImageDraw.Draw(img)
-    center_text(d, 40, "PMBOK técnico y \"en criollo\"", font(32), INK)
-    center_text(d, 86, "10 áreas de conocimiento + 5 grupos de proceso · con nota editable por empresa",
-                font(17, False), MUTED)
+    center_text_fit(d, 40, t["pmbok_h"], 32, 1080, INK)
+    center_text_fit(d, 86, t["pmbok_sub"], 17, 1080, MUTED, bold=False, min_size=13)
     if p > 0.2:
         d.rounded_rectangle([130, 150, 630, 470], radius=14, fill=(13, 30, 51),
                             outline=BLUE, width=2)
-        d.text((155, 170), "TÉCNICO", font=font(18), fill=BLUE)
-        tecnico = ("Gestión del Cronograma:\nprocesos para administrar la\nterminación en plazo del\nproyecto (secuenciar, estimar\nduraciones, controlar la línea\nbase del cronograma).")
-        for li, line in enumerate(tecnico.split("\n")):
-            d.text((155, 210 + li * 34), line, font=font(18, False), fill=INK)
+        d.text((155, 170), t["pmbok_tag_tec"], font=fit_font(d, t["pmbok_tag_tec"], 450, 18, 14), fill=BLUE)
+        tf, lines, lh = fit_paragraph(d, t["pmbok_tecnico"], 450, 250, 18, min_size=14, bold=False)
+        for li, line in enumerate(lines):
+            d.text((155, 210 + li * lh), line, font=tf, fill=INK)
     if p > 0.45:
         d.rounded_rectangle([650, 150, 1150, 470], radius=14, fill=(13, 30, 51),
                             outline=AMBER, width=2)
-        d.text((675, 170), "EN CRIOLLO", font=font(18), fill=AMBER)
-        criollo = ("Que las tareas estén en orden\ny que sepas si vas a llegar\ncon los tiempos. Si algo se\natrasa, cuánto te corre todo\nlo demás — antes de que\nte explote encima.")
-        for li, line in enumerate(criollo.split("\n")):
-            d.text((675, 210 + li * 34), line, font=font(18, False), fill=INK)
+        d.text((675, 170), t["pmbok_tag_criollo"],
+              font=fit_font(d, t["pmbok_tag_criollo"], 450, 18, 14), fill=AMBER)
+        cf, lines, lh = fit_paragraph(d, t["pmbok_criollo"], 450, 250, 18, min_size=14, bold=False)
+        for li, line in enumerate(lines):
+            d.text((675, 210 + li * lh), line, font=cf, fill=INK)
     if p > 0.7:
-        center_text(d, 510, "Cada etapa no automatizable se anota a mano y se guarda por empresa",
-                    font(17, False), FAINT)
+        center_text_fit(d, 510, t["pmbok_footer"], 17, 1080, FAINT, bold=False, min_size=12)
     return img
 
 
-def scene_trial(p: float) -> Image.Image:
+def scene_trial(p: float, lang: str) -> Image.Image:
+    t = TEXTS[lang]
     img = base_frame()
     d = ImageDraw.Draw(img)
-    center_text(d, 60, "Prueba completa de 7 días", font(38), INK)
-    center_text(d, 120, "Descargás el programa completo — todo desbloqueado, sin recortes",
-                font(20, False), MUTED)
+    center_text_fit(d, 60, t["trial_h"], 38, 1080, INK, min_size=26)
+    center_text_fit(d, 120, t["trial_sub"], 20, 1080, MUTED, bold=False, min_size=14)
     # timeline 7 días
     if p > 0.2:
         x0, x1, yb = 180, 1100, 260
@@ -312,31 +573,31 @@ def scene_trial(p: float) -> Image.Image:
             d.ellipse([dx - 5, yb + 2, dx + 5, yb + 12], fill=INK)
             d.text((dx - 6, yb + 22), f"{dday}", font=font(14, False), fill=FAINT)
     if p > 0.5:
-        d.text((180, 330), "Al día 8 se bloquea — pero tus datos NO se borran.",
-               font=font(21), fill=INK)
+        d.text((180, 330), t["trial_line1"], font=fit_font(d, t["trial_line1"], 920, 21, 15), fill=INK)
     if p > 0.68:
-        d.text((180, 372), "Cargás tu licencia Professional y seguís exactamente donde estabas.",
-               font=font(21), fill=GREEN)
+        d.text((180, 372), t["trial_line2"], font=fit_font(d, t["trial_line2"], 920, 21, 15), fill=GREEN)
     if p > 0.82:
-        badge(d, W // 2, 450, "US$9 / usuario / mes · se cobra en pesos al cambio del día", font(18))
+        badge(d, W // 2, 450, t["trial_badge"], fit_font(d, t["trial_badge"], 1080, 18, 13))
     return img
 
 
-def scene_outro(p: float) -> Image.Image:
+def scene_outro(p: float, lang: str) -> Image.Image:
+    t = TEXTS[lang]
     img = base_frame()
     d = ImageDraw.Draw(img)
     center_text(d, 200, "MV Project Management", font(50), INK)
-    center_text(d, 280, "Tu portafolio, gobernado de punta a punta.", font(23, False), MUTED)
-    center_text(d, 318, "Your portfolio, governed end to end.", font(19, False), FAINT)
+    center_text_fit(d, 280, t["outro_tagline"], 23, 1080, MUTED, bold=False, min_size=16)
+    center_text_fit(d, 318, _others(lang), 19, 1080, FAINT, bold=False, min_size=14)
     if p > 0.35:
-        badge(d, W // 2, 400, "DESCARGA COMPLETA · PROBALA 7 DÍAS · SIN RECORTES", font(18))
+        badge(d, W // 2, 400, t["outro_badge"], fit_font(d, t["outro_badge"], 1080, 18, 13))
     if p > 0.6:
-        center_text(d, 480, "Descargá el programa completo y conservá todo lo que cargues", font(19, False), MUTED)
+        center_text_fit(d, 480, t["outro_footer"], 19, 1080, MUTED, bold=False, min_size=13)
     return img
 
 
 # (función de escena, duración mínima visual) — igual en los 3 idiomas: lo
-# que cambia entre versiones es sólo la narración, no el dibujo.
+# que cambia entre versiones es el texto en pantalla y la narración, no la
+# composición ni el timing base de cada escena.
 SCENES = [
     (scene_intro, 6.0),
     (scene_portfolio, 8.0),
@@ -522,7 +783,8 @@ def build(lang: str) -> str:
     """Genera el demo de un idioma. La duración de cada escena depende de lo
     que dure SU narración, así que el video se renderiza entero por idioma —
     no se puede reusar el mismo video mudo entre idiomas porque el largo de
-    "the AI auto-fills the areas" no dura lo mismo que su traducción."""
+    "the AI auto-fills the areas" no dura lo mismo que su traducción, y el
+    texto en pantalla tampoco es el mismo dibujo: es el de ESE idioma."""
     out, landing_copy = _out_path(lang), _landing_path(lang)
     tmpdir = tempfile.mkdtemp(prefix=f"mvpm_video_{lang}_")
     narrations = _synth_narrations(lang, tmpdir)
@@ -538,7 +800,7 @@ def build(lang: str) -> str:
         n = int(round(secs * FPS))
         for f_i in range(n):
             p = f_i / max(1, n - 1)
-            frame = scene(p)
+            frame = scene(p, lang)
             t = f_i / FPS
             rem = secs - t
             if t < FADE:
@@ -566,7 +828,7 @@ def build(lang: str) -> str:
 def build_all() -> dict[str, str]:
     """Genera los 3 idiomas. El idioma sin voz configurada sale silencioso
     (no se salta) — mejor un video mudo que no producirlo."""
-    return {lang: build(lang) for lang in ("es", "en", "pt")}
+    return {lang: build(lang) for lang in LANGS}
 
 
 if __name__ == "__main__":

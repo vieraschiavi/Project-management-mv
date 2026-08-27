@@ -550,19 +550,461 @@ PERFILES: dict[str, Perfil] = {
 }
 
 
-def perfiles() -> list[Perfil]:
-    return list(PERFILES.values())
+# ------------------------------------------------------------ traducción (EN/PT)
+#
+# Los `Perfil` en español (arriba) son la fuente de verdad; esto es sólo una
+# vista traducida para pantalla. Nunca se toca `clave`, `dialecto`,
+# `esquema_default`, ni nada de las consultas (`tablas`, `sql`,
+# `columna`/`destino`/`transformacion`) — sólo la prosa: `nombre` (donde no es
+# puro nombre de producto), `familia`, `como_conectar`, `advertencias` y las
+# `nota` de `Consulta`/`Campo`.
+#
+# Estructura: _PERFIL_TR[lang][clave] = {
+#     "nombre": str,                        # opcional, sólo si cambia
+#     "familia": str,                        # opcional
+#     "como_conectar": str,
+#     "advertencias": (str, ...),            # mismo orden que el perfil original
+#     "consultas": {tipo: {"nota": str, "campos": {columna: nota}}},
+# }
+# Cualquier clave ausente conserva el texto en español — nunca rompe.
+
+_PERFIL_TR: dict[str, dict[str, dict]] = {
+    "en": {
+        "sap_ps": {
+            "como_conectar": "Via ODBC to HANA, or by asking the SAP team for a "
+                "read-only view. In many companies direct table access is locked "
+                "down, so you have to go through CDS views or an extract.",
+            "advertencias": (
+                "The schema varies by installation: SAPABAP1 on HANA, SAPSR3 on "
+                "older installations on top of Oracle or DB2. Adjust it before "
+                "probing.",
+                "Costs aren't in PROJ: you need to go to COSP by OBJNR and sum "
+                "the periods WKG001..WKG016, filtering WRTTP='04' for actuals "
+                "and '01' for plan.",
+                "If the company uses networks and activities (AFKO/AFVC) in "
+                "addition to WBS elements, the fine-grained tasks live there, "
+                "not in PRPS.",
+            ),
+            "consultas": {
+                "proyectos": {
+                    "nota": "LOEVM <> 'X' filters out projects flagged for "
+                        "deletion.",
+                    "campos": {
+                        "proyecto": "Project definition ID (PSPID)",
+                        "sociedad": "Company code",
+                        "responsable_nro": "Responsible party's personnel "
+                            "number; getting the name requires a join against "
+                            "the personnel table",
+                    },
+                },
+                "tareas": {
+                    "nota": "PRPS.PSPHI points to PROJ's internal PSPNR — not "
+                        "the visible PSPID.",
+                    "campos": {"tarea": "WBS element (POSID)"},
+                },
+            },
+        },
+        "oracle_ebs": {
+            "como_conectar": "Via ODBC/JDBC against the database with a "
+                "read-only user on the APPS schema.",
+            "advertencias": (
+                "The _ALL tables bring every operating unit together. If the "
+                "company has more than one, filter by ORG_ID or you'll mix "
+                "portfolios.",
+                "The budget isn't in PA_PROJECTS_ALL: it comes from "
+                "PA_BUDGET_VERSIONS and PA_BUDGET_LINES, and you have to pick "
+                "the current version.",
+            ),
+        },
+        "oracle_fusion": {
+            "como_conectar": "In Fusion Cloud there's normally no direct "
+                "database access. The usual path is exporting via BI Publisher "
+                "or consuming the REST API and bringing the result in as a "
+                "file.",
+            "advertencias": (
+                "This is the profile least likely to work over direct SQL: "
+                "Oracle doesn't grant database access in Cloud. It works if "
+                "the company replicates to its own data warehouse. If not, "
+                "exporting and importing the file is the way to go.",
+            ),
+        },
+        "dynamics_fo": {
+            "como_conectar": "ODBC to SQL Server. In the cloud, the exported "
+                "Business Data (BYOD) database or Azure Synapse Link is used, "
+                "not the production database.",
+            "advertencias": (
+                "Date field names changed between AX 2012 and D365 F&O: "
+                "PSAPROJSTARTDATE may be named differently in your version. "
+                "Probe first.",
+                "STATUS is a numeric enum, not text — the status mapping has "
+                "to be confirmed against the installation.",
+                "In the cloud there's no access to the production database: "
+                "you work against BYOD or Synapse Link.",
+            ),
+            "consultas": {
+                "proyectos": {
+                    "nota": "If there's more than one legal entity, filter by "
+                        "DATAAREAID.",
+                    "campos": {"empresa": "DATAAREAID is the legal entity"},
+                },
+            },
+        },
+        "dynamics_po": {
+            "como_conectar": "Dataverse's TDS endpoint (allows read-only SQL) "
+                "or the Web API. The TDS endpoint has to be enabled in the "
+                "environment.",
+            "advertencias": (
+                "The TDS endpoint is read-only by design, which is exactly "
+                "what we need, but it usually ships turned off and an admin "
+                "has to enable it.",
+            ),
+        },
+        "dynamics_bc": {
+            "como_conectar": "ODBC to SQL Server against the on-premise "
+                "NAV/BC database.",
+            "advertencias": (
+                "The table name includes the company and, in newer versions, "
+                "an extension GUID: «CRONUS$Job$437dbf0e-...». Probe to see "
+                "the real name.",
+            ),
+            "consultas": {
+                "proyectos": {
+                    "nota": "In NAV/BC table names are prefixed with the "
+                        "company: «CRONUS$Job». That's why the SQL has an "
+                        "{empresa} placeholder to fill in.",
+                },
+            },
+        },
+        "jde_e1": {
+            "como_conectar": "ODBC/JDBC against the business data schema "
+                "(PRODDTA in production, CRPDTA in the test environment).",
+            "advertencias": (
+                "Dates are Julian CYYDDD: 124001 is 1/1/2024. Reading them as "
+                "a plain number is the classic mistake in a JDE integration.",
+                "Amounts come in as integers with implied decimals: 150000 "
+                "could be 1,500.00. The number of decimals depends on each "
+                "installation's data dictionary — check a couple of amounts "
+                "against the ERP.",
+                "Text fields come padded with trailing spaces; the importer "
+                "trims them automatically.",
+                "Job budgets are in F0902 by account and period "
+                "(GBAN01..GBAN12), filtering by ledger type: AA is actual, BA "
+                "is budget.",
+            ),
+            "consultas": {
+                "proyectos": {
+                    "nota": "F0006 is the business unit master. When Job Cost "
+                        "is installed, F51006 adds dates and job data.",
+                },
+                "tareas": {
+                    "nota": "JDE dates are Julian CYYDDD and are converted "
+                        "with fecha_jde.",
+                },
+            },
+        },
+        "generico_sql": {
+            "nombre": "Custom SQL database (SQL Server / PostgreSQL / MySQL / "
+                "Oracle)",
+            "familia": "Generic",
+            "como_conectar": "Any database reachable via ODBC or SQLAlchemy. "
+                "You write the query and the result goes in through the same "
+                "reviewable mapping as an Excel file.",
+            "advertencias": (
+                "Always write a SELECT. The module rejects anything else.",
+            ),
+        },
+    },
+    "pt": {
+        "sap_ps": {
+            "como_conectar": "Via ODBC contra o HANA, ou pedindo à equipe de "
+                "SAP uma view somente leitura. Em muitas empresas o acesso "
+                "direto às tabelas está bloqueado e é preciso usar CDS views "
+                "ou uma extração.",
+            "advertencias": (
+                "O esquema muda conforme a instalação: SAPABAP1 no HANA, "
+                "SAPSR3 em instalações antigas sobre Oracle ou DB2. Ajuste "
+                "antes de sondar.",
+                "Os custos não estão em PROJ: é preciso ir a COSP por OBJNR e "
+                "somar os períodos WKG001..WKG016, filtrando WRTTP='04' para "
+                "real e '01' para plano.",
+                "Se a empresa usa redes e atividades (AFKO/AFVC) além dos "
+                "elementos WBS/PEP, as tarefas detalhadas estão lá, não em "
+                "PRPS.",
+            ),
+            "consultas": {
+                "proyectos": {
+                    "nota": "LOEVM <> 'X' remove os projetos marcados para "
+                        "exclusão.",
+                    "campos": {
+                        "proyecto": "ID de definição do projeto (PSPID)",
+                        "sociedad": "Sociedade (código da empresa)",
+                        "responsable_nro": "Número do responsável; para obter "
+                            "o nome é preciso cruzar com a tabela de pessoal",
+                    },
+                },
+                "tareas": {
+                    "nota": "PRPS.PSPHI aponta para o PSPNR interno de PROJ — "
+                        "não para o PSPID visível.",
+                    "campos": {"tarea": "Elemento WBS/PEP (POSID)"},
+                },
+            },
+        },
+        "oracle_ebs": {
+            "como_conectar": "Via ODBC/JDBC contra o banco com um usuário "
+                "somente leitura no esquema APPS.",
+            "advertencias": (
+                "As tabelas _ALL trazem todas as unidades operacionais "
+                "juntas. Se a empresa tiver mais de uma, filtre por ORG_ID ou "
+                "você vai misturar carteiras.",
+                "O orçamento não está em PA_PROJECTS_ALL: vem de "
+                "PA_BUDGET_VERSIONS e PA_BUDGET_LINES, e é preciso escolher a "
+                "versão vigente.",
+            ),
+        },
+        "oracle_fusion": {
+            "como_conectar": "No Fusion Cloud normalmente não há acesso "
+                "direto ao banco. O caminho usual é exportar via BI Publisher "
+                "ou consumir a API REST e trazer o resultado como arquivo.",
+            "advertencias": (
+                "Este é o perfil com menor chance de funcionar por SQL "
+                "direto: a Oracle não dá acesso ao banco no Cloud. Funciona "
+                "se a empresa replica para um data warehouse próprio. Caso "
+                "contrário, o caminho é exportar e importar o arquivo.",
+            ),
+        },
+        "dynamics_fo": {
+            "como_conectar": "ODBC para SQL Server. Na nuvem usa-se o banco "
+                "de entidades de dados exportado (BYOD) ou o Azure Synapse "
+                "Link, não o banco de produção.",
+            "advertencias": (
+                "Os nomes dos campos de data mudaram entre o AX 2012 e o "
+                "D365 F&O: PSAPROJSTARTDATE pode ter outro nome na sua "
+                "versão. Sonde primeiro.",
+                "STATUS é um enumerado numérico, não texto — o mapeamento de "
+                "status precisa ser confirmado na instalação.",
+                "Na nuvem não há acesso ao banco de produção: trabalha-se "
+                "sobre BYOD ou Synapse Link.",
+            ),
+            "consultas": {
+                "proyectos": {
+                    "nota": "Se houver mais de uma entidade legal, filtre por "
+                        "DATAAREAID.",
+                    "campos": {"empresa": "DATAAREAID é a entidade legal"},
+                },
+            },
+        },
+        "dynamics_po": {
+            "como_conectar": "Endpoint TDS do Dataverse (permite SQL somente "
+                "leitura) ou a Web API. O endpoint TDS precisa ser habilitado "
+                "no ambiente.",
+            "advertencias": (
+                "O endpoint TDS é somente leitura por design, que é "
+                "exatamente o que precisamos, mas costuma vir desligado e um "
+                "administrador precisa habilitá-lo.",
+            ),
+        },
+        "dynamics_bc": {
+            "como_conectar": "ODBC para SQL Server contra o banco do NAV/BC "
+                "on-premise.",
+            "advertencias": (
+                "O nome da tabela inclui a empresa e, em versões novas, um "
+                "GUID de extensão: «CRONUS$Job$437dbf0e-...». Sonde para ver "
+                "o nome real.",
+            ),
+            "consultas": {
+                "proyectos": {
+                    "nota": "No NAV/BC os nomes das tabelas trazem a empresa "
+                        "na frente: «CRONUS$Job». Por isso o SQL tem um "
+                        "{empresa} para completar.",
+                },
+            },
+        },
+        "jde_e1": {
+            "como_conectar": "ODBC/JDBC contra o esquema de dados de negócio "
+                "(PRODDTA em produção, CRPDTA no ambiente de testes).",
+            "advertencias": (
+                "As datas são Julian CYYDDD: 124001 é 1/1/2024. Lê-las como "
+                "número comum é o erro clássico de uma integração com o JDE.",
+                "Os valores vêm como inteiros com decimais implícitos: "
+                "150000 pode ser 1.500,00. A quantidade de decimais depende "
+                "do dicionário de dados de cada instalação — confira alguns "
+                "valores contra o ERP.",
+                "Os textos vêm com espaços de preenchimento à direita; o "
+                "importador os remove automaticamente.",
+                "Os orçamentos de obra estão em F0902 por conta e período "
+                "(GBAN01..GBAN12), filtrando pelo tipo de livro: AA é real, "
+                "BA é orçamento.",
+            ),
+            "consultas": {
+                "proyectos": {
+                    "nota": "F0006 é o cadastro mestre de unidades de "
+                        "negócio. Quando o Job Cost está instalado, F51006 "
+                        "adiciona datas e dados de obra.",
+                },
+                "tareas": {
+                    "nota": "As datas do JDE são Julian CYYDDD e são "
+                        "convertidas com fecha_jde.",
+                },
+            },
+        },
+        "generico_sql": {
+            "nombre": "Base SQL própria (SQL Server / PostgreSQL / MySQL / "
+                "Oracle)",
+            "como_conectar": "Qualquer banco acessível via ODBC ou "
+                "SQLAlchemy. Você escreve a consulta e o resultado entra pelo "
+                "mesmo mapeamento revisável que um Excel.",
+            "advertencias": (
+                "Escreva sempre um SELECT. O módulo rejeita qualquer outra "
+                "coisa.",
+            ),
+        },
+    },
+}
 
 
-def perfil(clave: str) -> Perfil:
+def _campo_tr(c: Campo, nota_ov: str | None) -> Campo:
+    if nota_ov is None:
+        return c
+    return Campo(c.columna, c.destino, c.transformacion, nota_ov)
+
+
+def _consulta_tr(c: Consulta, ov: dict | None) -> Consulta:
+    if not ov:
+        return c
+    campos_ov = ov.get("campos", {})
+    campos = tuple(_campo_tr(campo, campos_ov.get(campo.columna)) for campo in c.campos)
+    return Consulta(c.tablas, c.sql, campos, ov.get("nota", c.nota))
+
+
+def _perfil_tr(p: Perfil, lang: str) -> Perfil:
+    """Devuelve una vista traducida del perfil, sin tocar la constante original.
+
+    `clave`, `dialecto`, `esquema_default` y las claves de `consultas` (tipo)
+    nunca se traducen; tampoco `tablas`/`sql`/`columna`/`destino`/
+    `transformacion` de cada consulta. Si no hay superposición para
+    (lang, p.clave) — o lang no está soportado — se devuelve el perfil en
+    español tal cual, en vez de romper.
+    """
+    if lang == "es":
+        return p
+    ov = _PERFIL_TR.get(lang, {}).get(p.clave)
+    if ov is None:
+        return p
+    consultas_ov = ov.get("consultas", {})
+    consultas = {tipo: _consulta_tr(c, consultas_ov.get(tipo))
+                 for tipo, c in p.consultas.items()}
+    return Perfil(
+        clave=p.clave,
+        nombre=ov.get("nombre", p.nombre),
+        familia=ov.get("familia", p.familia),
+        dialecto=p.dialecto,
+        esquema_default=p.esquema_default,
+        consultas=consultas,
+        como_conectar=ov.get("como_conectar", p.como_conectar),
+        advertencias=tuple(ov.get("advertencias", p.advertencias)),
+    )
+
+
+# Mensajes de error/diagnóstico sueltos (candado de solo lectura, sondeo,
+# catálogo y conexión), en los tres idiomas. Cualquier clave ausente en
+# en/pt cae al texto en español — nunca revienta.
+_TXT: dict[str, dict[str, str]] = {
+    "es": {
+        "consulta_vacia": "La consulta está vacía.",
+        "consulta_debe_select": "La consulta tiene que empezar con SELECT.",
+        "consulta_prohibida": "La consulta contiene «{prohibida}». Los "
+            "conectores son de solo lectura: no se puede escribir en el ERP.",
+        "consulta_una_sentencia": "No se permite más de una sentencia.",
+        "resumen_error": "No se pudo conectar o consultar: {error}",
+        "resumen_faltan_tablas": "Faltan tablas: {tablas}. Puede ser el "
+            "esquema equivocado o que el módulo no esté instalado.",
+        "resumen_faltan_columnas": "Las tablas están, pero faltan columnas: "
+            "{columnas}. Es lo esperable en un ERP personalizado — ajustá la "
+            "consulta con los nombres reales.",
+        "resumen_ok": "Todo en orden: {n_tablas} tabla(s) y {n_columnas} "
+            "columna(s) encontradas.",
+        "sin_sqlalchemy": "Para conectarse a un ERP hace falta SQLAlchemy y "
+            "el driver del motor. Instalalos con: pip install sqlalchemy "
+            "pyodbc (o cx_Oracle / psycopg2 según el ERP).",
+        "perfil_desconocido": "Perfil de ERP desconocido: {clave}",
+        "sin_consulta_sql_de": "El perfil «{nombre}» no trae una consulta de "
+            "{tipo}. Trae: {disponibles}.",
+        "sin_consulta_convertir": "El perfil «{nombre}» no trae consulta de "
+            "{tipo}.",
+        "sin_consulta_sondear": "El perfil no trae consulta de {tipo}.",
+        "ninguna_disponible": "ninguna",
+    },
+    "en": {
+        "consulta_vacia": "The query is empty.",
+        "consulta_debe_select": "The query has to start with SELECT.",
+        "consulta_prohibida": "The query contains «{prohibida}». Connectors "
+            "are read-only: you can't write to the ERP.",
+        "consulta_una_sentencia": "More than one statement isn't allowed.",
+        "resumen_error": "Could not connect or query: {error}",
+        "resumen_faltan_tablas": "Missing tables: {tablas}. It could be the "
+            "wrong schema or the module not being installed.",
+        "resumen_faltan_columnas": "The tables are there, but columns are "
+            "missing: {columnas}. That's expected in a customized ERP — "
+            "adjust the query with the real names.",
+        "resumen_ok": "All good: {n_tablas} table(s) and {n_columnas} "
+            "column(s) found.",
+        "sin_sqlalchemy": "Connecting to an ERP requires SQLAlchemy and the "
+            "engine's driver. Install them with: pip install sqlalchemy "
+            "pyodbc (or cx_Oracle / psycopg2 depending on the ERP).",
+        "perfil_desconocido": "Unknown ERP profile: {clave}",
+        "sin_consulta_sql_de": "Profile «{nombre}» doesn't have a {tipo} "
+            "query. Available: {disponibles}.",
+        "sin_consulta_convertir": "Profile «{nombre}» doesn't have a {tipo} "
+            "query.",
+        "sin_consulta_sondear": "The profile doesn't have a {tipo} query.",
+        "ninguna_disponible": "none",
+    },
+    "pt": {
+        "consulta_vacia": "A consulta está vazia.",
+        "consulta_debe_select": "A consulta precisa começar com SELECT.",
+        "consulta_prohibida": "A consulta contém «{prohibida}». Os "
+            "conectores são somente leitura: não é possível escrever no ERP.",
+        "consulta_una_sentencia": "Não é permitido mais de um comando.",
+        "resumen_error": "Não foi possível conectar ou consultar: {error}",
+        "resumen_faltan_tablas": "Faltam tabelas: {tablas}. Pode ser o "
+            "esquema errado ou o módulo não estar instalado.",
+        "resumen_faltan_columnas": "As tabelas existem, mas faltam colunas: "
+            "{columnas}. É o esperado em um ERP personalizado — ajuste a "
+            "consulta com os nomes reais.",
+        "resumen_ok": "Tudo certo: {n_tablas} tabela(s) e {n_columnas} "
+            "coluna(s) encontradas.",
+        "sin_sqlalchemy": "Para conectar a um ERP é preciso SQLAlchemy e o "
+            "driver do motor. Instale com: pip install sqlalchemy pyodbc "
+            "(ou cx_Oracle / psycopg2 conforme o ERP).",
+        "perfil_desconocido": "Perfil de ERP desconhecido: {clave}",
+        "sin_consulta_sql_de": "O perfil «{nombre}» não tem consulta de "
+            "{tipo}. Disponíveis: {disponibles}.",
+        "sin_consulta_convertir": "O perfil «{nombre}» não tem consulta de "
+            "{tipo}.",
+        "sin_consulta_sondear": "O perfil não tem consulta de {tipo}.",
+        "ninguna_disponible": "nenhuma",
+    },
+}
+
+
+def _t(msg_id: str, lang: str, **valores) -> str:
+    plantilla = _TXT.get(lang, {}).get(msg_id) or _TXT["es"][msg_id]
+    return plantilla.format(**valores)
+
+
+def perfiles(lang: str = "es") -> list[Perfil]:
+    return [_perfil_tr(p, lang) for p in PERFILES.values()]
+
+
+def perfil(clave: str, lang: str = "es") -> Perfil:
     if clave not in PERFILES:
-        raise ValueError(f"Perfil de ERP desconocido: {clave!r}")
-    return PERFILES[clave]
+        raise ValueError(_t("perfil_desconocido", lang, clave=repr(clave)))
+    return _perfil_tr(PERFILES[clave], lang)
 
 
-def familias() -> dict[str, list[Perfil]]:
+def familias(lang: str = "es") -> dict[str, list[Perfil]]:
     salida: dict[str, list[Perfil]] = {}
-    for p in PERFILES.values():
+    for p in perfiles(lang):
         salida.setdefault(p.familia, []).append(p)
     return salida
 
@@ -578,7 +1020,7 @@ class ConsultaInsegura(ValueError):
     """La consulta hace algo más que leer."""
 
 
-def validar_solo_lectura(sql: str) -> None:
+def validar_solo_lectura(sql: str, lang: str = "es") -> None:
     """Rechaza cualquier cosa que no sea un SELECT.
 
     No pretende ser una defensa contra alguien decidido — para eso está el
@@ -588,33 +1030,32 @@ def validar_solo_lectura(sql: str) -> None:
     limpio = re.sub(r"--[^\n]*", " ", sql)
     limpio = re.sub(r"/\*.*?\*/", " ", limpio, flags=re.DOTALL)
     if not limpio.strip():
-        raise ConsultaInsegura("La consulta está vacía.")
+        raise ConsultaInsegura(_t("consulta_vacia", lang))
     if not re.match(r"^\s*(select|with)\b", limpio, re.IGNORECASE):
-        raise ConsultaInsegura("La consulta tiene que empezar con SELECT.")
+        raise ConsultaInsegura(_t("consulta_debe_select", lang))
     if _PROHIBIDO.search(limpio):
         prohibida = _PROHIBIDO.search(limpio).group(0)
         raise ConsultaInsegura(
-            f"La consulta contiene «{prohibida.upper()}». Los conectores son de "
-            f"solo lectura: no se puede escribir en el ERP.")
+            _t("consulta_prohibida", lang, prohibida=prohibida.upper()))
     if ";" in limpio.strip().rstrip(";"):
-        raise ConsultaInsegura("No se permite más de una sentencia.")
+        raise ConsultaInsegura(_t("consulta_una_sentencia", lang))
 
 
 def sql_de(clave_perfil: str, tipo: str, *, esquema: str | None = None,
-           empresa: str = "", limite: int | None = None) -> str:
+           empresa: str = "", limite: int | None = None, lang: str = "es") -> str:
     """Devuelve la consulta lista para correr, con esquema y límite aplicados."""
-    p = perfil(clave_perfil)
+    p = perfil(clave_perfil, lang)
     if tipo not in p.consultas:
-        raise ValueError(
-            f"El perfil «{p.nombre}» no trae una consulta de {tipo}. "
-            f"Trae: {', '.join(p.consultas) or 'ninguna'}.")
+        raise ValueError(_t(
+            "sin_consulta_sql_de", lang, nombre=p.nombre, tipo=tipo,
+            disponibles=', '.join(p.consultas) or _t("ninguna_disponible", lang)))
     esq = p.esquema_default if esquema is None else esquema
     if esq and not esq.endswith("."):
         esq += "."
     sql = p.consultas[tipo].sql.format(esquema=esq, empresa=empresa)
     if limite:
         sql = _aplicar_limite(sql, p.dialecto, limite)
-    validar_solo_lectura(sql)
+    validar_solo_lectura(sql, lang)
     return sql
 
 
@@ -647,32 +1088,32 @@ class Sondeo:
     def sirve(self) -> bool:
         return not self.error and not self.tablas_faltantes and not self.columnas_faltantes
 
-    def resumen(self) -> str:
+    def resumen(self, lang: str = "es") -> str:
         if self.error:
-            return f"No se pudo conectar o consultar: {self.error}"
+            return _t("resumen_error", lang, error=self.error)
         if self.tablas_faltantes:
-            return (f"Faltan tablas: {', '.join(self.tablas_faltantes)}. "
-                    f"Puede ser el esquema equivocado o que el módulo no esté instalado.")
+            return _t("resumen_faltan_tablas", lang,
+                      tablas=', '.join(self.tablas_faltantes))
         if self.columnas_faltantes:
-            return (f"Las tablas están, pero faltan columnas: "
-                    f"{', '.join(self.columnas_faltantes)}. Es lo esperable en un "
-                    f"ERP personalizado — ajustá la consulta con los nombres reales.")
-        return (f"Todo en orden: {len(self.tablas_ok)} tabla(s) y "
-                f"{len(self.columnas_ok)} columna(s) encontradas.")
+            return _t("resumen_faltan_columnas", lang,
+                      columnas=', '.join(self.columnas_faltantes))
+        return _t("resumen_ok", lang, n_tablas=len(self.tablas_ok),
+                  n_columnas=len(self.columnas_ok))
 
 
 def sondear(ejecutar, clave_perfil: str, tipo: str, *,
-            esquema: str | None = None, empresa: str = "") -> Sondeo:
+            esquema: str | None = None, empresa: str = "",
+            lang: str = "es") -> Sondeo:
     """Corre la consulta pidiendo cero filas para ver si el esquema coincide.
 
     `ejecutar` es una función que recibe SQL y devuelve un DataFrame. Se pasa
     desde afuera para poder probar esto sin un ERP al lado — y para que el
     módulo no dependa de ningún driver en particular.
     """
-    p = perfil(clave_perfil)
+    p = perfil(clave_perfil, lang)
     s = Sondeo(perfil=p.nombre, tipo=tipo)
     if tipo not in p.consultas:
-        s.error = f"El perfil no trae consulta de {tipo}."
+        s.error = _t("sin_consulta_sondear", lang, tipo=tipo)
         return s
     consulta = p.consultas[tipo]
 
@@ -706,16 +1147,17 @@ def sondear(ejecutar, clave_perfil: str, tipo: str, *,
 # --------------------------------------------------------------- extracción
 
 
-def convertir(df: pd.DataFrame, clave_perfil: str, tipo: str) -> pd.DataFrame:
+def convertir(df: pd.DataFrame, clave_perfil: str, tipo: str,
+              lang: str = "es") -> pd.DataFrame:
     """Aplica las conversiones del perfil y renombra a los campos del sistema.
 
     La salida entra tal cual por `importer.detectar_columnas()` /
     `importer.validar()`: mismo mapeo revisable y mismo informe previo que un
     archivo subido a mano.
     """
-    p = perfil(clave_perfil)
+    p = perfil(clave_perfil, lang)
     if tipo not in p.consultas:
-        raise ValueError(f"El perfil «{p.nombre}» no trae consulta de {tipo}.")
+        raise ValueError(_t("sin_consulta_convertir", lang, nombre=p.nombre, tipo=tipo))
 
     columnas = {str(c).lower(): c for c in df.columns}
     salida = pd.DataFrame(index=df.index)
@@ -736,35 +1178,32 @@ def convertir(df: pd.DataFrame, clave_perfil: str, tipo: str) -> pd.DataFrame:
 
 def extraer(ejecutar, clave_perfil: str, tipo: str, *,
             esquema: str | None = None, empresa: str = "",
-            limite: int | None = None) -> pd.DataFrame:
+            limite: int | None = None, lang: str = "es") -> pd.DataFrame:
     """Sondeo → consulta → conversión. Devuelve algo listo para el importador."""
-    sql = sql_de(clave_perfil, tipo, esquema=esquema, empresa=empresa, limite=limite)
-    return convertir(ejecutar(sql), clave_perfil, tipo)
+    sql = sql_de(clave_perfil, tipo, esquema=esquema, empresa=empresa,
+                 limite=limite, lang=lang)
+    return convertir(ejecutar(sql), clave_perfil, tipo, lang=lang)
 
 
 # --------------------------------------------------------------- conexión
 
 
-def crear_ejecutor(cadena_conexion: str):
+def crear_ejecutor(cadena_conexion: str, lang: str = "es"):
     """Devuelve una función `ejecutar(sql) -> DataFrame` sobre esa conexión.
 
     Se apoya en SQLAlchemy, que es lo que pandas usa para hablar con cualquier
-    motor. Si no está instalado se avisa en castellano en vez de reventar con un
-    ImportError que no le dice nada al usuario.
+    motor. Si no está instalado se avisa en el idioma pedido en vez de reventar
+    con un ImportError que no le dice nada al usuario.
     """
     try:
         from sqlalchemy import create_engine, text
     except ImportError as exc:                          # pragma: no cover
-        raise RuntimeError(
-            "Para conectarse a un ERP hace falta SQLAlchemy y el driver del "
-            "motor. Instalalos con: pip install sqlalchemy pyodbc "
-            "(o cx_Oracle / psycopg2 según el ERP)."
-        ) from exc
+        raise RuntimeError(_t("sin_sqlalchemy", lang)) from exc
 
     motor = create_engine(cadena_conexion)
 
     def ejecutar(sql: str) -> pd.DataFrame:
-        validar_solo_lectura(sql)
+        validar_solo_lectura(sql, lang)
         with motor.connect() as conn:
             return pd.read_sql_query(text(sql), conn)
 

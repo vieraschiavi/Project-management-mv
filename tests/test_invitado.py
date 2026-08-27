@@ -190,7 +190,11 @@ def test_el_estado_vacio_del_invitado_no_ofrece_sembrar_la_base():
         "el invitado NO puede sembrar la base compartida del servidor")
     assert "invitado.con_portafolio_real" in rama_invitado, (
         "el invitado tiene que cargar el portafolio en SU almacén de sesión")
-    assert "esta sesión" in rama_invitado, (
+    # El texto real vive en mvpm/i18n.py (T("empty_guest_caption")), no como
+    # literal acá — se valida el contenido de la traducción española en vez
+    # de grepear un string que ya no está en este archivo.
+    from mvpm import i18n
+    assert "esta sesión" in i18n.t("empty_guest_caption", "es"), (
         "al invitado no se le habla de 'este servidor': sus datos no van ahí")
     assert "db.cargar_datos_de_ejemplo" in rama_registrado, (
         "el usuario registrado sí conserva el sembrado de ejemplo")

@@ -27,8 +27,17 @@ import pandas as pd
 
 _CSV_PATH = Path(__file__).parent / "data" / "clinicaltrials_pharma.csv"
 
-FUENTE = "ClinicalTrials.gov — U.S. National Library of Medicine (NIH). Dominio público."
+_FUENTE_TXT = {
+    "es": "ClinicalTrials.gov — U.S. National Library of Medicine (NIH). Dominio público.",
+    "en": "ClinicalTrials.gov — U.S. National Library of Medicine (NIH). Public domain.",
+    "pt": "ClinicalTrials.gov — U.S. National Library of Medicine (NIH). Domínio público.",
+}
+FUENTE = _FUENTE_TXT["es"]  # compatibilidad: quien no pida idioma sigue viendo esto
 FUENTE_URL = "https://clinicaltrials.gov"
+
+
+def fuente(lang: str = "es") -> str:
+    return _FUENTE_TXT.get(lang, _FUENTE_TXT["es"])
 
 _ESTADO_A_CRITICIDAD = {
     "TERMINATED": "Alta",
@@ -49,6 +58,25 @@ _ESTADO_ES = {
     "NOT_YET_RECRUITING": "Aún sin reclutar",
     "COMPLETED": "Completado",
 }
+
+# `tabla_para_bi()` (más abajo) SIEMPRE usa `_ESTADO_ES` sin importar el idioma
+# de la sesión: alimenta el conector de Power BI/Tableau (api/main.py), que
+# necesita columnas estables entre sesiones — un dashboard de BI no puede
+# cambiar de idioma en cada refresh. Lo que sí respeta el idioma es la vista
+# EN PANTALLA (`resumen_portafolio()`, `en_riesgo_detalle()`), vía estos dos:
+_ESTADO_EN = {
+    "TERMINATED": "Terminated early", "SUSPENDED": "Suspended", "RECRUITING": "Recruiting",
+    "ACTIVE_NOT_RECRUITING": "Active, not recruiting",
+    "ENROLLING_BY_INVITATION": "Enrolling by invitation",
+    "NOT_YET_RECRUITING": "Not yet recruiting", "COMPLETED": "Completed",
+}
+_ESTADO_PT = {
+    "TERMINATED": "Encerrado antecipadamente", "SUSPENDED": "Suspenso", "RECRUITING": "Recrutando",
+    "ACTIVE_NOT_RECRUITING": "Ativo, sem recrutar",
+    "ENROLLING_BY_INVITATION": "Inscrição por convite",
+    "NOT_YET_RECRUITING": "Ainda sem recrutar", "COMPLETED": "Concluído",
+}
+_ESTADO_POR_IDIOMA = {"es": _ESTADO_ES, "en": _ESTADO_EN, "pt": _ESTADO_PT}
 
 
 def _sponsor_normalizado(nombre: str) -> str:
@@ -89,13 +117,14 @@ def _crudo() -> pd.DataFrame:
     return pd.read_csv(_CSV_PATH).fillna("")
 
 
-def resumen_portafolio() -> dict:
+def resumen_portafolio(lang: str = "es") -> dict:
     """KPIs reales del motor sobre los ensayos. La señal de PM acá es el
     estado del ensayo (no el presupuesto, que no existe en la fuente)."""
+    estado_map = _ESTADO_POR_IDIOMA.get(lang, _ESTADO_ES)
     crudo = _crudo()
     proj = cargar_portafolio_pharma()
     total = len(proj)
-    por_estado = crudo["estado_ct"].map(lambda e: _ESTADO_ES.get(e, e)).value_counts().to_dict()
+    por_estado = crudo["estado_ct"].map(lambda e: estado_map.get(e, e)).value_counts().to_dict()
     por_sponsor = proj["portafolio"].value_counts().to_dict()
     en_riesgo = int((proj["criticidad"] == "Alta").sum())
     minutos_por_revision_manual = 10  # supuesto explícito, no medido — declarado
@@ -110,12 +139,13 @@ def resumen_portafolio() -> dict:
     }
 
 
-def en_riesgo_detalle(limite: int = 15) -> pd.DataFrame:
+def en_riesgo_detalle(limite: int = 15, lang: str = "es") -> pd.DataFrame:
     """Los ensayos que el motor marca en riesgo (terminados/suspendidos),
     con su sponsor y fechas — lo que un PMO de portafolio miraría primero."""
+    estado_map = _ESTADO_POR_IDIOMA.get(lang, _ESTADO_ES)
     crudo = _crudo()
     riesgo = crudo[crudo["estado_ct"].isin(["TERMINATED", "SUSPENDED"])].copy()
-    riesgo["estado"] = riesgo["estado_ct"].map(lambda e: _ESTADO_ES.get(e, e))
+    riesgo["estado"] = riesgo["estado_ct"].map(lambda e: estado_map.get(e, e))
     riesgo["sponsor"] = riesgo["sponsor"].map(_sponsor_normalizado)
     return riesgo[["titulo", "sponsor", "estado", "fase", "fecha_inicio", "fecha_fin"]].head(limite)
 

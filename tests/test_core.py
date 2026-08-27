@@ -176,7 +176,16 @@ def test_policies_have_valid_states():
 def test_glossary_not_empty():
     g = glossary.glossary()
     assert len(g) > 0
-    assert g["definicion_es"].str.len().gt(0).all()
+    assert g["definicion"].str.len().gt(0).all()
+
+
+def test_glossary_is_trilingual():
+    """El glosario respeta el idioma pedido — no queda fijo en español pase lo
+    que pase, como en `nav_*`."""
+    es, en, pt = glossary.glossary(), glossary.glossary("en"), glossary.glossary("pt")
+    assert len(es) == len(en) == len(pt)
+    assert not en["definicion"].equals(es["definicion"])
+    assert not pt["definicion"].equals(es["definicion"])
 
 
 # ---- reviews (honestidad de reseñas) ----
@@ -434,9 +443,20 @@ def test_detectar_problemas_encuentra_los_del_dato_demo():
     problemas = advisor.detectar_problemas(proj, tasks, team)
     assert len(problemas) > 0
     tipos = {p["tipo"] for p in problemas}
-    assert tipos <= set(advisor._SUGERENCIAS.keys())
+    assert tipos <= set(advisor._SUGERENCIAS["es"].keys())
     ids = [p["id"] for p in problemas]
     assert len(ids) == len(set(ids))  # sin duplicados
+
+
+def test_detectar_problemas_id_no_cambia_con_el_idioma():
+    """El id de un problema de política persiste el seguimiento (mvpm/db.py).
+    Si usara el nombre traducido de la política en vez de su clave estable,
+    cambiar de idioma crearía un seguimiento nuevo para el mismo incumplimiento."""
+    vacio = demo_data.projects().iloc[0:0]
+    tasks_v, team_v = demo_data.tasks().iloc[0:0], demo_data.team().iloc[0:0]
+    ids_es = {p["id"] for p in advisor.detectar_problemas(vacio, tasks_v, team_v, lang="es")}
+    ids_en = {p["id"] for p in advisor.detectar_problemas(vacio, tasks_v, team_v, lang="en")}
+    assert ids_es == ids_en
 
 
 def test_detectar_problemas_vacio_sin_datos_no_rompe():
