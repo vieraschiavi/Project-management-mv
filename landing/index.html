@@ -87,7 +87,24 @@
   .nav-links a:not(.btn){font-size:13.5px; color:var(--muted);}
   .nav-links a:not(.btn):hover{color:var(--ink);}
   #langSel{background:rgba(255,255,255,.06); color:var(--ink); border:1px solid rgba(255,255,255,.14); border-radius:8px; padding:6px 8px; font-size:12.5px;}
-  @media (max-width:760px){ .nav-links a:not(.btn){display:none;} }
+  /* El nav hacía desbordar la página entera en horizontal, por dos motivos a
+     la vez:
+       1. El corte estaba en 760px, pero los siete links + selector + CTA
+          miden ~1042px, así que entre 761 y 1040 seguían visibles y no
+          entraban.
+       2. Debajo de 760 los links ya se ocultaban, pero lo que quedaba
+          —marca con `white-space:nowrap`, selector y CTA, más 28px de gap y
+          24px de padding de cada lado— medía ~474px contra una pantalla de
+          390.
+     `min-width:0` es lo que habilita que un item de flex se achique por
+     debajo de su contenido; sin él el ellipsis nunca llega a aplicarse y la
+     marca sigue empujando. */
+  @media (max-width:1060px){
+    .nav-links a:not(.btn){display:none;}
+    nav .wrap{gap:12px; padding:12px 14px;}
+    .nav-links{gap:10px; flex-shrink:0;}
+    .brand{font-size:14px; min-width:0; overflow:hidden; text-overflow:ellipsis;}
+  }
 
   /* hero */
   header.hero{background:radial-gradient(120% 160% at 15% -10%, #14314f 0%, var(--navy) 55%); padding:70px 0 60px;}
@@ -112,8 +129,23 @@
   .hero-stats .s{background:rgba(255,255,255,.04); border:1px solid rgba(255,255,255,.08); border-radius:12px; padding:12px 14px;}
   .hero-stats .s b{display:block; font-family:ui-monospace,monospace; font-size:19px; color:var(--amber);}
   .hero-stats .s span{font-size:11.5px; color:var(--muted);}
+  /* Cuatro tarjetas en una fila no entran en un teléfono: `1fr` deja un piso
+     de min-content ("dimensiones de salud" no se parte), así que la fila no
+     bajaba de 371px y era la que hacía desbordar la página ENTERA en
+     horizontal a 320-390px — se podía barrer el sitio de costado. A 2×2 cada
+     tarjeta tiene el doble de ancho y ya no fuerza nada. */
+  @media (max-width:520px){
+    .hero-stats{grid-template-columns:repeat(2,1fr);}
+    .hero-stats .s{min-width:0;}
+  }
 
   #video{background:var(--navy);}
+  /* El bloque antes/después comparte el marco del demo largo; se distingue
+     por el fondo apenas más claro para que no se lean como una sola sección
+     de dos videos pegados. El .lead centrado necesita anular el max-width
+     de 52ch, que está pensado para columnas alineadas a la izquierda. */
+  #antes-despues{background:var(--navy2, #0d2440);}
+  #antes-despues .lead{max-width:62ch; margin-left:auto; margin-right:auto;}
   .video-frame{border-radius:18px; overflow:hidden; border:1px solid rgba(255,255,255,.1); box-shadow:0 30px 70px -20px rgba(0,0,0,.55); background:#000; max-width:920px; margin:0 auto;}
   .video-frame video{display:block; width:100%; height:auto;}
   .video-caption{margin-top:14px; font-size:13px; color:var(--faint); text-align:center;}
@@ -298,6 +330,30 @@
     </div>
   </div>
 </header>
+
+<!-- El video corto va ANTES del recorrido largo a propósito: quien entra a
+     decidir si contrata no mira minuto y medio de producto, mira 45 segundos
+     de "qué cambia el lunes". El recorrido completo queda abajo para quien ya
+     se interesó. Los números de este video no están escritos a mano: los
+     calcula el motor sobre el portafolio público del gobierno británico en
+     tiempo de build (assets/video/build_antes_despues.py). -->
+<section id="antes-despues">
+  <div class="wrap">
+    <div class="sec-head" style="text-align:center; margin-left:auto; margin-right:auto;">
+      <span class="eyebrow" data-i="ad_kicker">Antes / después · 45 segundos</span>
+      <h2 data-i="ad_h2">Qué cambia el lunes a la mañana</h2>
+      <p class="lead" data-i="ad_lead">Sobre 132 proyectos públicos reales del gobierno británico: cuánto tarda hoy su equipo en saber cuáles están en rojo, y cuánto tarda con el motor.</p>
+    </div>
+    <div class="video-frame">
+      <video id="adVideo" controls playsinline preload="none"
+             poster="video/poster_antes_despues.jpg"
+             aria-label="Video antes y después de MV Project Management">
+        <source src="video/antes_despues.mp4" type="video/mp4">
+      </video>
+    </div>
+    <p class="video-caption" data-i="ad_caption">Datos públicos verificables: IPA / Cabinet Office, Open Government Licence v3.0. Las horas del &laquo;antes&raquo; son un supuesto declarado en pantalla (15 minutos de revisión manual por proyecto), no una medición.</p>
+  </div>
+</section>
 
 <section id="video">
   <div class="wrap">
@@ -701,6 +757,10 @@ const I18N = {
     hero_lead:"MV Project Management prioritizes your backlog by expected value, catches blockers before they explode, and writes the executive report on its own — with an AI copilot that never invents a number the engine didn't calculate first.",
     cta_primary:"Try it with real data", cta_secondary:"See the platform",
     stat_dims:"health dimensions", stat_langs:"languages", stat_local:"data on your server", stat_free:"cost to start",
+    ad_kicker:"Before / after · 45 seconds",
+    ad_h2:"What changes on Monday morning",
+    ad_lead:"On 132 real public projects from the UK government: how long it takes your team today to know which ones are red, and how long it takes with the engine.",
+    ad_caption:"Verifiable public data: IPA / Cabinet Office, Open Government Licence v3.0. The hours in the &laquo;before&raquo; are an assumption stated on screen (15 minutes of manual review per project), not a measurement.",
     video_kicker:"A 90-second tour", video_h2:"The product end to end, scene by scene, with voice-over",
     video_caption:"Portfolio & health → real pharma dataset to Power BI → governance (AI proposes, the owner validates, everything versioned) → org chart → PMBOK in plain language → 7-day full trial. An animated product tour, with voice-over.",
     mock_title:"UK government's real portfolio", mock_k1:"real projects", mock_k2:"health index", mock_k3:"over budget",
@@ -789,6 +849,10 @@ const I18N = {
     hero_lead:"MV Project Management prioriza seu backlog por valor esperado, detecta bloqueios antes que explodam e gera o relatório executivo sozinho — com um copiloto de IA que nunca inventa um número que o motor não calculou antes.",
     cta_primary:"Testar com dados reais", cta_secondary:"Ver a plataforma",
     stat_dims:"dimensões de saúde", stat_langs:"idiomas", stat_local:"dados no seu servidor", stat_free:"custo para começar",
+    ad_kicker:"Antes / depois · 45 segundos",
+    ad_h2:"O que muda na segunda de manhã",
+    ad_lead:"Sobre 132 projetos públicos reais do governo britânico: quanto tempo a sua equipe leva hoje para saber quais estão em vermelho, e quanto leva com o motor.",
+    ad_caption:"Dados públicos verificáveis: IPA / Cabinet Office, Open Government Licence v3.0. As horas do &laquo;antes&raquo; são uma suposição declarada na tela (15 minutos de revisão manual por projeto), não uma medição.",
     video_kicker:"Um tour em 90 segundos", video_h2:"O produto de ponta a ponta, cena a cena, com narração",
     video_caption:"Portfólio e saúde → dataset pharma real até o Power BI → governança (a IA propõe, o responsável valida, tudo versionado) → organograma → PMBOK em linguagem simples → teste completo de 7 dias. Um tour animado do produto, com narração.",
     mock_title:"Portfólio real do governo britânico", mock_k1:"projetos reais", mock_k2:"índice de saúde", mock_k3:"acima do orçamento",
@@ -852,7 +916,13 @@ const I18N = {
 // El demo está renderizado entero en los 3 idiomas del producto (demo.mp4 =
 // es, demo_en.mp4, demo_pt.mp4): texto en pantalla Y narración, no sólo el
 // audio — ver assets/video/build_video.py.
-const VIDEO_SRC = { es: 'video/demo.mp4', en: 'video/demo_en.mp4', pt: 'video/demo_pt.mp4' };
+// Los dos videos están renderizados enteros en los 3 idiomas: texto en
+// pantalla Y narración, no sólo el audio. Se listan por id del <video> para
+// que sumar un tercero no obligue a tocar setLang().
+const VIDEO_SRC = {
+  demoVideo: { es: 'video/demo.mp4', en: 'video/demo_en.mp4', pt: 'video/demo_pt.mp4' },
+  adVideo:   { es: 'video/antes_despues.mp4', en: 'video/antes_despues_en.mp4', pt: 'video/antes_despues_pt.mp4' },
+};
 
 function setLang(lang){
   localStorage.setItem('mvpm_lang', lang);
@@ -879,14 +949,15 @@ function setLang(lang){
     const key = el.getAttribute('data-i-ph');
     if(dict[key]) el.setAttribute('placeholder', dict[key]);
   });
-  const video = document.getElementById('demoVideo');
-  const src = VIDEO_SRC[lang];
-  if(video && src){
+  Object.keys(VIDEO_SRC).forEach(id => {
+    const video = document.getElementById(id);
+    const src = VIDEO_SRC[id][lang];
+    if(!video || !src) return;
     const wasPlaying = !video.paused;
     video.querySelector('source').src = src;
     video.load();
     if(wasPlaying) video.play().catch(() => {});
-  }
+  });
 }
 
 (function(){

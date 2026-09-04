@@ -727,7 +727,14 @@ def _voice_model_path(lang: str) -> str:
     return ""
 
 
-def _synth_narrations(lang: str, tmpdir: str) -> list[str] | None:
+def _synth_narrations_de(textos: list[str], lang: str, tmpdir: str) -> list[str] | None:
+    """Sintetiza una lista cualquiera de textos con la voz de `lang`.
+
+    Está separado de `_synth_narrations` porque el video corto de
+    antes/después (`build_antes_despues.py`) usa las MISMAS voces y el mismo
+    criterio —sin modelo configurado se devuelve None y el video sale mudo en
+    vez de fallar— pero con su propio guion. Duplicar esto era garantizar que
+    los dos videos se fueran separando con el tiempo."""
     model = _voice_model_path(lang)
     if not model or not os.path.exists(model):
         return None
@@ -737,12 +744,16 @@ def _synth_narrations(lang: str, tmpdir: str) -> list[str] | None:
         return None
     voice = PiperVoice.load(model)
     paths = []
-    for i, text in enumerate(NARRATIONS[lang]):
+    for i, text in enumerate(textos):
         path = os.path.join(tmpdir, f"nar_{lang}_{i}.wav")
         with wave.open(path, "wb") as w:
             voice.synthesize_wav(text, w)
         paths.append(path)
     return paths
+
+
+def _synth_narrations(lang: str, tmpdir: str) -> list[str] | None:
+    return _synth_narrations_de(NARRATIONS[lang], lang, tmpdir)
 
 
 def _wav_duration(path: str) -> float:
