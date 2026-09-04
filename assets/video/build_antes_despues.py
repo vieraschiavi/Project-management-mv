@@ -33,9 +33,13 @@ import subprocess
 import sys
 import tempfile
 
-import imageio.v2 as imageio
 import numpy as np
 from PIL import Image, ImageDraw
+
+# `imageio` va DENTRO de build() (ver el comentario equivalente en
+# build_video.py): importar este módulo para leer sus cifras o dibujar una
+# escena no tiene por qué exigir el stack de render, que no está en
+# requirements.txt.
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(
     os.path.dirname(os.path.abspath(__file__)))))
@@ -402,6 +406,8 @@ def build(lang: str) -> str:
     tmpdir = tempfile.mkdtemp(prefix=f"mvpm_ad_{lang}_")
     narrations = _synth_narrations_de(narracion(lang), lang, tmpdir)
     secs_list = _scene_seconds(narrations)
+
+    import imageio.v2 as imageio  # sólo para escribir el .mp4
 
     os.makedirs(os.path.dirname(out), exist_ok=True)
     video_only = os.path.join(tmpdir, "sin_audio.mp4") if narrations else out

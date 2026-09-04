@@ -51,9 +51,16 @@ import subprocess
 import tempfile
 import wave
 
-import imageio.v2 as imageio
 import numpy as np
 from PIL import Image, ImageDraw, ImageFilter, ImageFont
+
+# `imageio` se importa DENTRO de build(), no acá: es la única dependencia que
+# no está en requirements.txt (sirve para escribir el .mp4 y nada más, así que
+# no se le pide a un cliente que la instale para usar el producto). Con el
+# import arriba, importar este módulo para leer sus textos o dibujar una
+# escena —que es lo que hacen los tests— exigía tener el stack de render
+# entero, y en CI eso es un ModuleNotFoundError al recolectar. numpy y PIL sí
+# vienen con el producto (pandas y streamlit los traen).
 
 W, H = 1280, 720
 FPS = 24
@@ -800,6 +807,8 @@ def build(lang: str) -> str:
     tmpdir = tempfile.mkdtemp(prefix=f"mvpm_video_{lang}_")
     narrations = _synth_narrations(lang, tmpdir)
     secs_list = _scene_seconds(narrations)
+
+    import imageio.v2 as imageio  # sólo para escribir el .mp4
 
     os.makedirs(os.path.dirname(out), exist_ok=True)
     video_only = os.path.join(tmpdir, "video_sin_audio.mp4") if narrations else out

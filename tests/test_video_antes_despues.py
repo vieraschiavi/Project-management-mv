@@ -187,13 +187,25 @@ def test_los_tres_videos_y_la_portada_estan_publicados():
     assert not faltan, f"faltan en landing/video/: {faltan}"
 
 
+#: `imageio_ffmpeg` trae el binario con el que se mide la duración, pero es
+#: una dependencia sólo del render (no está en requirements.txt: un cliente no
+#: la necesita para usar el producto, y CI no la instala). El test que la
+#: precisa se saltea donde no está, en vez de exigirle a todo el mundo el
+#: stack de video para poder correr la suite.
+try:
+    from imageio_ffmpeg import get_ffmpeg_exe
+    HAY_FFMPEG = True
+except ImportError:  # pragma: no cover - depende del entorno
+    HAY_FFMPEG = False
+
+
 @pytest.mark.skipif(not LANDING.exists(), reason="landing/ es del repositorio")
+@pytest.mark.skipif(not HAY_FFMPEG,
+                    reason="imageio_ffmpeg es del entorno de render, no del producto")
 def test_el_video_de_ventas_es_breve():
     """"Breve" es el requisito, no un adorno: un gerente no mira tres minutos.
     Techo de 90 segundos por idioma, medido sobre el archivo publicado."""
     import subprocess
-
-    from imageio_ffmpeg import get_ffmpeg_exe
     for nombre in ("antes_despues.mp4", "antes_despues_en.mp4",
                    "antes_despues_pt.mp4"):
         ruta = RAIZ / "landing" / "video" / nombre
