@@ -1,7 +1,8 @@
 # © 2026 Martín Viera. Todos los derechos reservados.
 """Marca ESTE build como Owner Edition, poniendo `ES_OWNER_BUILD` en True.
 
-Lo corre `.github/workflows/build_windows_owner.yml` justo ANTES de compilar
+Lo corre `.github/workflows/build_electron.yml` —sólo el job de la edición
+del dueño— justo ANTES de compilar
 `mvpm/` con Cython, para que la constante quede adentro del `.pyd` y no como un
 `.py` legible al lado del ejecutable. Sólo toca el workspace efímero del runner:
 lo versionado sigue en False, y hay un test que lo fija.

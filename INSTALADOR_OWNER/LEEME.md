@@ -54,7 +54,8 @@ baja la versión paga gratis**, sin dejar rastro.
 Mientras esa sea la situación:
 
 - **No compartas el link de este archivo con nadie.** El instalador que va a un
-  cliente es otro (`build_windows.yml`), y ése sí respeta la prueba de 7 días y
+  cliente es la otra edición del mismo build (`build_electron.yml`), y ésa sí
+  respeta la prueba de 7 días y
   pide licencia.
 - Para eliminar el riesgo: **Settings → General → abajo de todo → Change
   repository visibility → Private**. Eso deja esta carpeta exactamente igual que

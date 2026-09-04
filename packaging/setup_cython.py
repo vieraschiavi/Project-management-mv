@@ -1,6 +1,6 @@
 # © 2026 Martín Viera. Todos los derechos reservados.
 """Compila mvpm/*.py a extensiones nativas (Cython) para los builds de
-Windows (ver .github/workflows/build_windows.yml y build_electron.yml).
+Windows (ver .github/workflows/build_electron.yml).
 
 Por qué: packaging/mvpm.spec empaqueta mvpm/ dentro del .exe copiando el
 directorio tal cual (datas=...). Sin este paso, cualquiera que extraiga el

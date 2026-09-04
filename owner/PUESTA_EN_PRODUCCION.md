@@ -95,7 +95,7 @@ compila los instaladores). Algunas van en los dos.
 | `VERCEL_TOKEN` | Deja que el botón "Rotar claves de licencia" cargue la privada en Vercel sin que vos la veas ni la pegues en ningún lado. | [vercel.com/account/tokens](https://vercel.com/account/tokens) → *Create Token* (scope: la cuenta `mv13`). Copiás el valor una sola vez, no se vuelve a mostrar. |
 | `VERCEL_PROJECT_ID` | Le dice al mismo botón A CUÁL proyecto escribirle. | `prj_dGBR0Jlu5n2K05iR0EQKgu8nRpY3` — ya lo tengo de tu cuenta, lo pegás tal cual. |
 | `VERCEL_TEAM_ID` | Idem, para el equipo (tus 18 proyectos viven en uno solo). | `team_csgim6tFJ3qJpbq9a8SOJWum`. |
-| `BLOB_READ_WRITE_TOKEN` | El mismo valor del paso 3, pero pegado ACÁ TAMBIÉN. Sin esto, `build_windows.yml` compila el instalador pero no lo sube a Vercel Blob — el botón de descarga de la landing sigue sin tener qué entregar aunque el token ya esté en Vercel. | El mismo que generaste en el paso 3. Es un solo valor, dos lugares. |
+| `BLOB_READ_WRITE_TOKEN` | El mismo valor del paso 3, pero pegado ACÁ TAMBIÉN. Sin esto, `build_electron.yml` compila el instalador pero no lo sube a Vercel Blob — el botón de descarga de la landing sigue sin tener qué entregar aunque el token ya esté en Vercel. | El mismo que generaste en el paso 3. Es un solo valor, dos lugares. |
 
 ---
 

@@ -24,6 +24,49 @@ from mvpm import licensing, owner
 
 RAIZ = Path(__file__).resolve().parent.parent
 
+#: El único build de instaladores. Arma las dos ediciones —cliente y dueño—
+#: como jobs de una matriz, así que preguntar "¿el build del dueño publica en
+#: Vercel Blob?" es leer los pasos que corren para ESA edición, no el archivo
+#: entero: buscar la palabra en todo el archivo diría que sí, porque el paso
+#: del cliente está ahí al lado.
+BUILD = "build_electron.yml"
+_EDICIONES = ("cliente", "owner")
+
+
+def _pasos_de_la_edicion(edicion: str) -> str:
+    """Las líneas del workflow que SÍ ejecuta esa edición, sin comentarios.
+
+    Se descartan los pasos condicionados a otra edición (`if: matrix.edicion ==
+    '...'`) y los comentarios, que hablan de Vercel Blob justamente para
+    explicar por qué el dueño NO va ahí — buscar la palabra suelta daría un
+    falso positivo eterno.
+
+    Sin parsear YAML a propósito: pyyaml no está en requirements.txt.
+    """
+    texto = (RAIZ / ".github" / "workflows" / BUILD).read_text(encoding="utf-8")
+    otras = [e for e in _EDICIONES if e != edicion]
+    sin_comentarios = [ln for ln in texto.splitlines()
+                       if not ln.lstrip().startswith("#")]
+
+    bloques, actual = [], []
+    for linea in sin_comentarios:
+        if linea.startswith("      - "):
+            if actual:
+                bloques.append(actual)
+            actual = [linea]
+        elif actual:
+            actual.append(linea)
+    if actual:
+        bloques.append(actual)
+
+    propios = []
+    for bloque in bloques:
+        cond = next((ln for ln in bloque if ln.strip().startswith("if:")), "")
+        if any(f"'{o}'" in cond for o in otras):
+            continue
+        propios.extend(bloque)
+    return "\n".join(propios)
+
 
 def _par_de_claves() -> tuple[str, str]:
     """Un par Ed25519 nuevo, en el mismo base64url que usa licensing.py.
@@ -346,10 +389,7 @@ def test_el_instalador_owner_no_se_publica_en_ningun_canal_publico():
     Sin parsear YAML a propósito: pyyaml no está en requirements.txt y no vale
     la pena agregar una dependencia para esto.
     """
-    lineas = (RAIZ / ".github" / "workflows" / "build_windows_owner.yml").read_text(
-        encoding="utf-8").splitlines()
-    ejecutable = "\n".join(
-        linea for linea in lineas if not linea.lstrip().startswith("#")).lower()
+    ejecutable = _pasos_de_la_edicion("owner").lower()
 
     assert "publish_blob" not in ejecutable
     assert "blob_read_write_token" not in ejecutable
@@ -381,9 +421,10 @@ def test_el_instalador_owner_no_se_ofrece_desde_la_landing():
 def test_el_release_del_dueno_no_queda_como_ultimo_release_del_repo():
     """`prerelease: true` evita que el Release del dueño sea el que GitHub
     muestra como "Latest" — el que vería primero cualquiera con acceso."""
-    workflow = (RAIZ / ".github" / "workflows" / "build_windows_owner.yml").read_text(
-        encoding="utf-8")
-    assert "prerelease: true" in workflow
+    workflow = (RAIZ / ".github" / "workflows" / BUILD).read_text(encoding="utf-8")
+    assert "prerelease: ${{ matrix.edicion == 'owner' }}" in workflow, (
+        "el Release del dueño dejó de marcarse como prerelease: pasa a ser el "
+        "'Latest' que ve cualquiera con acceso al repositorio")
 
 
 def test_ningun_build_mete_un_marcador_adentro_del_exe():
@@ -392,16 +433,12 @@ def test_ningun_build_mete_un_marcador_adentro_del_exe():
     quien lo bajara. Además ya no podría funcionar —el marcador va atado a una
     máquina y el CI no sabe cuál es la del dueño—, así que reponerlo daría un
     .exe que dice "Owner Edition" y se comporta como el de cliente."""
-    spec = (RAIZ / "packaging" / "mvpm_owner.spec").read_text(encoding="utf-8")
+    spec = (RAIZ / "packaging" / "mvpm.spec").read_text(encoding="utf-8")
     lineas_datas = [ln for ln in spec.splitlines()
                     if owner.MARCADOR in ln and not ln.lstrip().startswith("#")]
-    assert not lineas_datas, f"mvpm_owner.spec vuelve a empaquetar el marcador: {lineas_datas}"
+    assert not lineas_datas, f"mvpm.spec vuelve a empaquetar el marcador: {lineas_datas}"
 
-    workflow = (RAIZ / ".github" / "workflows" / "build_windows_owner.yml").read_text(
-        encoding="utf-8")
-    sin_comentarios = "\n".join(ln for ln in workflow.splitlines()
-                                if not ln.lstrip().startswith("#"))
-    assert "MVPM_LICENSE_PRIVATE_KEY" not in sin_comentarios, (
+    assert "MVPM_LICENSE_PRIVATE_KEY" not in _pasos_de_la_edicion("owner"), (
         "el build owner volvió a recibir la clave privada: no tiene nada que firmar")
 
 
@@ -870,13 +907,6 @@ def test_el_instalador_de_cliente_no_empaqueta_el_marcador():
         "marcador, el producto queda sin candado para todo el mundo")
 
 
-def test_el_instalador_owner_si_empaqueta_el_marcador():
-    """La contracara: si el build owner deja de incluirlo, el dueño se queda
-    afuera de su propio .exe y volvemos al problema original."""
-    spec = (RAIZ / "packaging" / "mvpm_owner.spec").read_text(encoding="utf-8")
-    assert owner.MARCADOR in spec
-
-
 def test_el_zip_portable_no_puede_arrastrar_el_marcador():
     """El ZIP copia directorios enteros (`mvpm/`, `app/`, …) más una lista
     explícita de archivos sueltos. Se verifica contra la config real del script
@@ -1105,12 +1135,10 @@ def test_marcar_el_build_deja_la_constante_en_true(tmp_path, monkeypatch):
 def test_solo_el_build_del_dueno_marca_la_edicion():
     """Si el build de CLIENTE llamara a este script, el instalador que se publica
     en la web saldría desbloqueado."""
-    wf_owner = (RAIZ / ".github" / "workflows" / "build_windows_owner.yml").read_text(
-        encoding="utf-8")
-    wf_cliente = (RAIZ / ".github" / "workflows" / "build_windows.yml").read_text(
-        encoding="utf-8")
-    assert "marcar_build_owner.py" in wf_owner
-    assert "marcar_build_owner.py" not in wf_cliente
+    assert "marcar_build_owner.py" in _pasos_de_la_edicion("owner"), (
+        "la edición del dueño dejó de marcarse: saldría con el candado de cliente")
+    assert "marcar_build_owner.py" not in _pasos_de_la_edicion("cliente"), (
+        "el instalador que se publica en la web saldría DESBLOQUEADO")
 
 
 def test_el_zip_del_cliente_sale_con_el_candado_puesto():

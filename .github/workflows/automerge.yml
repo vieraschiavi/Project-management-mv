@@ -12,19 +12,19 @@ name: Auto-merge
 #
 # Un push hecho con GITHUB_TOKEN NO dispara workflows. Es una protección de
 # GitHub contra bucles infinitos, y acá tenía una consecuencia concreta: al
-# mergear con el token, los tres builds de instalador —que escuchan push a
-# main— nunca se enterarían. Los instaladores quedarían congelados en la
-# versión anterior justamente por haber automatizado el merge.
+# mergear con el token, el build de instaladores —que escucha push a main—
+# nunca se enteraría. Los instaladores quedarían congelados en la versión
+# anterior justamente por haber automatizado el merge.
 #
 # Por eso, después de mergear, se disparan explícitamente por API
 # (`createWorkflowDispatch`), que sí funciona con el token. Y sólo si el PR tocó
-# algo que va adentro de CADA instalador, para no gastar minutos de runner de
+# algo que va adentro del instalador, para no gastar minutos de runner de
 # Windows en un cambio de README.
 #
-# build_electron.yml es un caso aparte: además de RUTAS_DE_PRODUCTO, también
-# empaqueta desktop/ (el propio Electron). Un PR que sólo toca desktop/ tiene
-# que disparar ese build igual, aunque no toque nada de RUTAS_DE_PRODUCTO — por
-# eso va con su propio chequeo, no con `tocaElProducto`.
+# build_electron.yml empaqueta dos cosas distintas: RUTAS_DE_PRODUCTO (lo que
+# va adentro del motor) y desktop/ (el propio Electron). Un PR que sólo toca
+# desktop/ tiene que dispararlo igual, aunque no toque nada de
+# RUTAS_DE_PRODUCTO — por eso hay dos chequeos y no uno.
 
 on:
   workflow_run:
@@ -61,9 +61,9 @@ jobs:
               return;
             }
 
-            // Lo que termina adentro del .exe (ver `datas` en los .spec). api/ no
-            // está: viaja en el ZIP portable, no en el instalador. Tiene que
-            // coincidir con los `paths` de build_windows*.yml.
+            // Lo que termina adentro del .exe (ver `datas` en packaging/mvpm.spec).
+            // api/ no está: viaja en el ZIP portable, no en el instalador. Tiene
+            // que coincidir con los `paths` de build_electron.yml.
             const RUTAS_DE_PRODUCTO = [
               'mvpm/', 'app/', 'packaging/', 'requirements.txt',
             ];
@@ -115,9 +115,12 @@ jobs:
               // Acá está el punto del comentario de arriba: el push del merge
               // no dispara nada por haberse hecho con GITHUB_TOKEN, así que los
               // builds se piden a mano — sólo los que este PR realmente afecta.
-              const workflowsADisparar = [];
-              if (tocaElProducto) workflowsADisparar.push('build_windows.yml', 'build_windows_owner.yml');
-              if (tocaElEscritorio) workflowsADisparar.push('build_electron.yml');
+              // Un solo build, que arma las DOS ediciones (cliente y dueño)
+              // como jobs de una matriz. Alcanza con `tocaElEscritorio`, que
+              // ya incluye a `tocaElProducto`: pedirlo dos veces sería peor
+              // que redundante, porque el segundo dispatch cancelaría al
+              // primero por el grupo de concurrencia.
+              const workflowsADisparar = tocaElEscritorio ? ['build_electron.yml'] : [];
 
               for (const wf of workflowsADisparar) {
                 try {

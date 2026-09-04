@@ -16,8 +16,8 @@ git tag v0.1.0
 git push origin v0.1.0
 ```
 
-El workflow `.github/workflows/build_windows.yml` compila con PyInstaller +
-Inno Setup y publica `MVProjectManagement_Setup_vX.Y.Z.exe` como asset del
+El workflow `.github/workflows/build_electron.yml` compila con PyInstaller +
+Electron/NSIS y publica `MVProjectManagement-Desktop-Setup-X.Y.Z.exe` como asset del
 release de GitHub.
 
 ## Opción B — Portable (.bat)

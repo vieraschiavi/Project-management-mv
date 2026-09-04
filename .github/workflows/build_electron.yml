@@ -1,21 +1,41 @@
-name: Build Electron desktop installer
-
-# El instalador de escritorio: ventana nativa propia (Electron + NSIS) sobre el
-# mismo motor Python. NSIS da elegir carpeta, icono en el escritorio, entrada
-# en el menú Inicio y desinstalador (ver `build.nsis` en desktop/package.json).
+name: Build Windows installers (Electron)
+# El ÚNICO build de instaladores del repo. Produce las dos ediciones del mismo
+# programa, desde el mismo código y la misma tecnología:
 #
-# Antes esto SÓLO corría con un tag `v*` o a mano: en toda una serie de
-# cambios al producto no se disparó ni una vez, y el instalador de escritorio
-# nunca se llegó a construir. Los otros dos builds (build_windows.yml,
-# build_windows_owner.yml) sí escuchan push a main; éste quedaba afuera y nada
-# lo avisaba, porque un workflow que no corre no falla.
+#   · cliente — con el candado de licencias puesto: prueba de 7 días y después
+#     el plan que se haya pagado. Es el que se publica en Vercel Blob, que es
+#     de donde `api/download-installer.js` lo entrega contra una licencia
+#     válida.
+#   · owner   — abre desbloqueado, sin prueba, sin token y sin clave. NO se
+#     publica en ningún canal servido por la web: queda como artefacto de
+#     Actions (exige estar logueado) y como Release de prerelease en tags
+#     `owner-v*`.
+#
+# Antes de esto había TRES builds para dos ediciones: `build_windows.yml` y
+# `build_windows_owner.yml` armaban cliente y dueño con PyInstaller + Inno
+# Setup, y éste armaba una tercera copia del cliente con Electron. O sea que
+# el mismo instalador de cliente se compilaba dos veces con dos tecnologías
+# distintas, y el .exe del dueño que se usa de verdad —el que está en
+# INSTALADOR_OWNER/— es de Electron, no de Inno: el build de Inno del dueño no
+# producía nada que alguien usara. Quedó una sola tecnología (Electron + NSIS,
+# ventana nativa propia sobre el motor Python) y una sola lista de pasos.
+#
+# Lo que hace "owner" a la edición del dueño no es este archivo ni el config de
+# electron-builder: es `packaging/marcar_build_owner.py`, que pone
+# ES_OWNER_BUILD = True en mvpm/edicion.py ANTES de que Cython compile el
+# motor, así que la constante queda adentro del .pyd. Por eso las dos ediciones
+# son JOBS SEPARADOS de una matriz y no dos pasos del mismo job: comparten el
+# checkout sólo en el sentido de que cada uno hace el suyo, y marcar una no
+# puede contaminar a la otra.
 on:
   push:
     branches:
       - main
     tags:
       - "v*"
-    # Lo que termina adentro del instalador. Misma lista que build_windows.yml.
+      - "owner-v*"
+    # Lo que termina adentro del instalador. `desktop/**` además de las rutas
+    # de producto: este build empaqueta el código de Electron en sí.
     paths:
       - "packaging/**"
       - "mvpm/**"
@@ -24,7 +44,7 @@ on:
       - "desktop/**"
       - ".github/workflows/build_electron.yml"
 
-  # Un PR que toca el instalador de escritorio se compila ANTES de mergear.
+  # Un PR que toca el instalador se compila ANTES de mergear.
   #
   # Sin esto, el .exe recién se armaba después del merge a main: un cambio que
   # rompía el build de Windows —una opción mal escrita en la config de NSIS, el
@@ -45,6 +65,12 @@ on:
 
 # Runner de Windows: se cobra al doble y este build tarda más que los otros
 # porque encima compila Electron. Dos pushes seguidos no pagan dos veces.
+#
+# Un solo grupo para las dos ediciones, y está bien: son jobs de la MISMA
+# corrida, así que cancelar la corrida vieja cancela las dos a la vez y la
+# nueva vuelve a construir las dos. Cuando eran workflows separados hacía
+# falta un grupo por cada uno, porque compartir grupo significaba que un
+# instalador cancelara al otro y ese no se reconstruyera nunca.
 concurrency:
   group: build-electron-${{ github.ref }}
   cancel-in-progress: true
@@ -52,6 +78,21 @@ concurrency:
 jobs:
   build:
     runs-on: windows-latest
+    strategy:
+      # Que falle la edición del dueño no tiene por qué dejar al cliente sin
+      # instalador nuevo, ni al revés.
+      fail-fast: false
+      matrix:
+        include:
+          - edicion: cliente
+            script: dist
+            artefacto: MVProjectManagement-Desktop-Windows
+            tag: v
+          - edicion: owner
+            script: "dist:owner"
+            artefacto: MVProjectManagement-Owner-Desktop-Windows
+            tag: owner-v
+    name: ${{ matrix.edicion }}
     steps:
       - uses: actions/checkout@v4
 
@@ -65,11 +106,16 @@ jobs:
           pip install -r requirements.txt
           pip install pyinstaller Cython setuptools
 
-      # Mismo endurecimiento que build_windows.yml: mvpm/*.py se compila a
-      # .pyd nativo y el .py original se borra antes de que PyInstaller arme
-      # el motor que después Electron empaqueta — el .asar de Electron no
-      # cifra nada por sí solo, así que sin este paso el código fuente
-      # también quedaría a la vista en el instalador de escritorio.
+      # SÓLO la edición del dueño, y ANTES de Cython: la constante tiene que
+      # quedar compilada adentro del .pyd, no en un .py que se pueda editar.
+      - name: Marcar este build como Owner Edition
+        if: matrix.edicion == 'owner'
+        run: python packaging/marcar_build_owner.py
+
+      # mvpm/*.py se compila a .pyd nativo y el .py original se borra antes de
+      # que PyInstaller arme el motor que después Electron empaqueta — el
+      # .asar de Electron no cifra nada por sí solo, así que sin este paso el
+      # código fuente también quedaría a la vista en el instalador.
       - name: Compilar mvpm/ a binario nativo (Cython)
         run: |
           python packaging/setup_cython.py build_ext --inplace
@@ -78,7 +124,7 @@ jobs:
       - name: Compilar el motor (PyInstaller) — sin Node ni Python en la PC del usuario
         run: pyinstaller packaging/mvpm.spec --distpath dist --workpath build --noconfirm
 
-      # PyInstaller ahora compila en onedir (ver packaging/mvpm.spec): deja una
+      # PyInstaller compila en onedir (ver packaging/mvpm.spec): deja una
       # CARPETA, no un .exe suelto. Se copia entera a los recursos de Electron.
       - name: Copiar el motor a los recursos de Electron
         run: Copy-Item -Recurse -Force dist/MVProjectManagement desktop/resources/motor
@@ -93,16 +139,46 @@ jobs:
 
       - name: Compilar el instalador de escritorio (Electron + NSIS)
         working-directory: desktop
-        run: npm run dist
+        run: npm run ${{ matrix.script }}
 
+      # El .exe NO se commitea. Se hacía, y costaba dos cosas a la vez:
+      #
+      #   1. Peso. 71 MB por build, 27 builds: `.git` llegó a 1,9 GB. Cada
+      #      clon se baja eso entero y cada push arrastra el objeto nuevo —
+      #      los pushes empezaron a tardar minutos y a cortarse.
+      #   2. El candado de licencia. `api/download-installer.js` sólo entrega
+      #      el instalador a quien presenta un token MVPM2 válido. Con el .exe
+      #      commiteado en un repositorio PÚBLICO, cualquiera se lo bajaba del
+      #      árbol sin licencia: el candado estaba puesto y la puerta de al
+      #      lado abierta.
       - name: Subir instalador como artefacto
         uses: actions/upload-artifact@v4
         with:
-          name: MVProjectManagement-Desktop-Windows
+          name: ${{ matrix.artefacto }}
           path: desktop/release/*.exe
+          retention-days: 90
 
-      - name: Publicar en el release (solo en tags)
-        if: startsWith(github.ref, 'refs/tags/v')
+      # Cada edición sólo se publica en SU tag: `v*` no puede sacar un Release
+      # con el instalador del dueño adentro. El del dueño va como prerelease,
+      # para que nunca quede marcado "Latest" en la portada del repositorio.
+      - name: Publicar en el release (sólo en el tag de esta edición)
+        if: startsWith(github.ref, format('refs/tags/{0}', matrix.tag))
         uses: softprops/action-gh-release@v2
         with:
           files: desktop/release/*.exe
+          prerelease: ${{ matrix.edicion == 'owner' }}
+
+      # El canal público es SÓLO del cliente. Un asset de GitHub Release no es
+      # descargable por un visitante anónimo de la landing sin loguearse, así
+      # que el .exe de cliente se publica en Vercel Blob (URL pública estable)
+      # y api/download-installer.js redirige ahí contra una licencia válida.
+      # Sin el secret configurado, este paso se salta solo — no rompe el build.
+      - name: Publicar el instalador de cliente en Vercel Blob
+        if: matrix.edicion == 'cliente' && env.BLOB_READ_WRITE_TOKEN != ''
+        env:
+          BLOB_READ_WRITE_TOKEN: ${{ secrets.BLOB_READ_WRITE_TOKEN }}
+          MVPM_INSTALADOR_DIR: desktop/release
+        shell: bash
+        run: |
+          npm install @vercel/blob --no-save --silent
+          node packaging/publish_blob.js

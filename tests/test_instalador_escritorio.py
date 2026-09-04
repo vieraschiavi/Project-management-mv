@@ -273,17 +273,32 @@ def test_el_chequeo_del_motor_acepta_una_copia_buena(tmp_path):
 # ----------------------------------------------------------- versión
 
 def test_la_version_del_escritorio_acompana_a_la_del_producto(paquete):
-    """Los tres instaladores salen del mismo código: que el de escritorio
-    diga 0.1.0 mientras los otros dicen 0.2.0 hace imposible saber qué tiene
-    puesto un cliente cuando reporta un problema."""
-    iss = (RAIZ / "packaging" / "instalador.iss").read_text(encoding="utf-8")
-    for linea in iss.splitlines():
-        if linea.startswith("#define MyAppVersion"):
-            del_iss = linea.split('"')[1]
-            break
-    else:
-        pytest.fail("no se encontró MyAppVersion en instalador.iss")
-    assert paquete["version"] == del_iss
+    """El instalador y el motor que empaqueta tienen que decir la misma
+    versión: que uno diga 0.1.0 y el otro 0.2.0 hace imposible saber qué tiene
+    puesto un cliente cuando reporta un problema.
+
+    Antes esto se comparaba contra `packaging/instalador.iss`, que era el
+    tercer lugar donde vivía el número y el único que ataba los dos. Al quedar
+    un solo instalador, la fuente de verdad pasa a ser `mvpm.VERSION` — el
+    motor, que es lo que efectivamente corre adentro."""
+    from mvpm import VERSION
+
+    assert paquete["version"] == VERSION, (
+        f"desktop/package.json dice {paquete['version']} y mvpm/__init__.py "
+        f"dice {VERSION}")
+
+    # Y que no reaparezca una copia suelta del número donde se arman los
+    # paquetes: `build_release.py` tenía el suyo escrito a mano como default,
+    # así que el ZIP salía v0.1.0 mientras el instalador decía 0.2.0 y nada lo
+    # avisaba — el test de arriba no lo veía porque miraba otros dos archivos.
+    import re
+
+    build = (RAIZ / "packaging" / "build_release.py").read_text(encoding="utf-8")
+    sueltos = re.findall(r'version: str = "(\d+\.\d+\.\d+)"', build)
+    assert not sueltos, (
+        f"packaging/build_release.py volvió a fijar la versión a mano: {sueltos}. "
+        "Tiene que salir de mvpm.VERSION.")
+    assert "from mvpm import VERSION" in build
 
 
 def test_el_lockfile_no_se_desincroniza(paquete):
