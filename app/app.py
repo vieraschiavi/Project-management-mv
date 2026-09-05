@@ -29,8 +29,10 @@ from mvpm import (
     conectores,
     data_engineering as dataeng,
     db,
+    bitacora,
     demo_pharma,
     demo_real,
+    documento,
     dependencies as dep_mod,
     exporters,
     glossary,
@@ -342,7 +344,7 @@ else:
         T("nav_governance"), T("nav_organigrama"), T("nav_pmbok"), T("nav_plantillas"),
         T("nav_reviews"), T("nav_glossary"), T("nav_policies"),
         T("nav_import"), T("nav_conectores"), T("nav_data_eng"), T("nav_capacitacion"),
-        T("nav_config_ia"),
+        T("nav_bitacora"), T("nav_config_ia"),
     ]
     if user["rol"] == "admin":
         nav_options.append(T("nav_users"))
@@ -1390,6 +1392,38 @@ elif section == T("nav_conectores"):
                 st.session_state.pop("erp_df", None)
                 st.success(T("erp_import_done").format(n=_n, tipo=_destino_label))
                 st.rerun()
+
+elif section == T("nav_bitacora"):
+    # La pestaña no arma el contenido: lo pide a mvpm/bitacora.py, el mismo
+    # módulo del que salen el HTML, el Word y el PDF. Si esta pantalla dijera
+    # algo distinto del documento exportado, el documento dejaría de servir
+    # para mandarlo a un comité — que es justamente para lo que existe.
+    st.subheader(T("nav_bitacora"))
+    st.caption(T("bit_bajada"))
+
+    _etapas = bitacora.etapas(LANG)
+    st.download_button(
+        f"{T('bit_exportar')} · HTML",
+        documento.a_html(LANG).encode("utf-8"),
+        file_name=documento.nombre_archivo(LANG, "html"), mime="text/html")
+    st.download_button(
+        f"{T('bit_exportar')} · Word",
+        documento.a_docx_bytes(LANG),
+        file_name=documento.nombre_archivo(LANG, "docx"),
+        mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document")
+    st.download_button(
+        f"{T('bit_exportar')} · PDF",
+        documento.a_pdf_bytes(LANG),
+        file_name=documento.nombre_archivo(LANG, "pdf"), mime="application/pdf")
+    st.caption(T("bit_export_nota"))
+    st.divider()
+
+    for _e in _etapas:
+        with st.expander(_e["titulo"], expanded=False):
+            st.caption(f"{T('bit_modulo')}: `{_e['modulo']}`")
+            for _campo in ("tecnico", "criollo", "porque", "repercusion"):
+                st.markdown(f"**{T('bit_' + _campo)}**")
+                st.write(_e[_campo])
 
 elif section == T("nav_data_eng"):
     st.subheader(T("nav_data_eng"))
