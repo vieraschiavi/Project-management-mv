@@ -57,7 +57,7 @@ def main() -> None:
     #
     # Ningún build empaqueta ya un marcador: el .exe de la Owner Edition lo hacía
     # y era una licencia enterprise regalada a quien bajara el instalador de un
-    # repo público (ver packaging/mvpm_owner.spec). Antes de eso, esto seteaba
+    # repo público. Antes de eso, esto seteaba
     # MVPM_OWNER_BYPASS=1, que desbloqueaba el producto por el solo hecho de
     # existir la variable. Van dos.
     marcador_owner = base_dir / "OWNER_EDITION"

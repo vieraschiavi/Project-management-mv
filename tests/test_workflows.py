@@ -17,8 +17,8 @@ import pytest
 RAIZ = Path(__file__).resolve().parent.parent
 WORKFLOWS = RAIZ / ".github" / "workflows"
 
-#: Lo que termina adentro del .exe, según `datas` en packaging/mvpm.spec y
-#: mvpm_owner.spec: app/ y mvpm/, más el launcher de packaging/.
+#: Lo que termina adentro del .exe, según `datas` en packaging/mvpm.spec:
+#: app/ y mvpm/, más el launcher de packaging/.
 #:
 #: api/ NO está a propósito, y es el error que este test agarró: viaja en el
 #: ZIP portable pero no en el instalador, así que un cambio ahí no tiene por
@@ -44,6 +44,59 @@ def _sin_comentarios(nombre: str) -> str:
     da falsos positivos."""
     return "\n".join(ln for ln in _texto(nombre).splitlines()
                      if not ln.lstrip().startswith("#"))
+
+
+#: El único build de instaladores, y las dos ediciones que produce.
+BUILD = "build_electron.yml"
+EDICIONES = ("cliente", "owner")
+
+
+def _pasos(nombre: str) -> list[tuple[str, str]]:
+    """Los `steps:` del workflow como (condición, texto), sin comentarios.
+
+    Existe porque las dos ediciones dejaron de ser dos archivos y pasaron a ser
+    dos jobs de una matriz: preguntar "¿el build del dueño publica en Vercel
+    Blob?" ya no es leer un archivo entero, es leer los pasos que corren para
+    ESA edición. Buscar la palabra en el archivo completo daría que sí, porque
+    el paso del cliente está en el mismo archivo.
+
+    Sin parsear YAML a propósito: pyyaml no está en requirements.txt y no vale
+    una dependencia nueva para leer cinco archivos.
+    """
+    texto = _sin_comentarios(nombre)
+    cuerpo = texto[texto.index("\n    steps:"):]
+    bloques, actual = [], []
+    for linea in cuerpo.splitlines():
+        if linea.startswith("      - "):
+            if actual:
+                bloques.append("\n".join(actual))
+            actual = [linea]
+        elif actual:
+            actual.append(linea)
+    if actual:
+        bloques.append("\n".join(actual))
+
+    salida = []
+    for bloque in bloques:
+        cond = ""
+        for linea in bloque.splitlines():
+            if linea.strip().startswith("if:"):
+                cond = linea.split("if:", 1)[1].strip()
+                break
+        salida.append((cond, bloque))
+    return salida
+
+
+def _pasos_de(edicion: str) -> str:
+    """Sólo lo que ESA edición ejecuta: los pasos sin condición (corren en las
+    dos) más los condicionados a esta edición."""
+    otras = [e for e in EDICIONES if e != edicion]
+    partes = []
+    for cond, bloque in _pasos(BUILD):
+        if any(f"'{o}'" in cond for o in otras):
+            continue
+        partes.append(bloque)
+    return "\n".join(partes)
 
 
 # ------------------------------------------------ el merge automático
@@ -90,22 +143,18 @@ def test_el_automerge_dispara_los_builds_a_mano():
     instaladores dejan de actualizarse sin que nada lo diga."""
     script = _texto("automerge.yml")
     assert "createWorkflowDispatch" in script
-    for build in ("build_windows.yml", "build_windows_owner.yml", "build_electron.yml"):
-        assert build in script
+    assert BUILD in script
 
 
 def test_el_automerge_dispara_electron_aunque_el_pr_solo_toque_desktop():
-    """build_electron.yml también escucha push a main cuando cambia desktop/
-    (no sólo RUTAS_DE_PRODUCTO): un PR que sólo toca desktop/ no dispararía
-    ese build si automerge lo gatillara con el mismo chequeo que los otros
-    dos, que ignoran desktop/ por completo."""
+    """El build empaqueta desktop/ (el propio Electron) además de
+    RUTAS_DE_PRODUCTO. Un PR que sólo toca desktop/ tiene que dispararlo
+    igual: si automerge lo gatillara sólo con `tocaElProducto`, ese cambio se
+    mergearía sin reconstruir el instalador que justamente modificó."""
     script = _texto("automerge.yml")
-    assert "tocaElEscritorio" in script
     assert "startsWith('desktop/')" in script
-    # El build de escritorio se pide con su propio chequeo, no con
-    # tocaElProducto — si comparte el mismo `if`, un PR sólo de desktop/ nunca
-    # lo dispara.
-    assert "if (tocaElEscritorio) workflowsADisparar.push('build_electron.yml')" in script
+    assert "tocaElEscritorio ? ['build_electron.yml'] : []" in script, (
+        "automerge dejó de disparar el build por un cambio de desktop/")
 
 
 def test_el_automerge_tiene_los_permisos_que_necesita():
@@ -118,10 +167,8 @@ def test_el_automerge_tiene_los_permisos_que_necesita():
 
 # --------------------------------- que los builds se disparen cuando toca
 
-@pytest.mark.parametrize("workflow", ["build_windows.yml", "build_windows_owner.yml", "build_electron.yml"])
-def test_los_instaladores_se_reconstruyen_al_cambiar_el_producto(workflow):
-    """Los tres instaladores —cliente, dueño y Electron— se reconstruyen con
-    push a main.
+def test_los_instaladores_se_reconstruyen_al_cambiar_el_producto():
+    """Los instaladores se reconstruyen con push a main.
 
     El del dueño no lo hacía: sólo corría a mano o con un tag, así que se podía
     bajar de Actions una build de semanas atrás, sin los arreglos que ya estaban
@@ -129,9 +176,30 @@ def test_los_instaladores_se_reconstruyen_al_cambiar_el_producto(workflow):
     toda una serie de cambios al producto no se disparó ni una vez: el
     instalador de escritorio nunca se llegó a construir.
     """
-    wf = _sin_comentarios(workflow)
+    wf = _sin_comentarios(BUILD)
     assert "branches:" in wf and "- main" in wf
     assert "paths:" in wf
+
+
+def test_el_unico_build_produce_LAS_DOS_ediciones():
+    """Antes había tres builds para dos ediciones: cliente y dueño con
+    PyInstaller + Inno, y una tercera copia del cliente con Electron. O sea que
+    el instalador de cliente se compilaba dos veces con dos tecnologías, y el
+    .exe del dueño que se usa de verdad es el de Electron — el de Inno no
+    producía nada que alguien usara.
+
+    Quedó un solo build con las dos ediciones en una matriz. Este test es lo
+    que impide que vuelvan a separarse sin que nadie lo note."""
+    wf = _sin_comentarios(BUILD)
+    assert "matrix:" in wf, "el build dejó de armar las dos ediciones en una matriz"
+    for edicion in EDICIONES:
+        assert f"edicion: {edicion}" in wf, f"la matriz ya no arma la edición {edicion!r}"
+
+    viejos = ["build_windows.yml", "build_windows_owner.yml"]
+    presentes = [v for v in viejos if (WORKFLOWS / v).exists()]
+    assert not presentes, (
+        f"volvieron los builds de Inno: {presentes}. Son la tercera y cuarta "
+        "forma de compilar dos instaladores.")
 
 
 def test_el_instalador_de_escritorio_se_compila_en_el_pr_que_lo_toca():
@@ -169,18 +237,17 @@ def test_electron_tambien_se_reconstruye_al_cambiar_el_propio_electron():
     assert '"desktop/**"' in wf
 
 
-@pytest.mark.parametrize("workflow", ["build_windows.yml", "build_windows_owner.yml", "build_electron.yml"])
-def test_los_paths_de_los_builds_cubren_todo_el_producto(workflow):
+def test_los_paths_de_los_builds_cubren_todo_el_producto():
     """El riesgo real de estas listas es la deriva: se agrega un módulo nuevo
     bajo api/ y el instalador deja de reconstruirse cuando cambia, sin que nada
     lo avise. Se comparan contra la misma lista que usa automerge.yml para
     decidir si dispara los builds — si las dos no dicen lo mismo, una de las
     dos está mal."""
-    wf = _sin_comentarios(workflow)
+    wf = _sin_comentarios(BUILD)
     for ruta in RUTAS_DE_PRODUCTO:
         esperado = f'"{ruta}**"' if ruta.endswith("/") else f'"{ruta}"'
         assert esperado in wf, (
-            f"{workflow} no se reconstruye cuando cambia {ruta} — falta {esperado} "
+            f"{BUILD} no se reconstruye cuando cambia {ruta} — falta {esperado} "
             "en paths:")
 
 
@@ -202,12 +269,16 @@ def test_el_build_del_dueno_sigue_sin_publicarse_en_ningun_canal_publico():
     Ojo con por qué esto ya NO es lo que protege el producto. Lo era cuando el
     .exe llevaba un marcador firmado adentro, y ese razonamiento resultó falso:
     el repositorio era público, así que ese canal "privado" no lo era. Hoy el
-    .exe del dueño no lleva nada que desbloquee nada (ver packaging/mvpm_owner.spec)
+    .exe del dueño no lleva nada que desbloquee nada (es una constante
+    compilada, ver packaging/marcar_build_owner.py)
     y esto queda como higiene, no como candado."""
-    wf = _sin_comentarios("build_windows_owner.yml")
-    assert "publish_blob" not in wf.lower()
-    assert "blob_read_write_token" not in wf.lower()
-    assert "prerelease: true" in wf
+    owner = _pasos_de("owner").lower()
+    assert "publish_blob" not in owner
+    assert "blob_read_write_token" not in owner
+    assert "@vercel/blob" not in owner
+    # El Release del dueño va como prerelease para que nunca quede marcado
+    # "Latest" en la portada del repositorio.
+    assert "prerelease: ${{ matrix.edicion == 'owner' }}" in _sin_comentarios(BUILD)
 
 
 # --------------------------- los binarios NO viven en el árbol de git
@@ -321,7 +392,7 @@ def test_ningun_archivo_versionado_es_enorme():
     assert not gordos, "archivos versionados por encima de su techo: " + ", ".join(gordos)
 
 
-@pytest.mark.parametrize("workflow", ["build_windows.yml", "build_windows_owner.yml"])
+@pytest.mark.parametrize("workflow", [BUILD])
 def test_ningun_build_commitea_su_resultado(workflow):
     """La otra mitad: que los workflows no vuelvan a meter el .exe en el árbol.
 
@@ -334,7 +405,7 @@ def test_ningun_build_commitea_su_resultado(workflow):
             f"{workflow} vuelve a commitear el instalador ({prohibido!r})")
 
 
-@pytest.mark.parametrize("workflow", ["build_windows.yml", "build_windows_owner.yml"])
+@pytest.mark.parametrize("workflow", [BUILD])
 def test_cada_build_deja_su_instalador_en_algun_lado(workflow):
     """No commitear no puede significar que el .exe se pierda: el build tarda
     minutos y el resultado tiene que quedar en un canal que alguien pueda usar.
@@ -350,16 +421,18 @@ def test_cada_build_deja_su_instalador_en_algun_lado(workflow):
     assert "retention-days" in wf, (
         "sin retención explícita el artefacto se borra a los 90 días por "
         "defecto y nadie se entera")
+    # Y las DOS ediciones lo suben: el paso no puede quedar condicionado a una.
+    for edicion in EDICIONES:
+        assert "actions/upload-artifact" in _pasos_de(edicion), (
+            f"la edición {edicion!r} compila y no deja el instalador en ningún lado")
 
 
 def test_solo_el_del_cliente_va_al_canal_publico():
     """El del cliente va a Vercel Blob, que es lo que `download-installer`
     entrega contra una licencia. El del dueño no va a ningún canal servido por
     la web."""
-    cliente = _sin_comentarios("build_windows.yml")
-    owner = _sin_comentarios("build_windows_owner.yml")
-    assert "publish_blob" in cliente
-    assert "publish_blob" not in owner.lower()
+    assert "publish_blob" in _pasos_de("cliente")
+    assert "publish_blob" not in _pasos_de("owner").lower()
 
 
 def test_el_instalador_del_dueno_y_el_del_cliente_no_se_pisan():
@@ -368,13 +441,15 @@ def test_el_instalador_del_dueno_y_el_del_cliente_no_se_pisan():
     riesgo de que el que sobreviva sea el del dueño."""
     import re as _re
 
-    nombres = {}
-    for wf in ("build_windows.yml", "build_windows_owner.yml"):
-        m = _re.search(r"upload-artifact@v\d+\s*\n\s*with:\s*\n\s*name:\s*(.+)",
-                       _sin_comentarios(wf))
-        assert m, f"{wf} no declara nombre de artefacto"
-        nombres[wf] = m.group(1).strip()
-    assert len(set(nombres.values())) == 2, f"los dos builds comparten artefacto: {nombres}"
+    wf = _sin_comentarios(BUILD)
+    nombres = _re.findall(r"^\s+artefacto:\s*(\S+)$", wf, _re.MULTILINE)
+    assert len(nombres) == len(EDICIONES), (
+        f"se esperaba un artefacto por edición, hay {nombres}")
+    assert len(set(nombres)) == len(EDICIONES), (
+        f"las ediciones comparten nombre de artefacto: {nombres}")
+    # Y el paso lo toma de la matriz, no lo escribe fijo: si estuviera fijo, la
+    # segunda edición pisaría el artefacto de la primera igual.
+    assert "name: ${{ matrix.artefacto }}" in wf
 
 
 def test_el_build_ensucia_archivos_versionados():
@@ -421,8 +496,7 @@ def test_la_suite_no_corre_dos_veces_sobre_el_mismo_commit():
         "también activo, cada commit paga la suite dos veces")
 
 
-@pytest.mark.parametrize("workflow", ["tests.yml", "build_windows.yml",
-                                      "build_windows_owner.yml", "build_electron.yml"])
+@pytest.mark.parametrize("workflow", ["tests.yml", BUILD])
 def test_un_push_nuevo_cancela_la_corrida_que_quedo_vieja(workflow):
     """Tres pushes seguidos pagaban tres corridas completas y se quedaban con la
     última: las dos primeras se descartan igual, pero se cobran. Pesa el doble en
@@ -432,18 +506,20 @@ def test_un_push_nuevo_cancela_la_corrida_que_quedo_vieja(workflow):
     assert "cancel-in-progress: true" in wf
 
 
-def test_cada_build_de_windows_tiene_su_propio_grupo_de_concurrencia():
-    """Si compartieran grupo, un build cancelaría al otro y ese instalador
-    nunca se reconstruiría."""
-    import re
-
-    grupos = {}
-    for workflow in ("build_windows.yml", "build_windows_owner.yml", "build_electron.yml"):
-        m = re.search(r"^concurrency:\s*\n\s*group:\s*(.+)$",
-                      _texto(workflow), re.MULTILINE)
-        assert m, f"{workflow} no declara group:"
-        grupos[workflow] = m.group(1).strip()
-    assert len(set(grupos.values())) == 3, f"los builds comparten grupo: {grupos}"
+def test_una_edicion_que_falla_no_deja_a_la_otra_sin_instalador():
+    """Antes las dos ediciones eran dos workflows, y el riesgo era que
+    compartieran grupo de concurrencia: uno cancelaba al otro y ese instalador
+    no se reconstruía nunca. Ahora son dos jobs de una matriz en la MISMA
+    corrida, así que un solo grupo es correcto —cancelar la corrida vieja
+    cancela las dos y la nueva rebuildea las dos— y el riesgo se mudó de
+    lugar: `fail-fast` por defecto es `true`, o sea que si la edición del
+    dueño falla, GitHub cancela la del cliente aunque estuviera por terminar
+    bien, y ese día no hay instalador para vender."""
+    wf = _sin_comentarios(BUILD)
+    assert "concurrency:" in wf and "group:" in wf
+    assert "fail-fast: false" in wf, (
+        "sin `fail-fast: false`, que falle una edición deja a la otra sin "
+        "instalador aunque su compilación estuviera bien")
 
 
 def test_run_sh_ci_corre_las_mismas_compuertas_que_el_workflow():

@@ -3,7 +3,7 @@
 sólo empaquete el binario — nunca el código fuente en texto plano.
 
 Se corre en CI, DESPUÉS de packaging/setup_cython.py y ANTES de PyInstaller
-(ver .github/workflows/build_windows.yml y build_electron.yml). Nunca se
+(ver .github/workflows/build_electron.yml). Nunca se
 ejecuta contra el checkout normal del repo fuera de esos jobs efímeros:
 borrar acá no toca lo versionado, sólo el workspace del runner.
 

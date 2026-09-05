@@ -4,16 +4,25 @@
 No requiere Windows ni PyInstaller — es la opción de distribución que se
 puede construir y verificar en cualquier sistema (mismo criterio que la
 "Opción B: portable" de MV Data Governance). El instalador .exe real se
-compila aparte, en CI, con PyInstaller + Inno Setup
-(.github/workflows/build_windows.yml).
+compila aparte, en CI, con PyInstaller + Electron/NSIS
+(.github/workflows/build_electron.yml).
 """
 
 import shutil
+import sys
 import zipfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 DIST_DIR = ROOT / "dist"
+
+# La versión sale del motor, que es la única fuente de verdad. Estaba escrita a
+# mano acá como default de dos funciones, o sea que el ZIP podía salir con un
+# número y el programa adentro reportar otro — y de hecho pasó: el instalador
+# venía en 0.2.0 y esto seguía diciendo 0.1.0. Lo fija
+# `tests/test_instalador_escritorio.py`.
+sys.path.insert(0, str(ROOT))
+from mvpm import VERSION  # noqa: E402
 
 INCLUDE_DIRS = ["mvpm", "app", "api", "tests"]
 INCLUDE_FILES = [
@@ -34,7 +43,7 @@ def _should_skip(path: Path) -> bool:
     return any(part in EXCLUDE_NAMES for part in path.parts)
 
 
-def build_portable_zip(version: str = "0.1.0",
+def build_portable_zip(version: str = VERSION,
                        reemplazos: dict[str, str] | None = None) -> Path:
     """El ZIP portable. `reemplazos` cambia el contenido de un archivo puntual
     (ruta relativa -> texto) SIN tocar el árbol de trabajo.
@@ -82,7 +91,7 @@ EXTRAS_OWNER = [
 ]
 
 
-def build_owner_zip(version: str = "0.1.0", destino: Path | None = None) -> Path:
+def build_owner_zip(version: str = VERSION, destino: Path | None = None) -> Path:
     """El paquete portable más las herramientas de activación del dueño.
 
     `destino` es para los tests. Sin él escribe en `ZIP_OWNER`, que es un archivo

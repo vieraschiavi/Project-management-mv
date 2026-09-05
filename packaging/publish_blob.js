@@ -3,8 +3,9 @@
 // landing (/api/download-installer) nunca tiene que actualizarse entre
 // releases: cada build exitoso pisa el mismo blob con la versión más nueva.
 //
-// Corre desde CI (.github/workflows/build_windows.yml) después de que Inno
-// Setup genera el .exe. Requiere BLOB_READ_WRITE_TOKEN como env var — si no
+// Corre desde CI (.github/workflows/build_electron.yml) después de que
+// electron-builder genera el .exe de la edición de CLIENTE — nunca el del
+// dueño. Requiere BLOB_READ_WRITE_TOKEN como env var — si no
 // está configurada, el workflow salta este paso entero (ver el `if:` del
 // step), así que este script asume que la variable existe.
 //
@@ -16,7 +17,14 @@
 const fs = require('fs');
 const path = require('path');
 
-const OUTPUT_DIR = path.join(__dirname, 'Output');
+// De dónde sale el .exe. Era fijo en `packaging/Output` —la carpeta que
+// generaba Inno Setup— y ese build ya no existe: el instalador de cliente lo
+// produce ahora electron-builder en `desktop/release`. Se deja configurable
+// por variable de entorno en vez de fijar la ruta nueva a mano, para que
+// mover el build otra vez no obligue a tocar este archivo.
+const OUTPUT_DIR = process.env.MVPM_INSTALADOR_DIR
+  ? path.resolve(process.env.MVPM_INSTALADOR_DIR)
+  : path.join(__dirname, '..', 'desktop', 'release');
 const BLOB_PATHNAME = 'installers/MVProjectManagement_Setup_latest.exe';
 
 async function main() {

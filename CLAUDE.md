@@ -59,7 +59,7 @@ para BI son reales.
 > algo no pasa. Corrélo antes de pushear — la suite local puede estar verde y el
 > PR romper igual. No hay formatter: no introduzcas uno sin pedirlo.
 > `MV_ProjectManagement.bat` y lo que hay en `packaging/` son para Windows
-> (PyInstaller + Inno Setup); no corren en este entorno Linux.
+> (PyInstaller + Electron/NSIS); no corren en este entorno Linux.
 > No hay `.env.example` en el repo: las claves (`ANTHROPIC_API_KEY`,
 > `OPENAI_API_KEY`, `GEMINI_API_KEY`, `XAI_API_KEY`, `GITHUB_MODELS_TOKEN`,
 > `MP_ACCESS_TOKEN`, `MP_LINK_PROFESSIONAL`) se exportan como variables de
@@ -85,7 +85,7 @@ api/_license.js        mismo esquema de licencias que mvpm/licensing.py, en JS
 landing/              landing pública trilingüe (HTML/CSS/JS, sin build)
 desktop/              app de escritorio: Electron + React sobre la API del motor
                         (ui/ interfaz, lib/ arranque, scripts/ build con esbuild)
-packaging/            empaquetado para PC (launcher, PyInstaller, Inno Setup)
+packaging/            empaquetado para PC (launcher, PyInstaller, motor del .exe)
 distribucion/         distribución y conectores de BI: powerbi/ (.pbids en vivo),
                         tableau/ (exportador a CSV), fabric/ (Power Query para
                         Dataflow Gen2), mcp/ (servidores MCP + verificador)
@@ -133,7 +133,7 @@ MV_ProjectManagement.bat  versión portable — doble clic, sin instalar nada
 
 **Don't**
 - No leas ni commitees secretos (`.env`, tokens de pago, claves de IA).
-- No corras los `.bat` ni el build PyInstaller/Inno en Linux.
+- No corras los `.bat` ni el build PyInstaller/Electron en Linux.
 - No introduzcas dependencias pesadas nuevas sin justificarlo.
 - No uses `git push --force` ni `rm -rf`.
 - No inventes reseñas, testimonios o cifras financieras que la fuente de datos no provee.

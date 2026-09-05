@@ -63,7 +63,7 @@ api/checkout.js      checkout de MercadoPago (función serverless en Vercel)
 api/verify-payment.js  verifica el pago y emite la licencia (nunca confía en el cliente)
 api/_license.js       mismo esquema de licencias que licensing.py, en JS
 landing/index.html  landing pública (HTML/CSS/JS, sin build, deploy directo en Vercel)
-packaging/           empaquetado para PC (launcher, PyInstaller, Inno Setup)
+packaging/           empaquetado para PC (launcher, PyInstaller, motor del .exe)
 desktop/              instalador Electron — misma UI de Streamlit, ventana nativa
 MV_ProjectManagement.bat  versión portable — doble clic, sin instalar nada
 tests/test_core.py   suite de tests del motor
@@ -287,8 +287,9 @@ Ambos instaladores Windows se compilan en CI al taguear `vX.Y.Z` (ver
 "Instalador de Windows" más abajo) y quedan como assets del mismo release
 de GitHub — el motor Python/Streamlit es exactamente el mismo en los dos:
 
-- **Instalador Windows — Python/Streamlit** (`.github/workflows/build_windows.yml`):
-  PyInstaller + Inno Setup, abre el programa en el navegador del sistema.
+- **Instalador Windows** (`.github/workflows/build_electron.yml`): PyInstaller
+  arma el motor y electron-builder + NSIS lo envuelven en una ventana nativa.
+  El mismo build produce las dos ediciones: cliente (con licencias) y dueño.
   No necesita Python instalado en la PC del usuario.
 - **Instalador Windows — Electron** (`.github/workflows/build_electron.yml`,
   código en [`desktop/`](desktop/)): el mismo motor Python/Streamlit,
@@ -354,7 +355,7 @@ Dos workflows compilan sendos instaladores Windows reales cada vez que se
 publica un tag `vX.Y.Z` — ninguno requiere Python instalado en la PC del
 usuario:
 
-- `.github/workflows/build_windows.yml` — PyInstaller + Inno Setup.
+- `.github/workflows/build_electron.yml` — PyInstaller + Electron/NSIS, las dos ediciones.
 - `.github/workflows/build_electron.yml` — el mismo motor, envuelto en
   Electron (ver [`desktop/`](desktop/)) para una ventana nativa en vez de
   abrir el navegador del sistema.

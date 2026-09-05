@@ -10,7 +10,8 @@
     "build-ui": "node scripts/build-ui.mjs",
     "test": "node lib/server-manager.test.js",
     "start": "npm run build-ui && electron .",
-    "dist": "node verificar_motor.js && npm run build-ui && electron-builder --win nsis"
+    "dist": "node verificar_motor.js && npm run build-ui && electron-builder --win nsis",
+    "dist:owner": "node verificar_motor.js && npm run build-ui && electron-builder --win nsis --config electron-builder.owner.js"
   },
   "devDependencies": {
     "electron": "^33.0.0",
