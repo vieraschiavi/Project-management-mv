@@ -401,6 +401,31 @@ SECTIONS = [
         ],
     },
     {
+        "id": "nav_bitacora",
+        "titulo": "Bitácora técnica",
+        "resumen": "El pipeline del producto explicado etapa por etapa, dos veces: en "
+                   "términos técnicos y en criollo. Pensada para mandarla completa a "
+                   "quien tiene que aprobar la compra sin traducirla antes.",
+        "pasos": [
+            "Las doce etapas están en el orden en que le pasan al dato: entra, se "
+            "guarda versionado, se cataloga, se puntúa la salud, se arma el grafo de "
+            "dependencias, se prioriza el backlog, se evalúan políticas, se detectan "
+            "problemas, opina la IA, valida una persona, sale por las tres bocas y se "
+            "licencia.",
+            "Cada etapa dice además POR QUÉ se hizo así —qué se rompía antes— y CÓMO "
+            "REPERCUTE aguas abajo, que son las dos preguntas que un informe técnico "
+            "suele dejar sin responder.",
+            "Los tres botones de arriba bajan el informe completo en HTML, Word o PDF, "
+            "en el idioma que tengas elegido en el selector.",
+        ],
+        "tips": [
+            "Cada etapa nombra el archivo del repositorio que la implementa, así que "
+            "sirve también como mapa para alguien que se suma al equipo.",
+            "El Word es un .docx de verdad, no un HTML renombrado: se abre y se edita "
+            "para agregarle lo que haga falta antes de presentarlo.",
+        ],
+    },
+    {
         "id": "nav_config_ia",
         "titulo": "Configuración de IA",
         "resumen": "Elegir qué modelo usa cada proveedor de IA que tengas configurado, para "

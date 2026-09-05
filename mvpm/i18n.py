@@ -28,6 +28,44 @@ _STRINGS = {
     "nav_data_eng": {"es": "Ingeniería de datos", "en": "Data engineering", "pt": "Engenharia de dados"},
     "nav_capacitacion": {"es": "Capacitación por rol", "en": "Training by role", "pt": "Treinamento por função"},
     "nav_config_ia": {"es": "Configuración de IA", "en": "AI settings", "pt": "Configuração de IA"},
+    "nav_bitacora": {"es": "Bitácora técnica", "en": "Technical log", "pt": "Registro técnico"},
+    "bit_bajada": {
+        "es": "Qué le pasa al dato desde que entra hasta que sale, etapa por etapa. "
+              "Cada transformación contada dos veces: la versión técnica, para quien "
+              "va a leer el código, y la versión en criollo, para quien decide la "
+              "compra. Más por qué se hizo así y qué cambia aguas abajo.",
+        "en": "What happens to the data from the moment it comes in until it goes out, "
+              "stage by stage. Every transformation told twice: the technical version, "
+              "for whoever will read the code, and the plain version, for whoever "
+              "decides the purchase. Plus why it was built that way and what changes "
+              "downstream.",
+        "pt": "O que acontece com o dado desde que entra até sair, etapa por etapa. "
+              "Cada transformação contada duas vezes: a versão técnica, para quem vai "
+              "ler o código, e a versão em linguagem simples, para quem decide a "
+              "compra. Mais por que foi feito assim e o que muda rio abaixo."},
+    "bit_tecnico": {"es": "En términos técnicos", "en": "In technical terms",
+                    "pt": "Em termos técnicos"},
+    "bit_criollo": {"es": "En criollo", "en": "In plain words",
+                    "pt": "Em linguagem simples"},
+    "bit_porque": {"es": "Por qué se hizo así", "en": "Why it was built this way",
+                   "pt": "Por que foi feito assim"},
+    "bit_repercusion": {"es": "Cómo repercute", "en": "What it affects",
+                        "pt": "Como repercute"},
+    "bit_modulo": {"es": "Implementado en", "en": "Implemented in",
+                   "pt": "Implementado em"},
+    "bit_exportar": {"es": "Descargar el informe completo",
+                     "en": "Download the full report",
+                     "pt": "Baixar o relatório completo"},
+    "bit_export_nota": {
+        "es": "Los tres formatos salen del mismo contenido que ves acá y se arman sin "
+              "librerías externas: el .docx es un paquete OOXML real (Word lo abre y lo "
+              "edita) y el PDF usa fuentes estándar, así que lo abre cualquier lector.",
+        "en": "All three formats come from the same content you see here and are built "
+              "with no external libraries: the .docx is a real OOXML package (Word opens "
+              "and edits it) and the PDF uses standard fonts, so any reader opens it.",
+        "pt": "Os três formatos saem do mesmo conteúdo que você vê aqui e são montados "
+              "sem bibliotecas externas: o .docx é um pacote OOXML real (o Word abre e "
+              "edita) e o PDF usa fontes padrão, então qualquer leitor abre."},
     "cfg_titulo": {"es": "Configuración de IA",
                    "en": "AI settings",
                    "pt": "Configuração de IA"},
