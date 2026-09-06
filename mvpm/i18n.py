@@ -28,6 +28,13 @@ _STRINGS = {
     "nav_data_eng": {"es": "Ingeniería de datos", "en": "Data engineering", "pt": "Engenharia de dados"},
     "nav_capacitacion": {"es": "Capacitación por rol", "en": "Training by role", "pt": "Treinamento por função"},
     "nav_config_ia": {"es": "Configuración de IA", "en": "AI settings", "pt": "Configuração de IA"},
+    "modo_servidor_aviso": {
+        "es": "Modo servidor: este tablero es accesible desde la red. El login "
+              "es la única puerta.",
+        "en": "Server mode: this dashboard is reachable from the network. The "
+              "login is the only door.",
+        "pt": "Modo servidor: este painel é acessível pela rede. O login é a "
+              "única porta."},
     "cfg_titulo": {"es": "Configuración de IA",
                    "en": "AI settings",
                    "pt": "Configuração de IA"},

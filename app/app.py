@@ -39,6 +39,7 @@ from mvpm import (
     help_center,
     i18n,
     importer,
+    instalacion,
     invitado,
     licensing,
     modelos,
@@ -119,6 +120,14 @@ def T(key: str) -> str:
 LANG = st.sidebar.selectbox("Idioma / Language / Idioma", ["es", "en", "pt"],
                             index=0, key="lang_sel")
 LANG_ES_DEFAULT = LANG  # T() ya definida arriba usa esta variable global
+
+# En qué modo está esta instalación, visible ANTES del login y en toda
+# pantalla. Sólo se muestra cuando está expuesto a la red: quien abre el
+# tablero en su propia PC no necesita un cartel, pero quien lo tiene publicado
+# en la VM del cliente sí — porque ahí el login es la única puerta y eso hay
+# que tenerlo a la vista, no enterrado en la documentación.
+if instalacion.modo_actual() == instalacion.SERVIDOR:
+    st.sidebar.warning(T("modo_servidor_aviso"), icon=":material/lan:")
 
 
 # ------------------------------------------------------------- autenticación

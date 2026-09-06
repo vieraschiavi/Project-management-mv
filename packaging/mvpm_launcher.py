@@ -101,6 +101,10 @@ def main() -> None:
 
     from streamlit.web import cli as stcli
 
+    # Después de `sys.path.insert(base_dir)` de más arriba: recién ahí `mvpm`
+    # es importable, tanto desde el repo como desde el .exe congelado.
+    from mvpm import instalacion
+
     sys.argv = [
         "streamlit", "run", str(base_dir / "app" / "app.py"),
         "--server.port", str(puerto),
@@ -120,6 +124,13 @@ def main() -> None:
         # site-packages. Por eso la suite entera y `./run.sh app` pasan en
         # verde mientras el instalador no abre — el bug sólo existe congelado.
         "--global.developmentMode", "false",
+        # El .exe es la INSTALACIÓN NORMAL: una persona, esa PC. Sin esta
+        # opción Streamlit escucha en todas las interfaces, así que el
+        # instalador de escritorio publicaba el tablero en la red de la
+        # oficina —con el login de la app como única puerta— sin que nadie lo
+        # hubiera pedido. Para el modo servidor/VM está `./run.sh servidor`,
+        # que es una decisión explícita; el .exe no lo ofrece a propósito.
+        "--server.address", instalacion.HOST_LOCAL,
         "--server.headless", "true",
         "--browser.gatherUsageStats", "false",
         "--theme.base", "dark",

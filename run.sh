@@ -24,12 +24,36 @@ case "$cmd" in
     pip install -r requirements.txt
     ;;
   app)
+    # INSTALACIÓN NORMAL: una persona, esta PC, nadie más entra.
+    #
     # Sin PORT explícito se elige uno libre en vez de asumir 8501 (el default
     # de Streamlit, y por eso el más disputado: cualquier otra app de Streamlit
     # abierta lo tiene). mvpm/puertos.py decide, igual que el .exe y el .bat.
+    #
+    # `--server.address` fijo en 127.0.0.1 y NO es un detalle: sin esa opción
+    # Streamlit escucha en TODAS las interfaces, así que esto publicaba el
+    # tablero en la red de la oficina con el login de la app como única puerta.
+    # La API de BI, al lado, ya venía cerrada a loopback: eran dos criterios
+    # distintos para el mismo riesgo, y el más expuesto era el que nadie había
+    # elegido. Para abrirlo a la red está `./run.sh servidor`, que es una
+    # decisión explícita y con su propia lista de chequeos.
     PUERTO="${PORT:-$(python3 -m mvpm.puertos)}"
-    echo "Abriendo el dashboard en http://localhost:${PUERTO}"
-    streamlit run app/app.py --server.port "${PUERTO}"
+    echo "Abriendo el dashboard en http://localhost:${PUERTO}  (sólo esta PC)"
+    streamlit run app/app.py --server.port "${PUERTO}" --server.address 127.0.0.1
+    ;;
+  servidor)
+    # VM / SERVIDOR DEL CLIENTE: el programa corre acá y el equipo entra por el
+    # navegador. El dato se queda en ESTA máquina y nunca toca la laptop de
+    # quien lo instaló — que es todo el argumento ante un área de seguridad.
+    #
+    # Escuchar en la red es el punto de este comando, así que se avisa lo que
+    # implica ANTES de abrir: el login de la app pasa a ser la única puerta.
+    export MVPM_MODO_INSTALACION=servidor
+    python3 -m mvpm.instalacion
+    echo
+    PUERTO="${PORT:-$(python3 -m mvpm.puertos)}"
+    echo "Dashboard accesible en la red, puerto ${PUERTO}"
+    streamlit run app/app.py --server.port "${PUERTO}" --server.address 0.0.0.0
     ;;
   api)
     # 127.0.0.1 por defecto: esta API sirve el portafolio completo del cliente
@@ -69,6 +93,8 @@ case "$cmd" in
       set +a
     fi
     python -m mvpm.configuracion
+    echo
+    python -m mvpm.instalacion
     ;;
   ci)
     # LAS MISMAS compuertas que corre GitHub Actions, en el mismo orden
@@ -125,7 +151,9 @@ print('Esta instalación vuelve a comportarse como la de un cliente (prueba + li
 "
     ;;
   *)
-    echo "Uso: ./run.sh [install|app|api|mcp|test|ci|portable|owner|owner-off]"
+    echo "Uso: ./run.sh [install|app|servidor|api|mcp|test|ci|doctor|portable|owner|owner-off]"
+    echo "  app      = instalación normal: sólo esta PC"
+    echo "  servidor = VM del cliente: entra el equipo por la red"
     exit 1
     ;;
 esac
