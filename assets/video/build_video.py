@@ -257,6 +257,42 @@ TEXTS = {
                          "Si algo se atrasa, cuánto te corre todo lo demás — antes de que te "
                          "explote encima.",
         "pmbok_footer": "Cada etapa no automatizable se anota a mano y se guarda por empresa",
+        "reu_h": "De la reunión a la minuta, sin parafrasear",
+        "reu_sub": "Zoom · Teams · Meet · WebEx — se importa la transcripción que ya generan",
+        "reu_minuta": [
+            ("0:12 · LAURA GÓMEZ", "Decidimos migrar el maestro de clientes primero.", GREEN),
+            ("1:04 · DIEGO SILVA", "Me comprometo a pasar el detalle de fuentes el viernes.", BLUE),
+            ("2:31 · LAURA GÓMEZ", "El riesgo es que Facturación no tiene dueño asignado.", AMBER),
+        ],
+        "reu_areas": "Áreas del pipeline que tocó la reunión: fuentes · gobernanza",
+        "rel_h": "El relevamiento, pregunta por pregunta",
+        "rel_sub": "31 preguntas en 9 áreas del pipeline de datos del cliente",
+        "rel_areas": ["Fuentes", "Ingesta", "Calidad", "Modelado", "Orquestación",
+                      "Gobernanza", "Seguridad", "Consumo", "Operación"],
+        "rel_campo1": "Quién respondió y su cargo",
+        "rel_campo2": "Confirmado por el responsable, no de pasillo",
+        "rel_campo3": "Si la respuesta queda floja, sugiere qué repreguntar",
+        "bit_h": "El pipeline en técnico y en criollo",
+        "bit_sub": "12 etapas · el mismo contenido en pantalla y en el documento",
+        "bit_tag_tec": "EN TÉRMINOS TÉCNICOS",
+        "bit_tecnico": "Cada dato manual se guarda como fila nueva en la tabla de "
+                       "versiones; el estado vigente es la más reciente por empresa.",
+        "bit_tag_criollo": "EN CRIOLLO",
+        "bit_criollo": "Corregir un dato no borra el anterior: siempre se puede "
+                       "mostrar qué decía antes y quién lo cambió.",
+        "bit_formatos": "HTML · WORD · PDF",
+        "bit_footer": "Se baja completo para mandarlo a quien aprueba la compra",
+        "ins_h": "Dos modos de instalación, bien separados",
+        "ins_sub": "Abrir el tablero a la red es siempre una decisión explícita",
+        "ins_modo1": "INSTALACIÓN NORMAL",
+        "ins_modo1_host": "127.0.0.1",
+        "ins_modo1_d": "El tablero escucha sólo en esa PC. Es el default: no hay "
+                       "que elegir nada.",
+        "ins_modo2": "SERVIDOR / VM DEL CLIENTE",
+        "ins_modo2_host": "0.0.0.0",
+        "ins_modo2_d": "Corre en la VM del cliente y el dato nunca sale de ahí. "
+                       "Se elige a propósito.",
+        "ins_footer": "Cualquier valor que no sea exactamente «servidor» cae en local",
         "trial_h": "Prueba completa de 7 días",
         "trial_sub": "Descargás el programa completo — todo desbloqueado, sin recortes",
         "trial_line1": "Al día 8 se bloquea — pero tus datos NO se borran.",
@@ -308,6 +344,42 @@ TEXTS = {
                          "something slips, how much it drags everything else — before it blows "
                          "up on you.",
         "pmbok_footer": "Any stage that can't be automated gets noted by hand and saved per company",
+        "reu_h": "From the meeting to the minutes, never paraphrased",
+        "reu_sub": "Zoom · Teams · Meet · WebEx — import the transcript they already generate",
+        "reu_minuta": [
+            ("0:12 · LAURA GÓMEZ", "We decided to migrate the customer master first.", GREEN),
+            ("1:04 · DIEGO SILVA", "I'll commit to sending the source list on Friday.", BLUE),
+            ("2:31 · LAURA GÓMEZ", "The risk is that Billing has no assigned owner.", AMBER),
+        ],
+        "reu_areas": "Pipeline areas this meeting touched: sources · governance",
+        "rel_h": "Discovery, question by question",
+        "rel_sub": "31 questions across 9 areas of the client's data pipeline",
+        "rel_areas": ["Sources", "Ingestion", "Quality", "Modelling", "Orchestration",
+                      "Governance", "Security", "Consumption", "Operations"],
+        "rel_campo1": "Who answered, and their role",
+        "rel_campo2": "Confirmed by the owner, not a hallway answer",
+        "rel_campo3": "If the answer is thin, it suggests what to follow up on",
+        "bit_h": "The pipeline in technical terms and in plain words",
+        "bit_sub": "12 stages · the same content on screen and in the document",
+        "bit_tag_tec": "IN TECHNICAL TERMS",
+        "bit_tecnico": "Every manual field is stored as a new row in the versions "
+                       "table; the current state is the latest one per company.",
+        "bit_tag_criollo": "IN PLAIN WORDS",
+        "bit_criollo": "Correcting a field never erases the previous one: you can "
+                       "always show what it said before and who changed it.",
+        "bit_formatos": "HTML · WORD · PDF",
+        "bit_footer": "Downloads in full, to send to whoever signs off on the purchase",
+        "ins_h": "Two install modes, clearly separated",
+        "ins_sub": "Opening the dashboard to the network is always a deliberate choice",
+        "ins_modo1": "NORMAL INSTALL",
+        "ins_modo1_host": "127.0.0.1",
+        "ins_modo1_d": "The dashboard listens on that PC only. It's the default: "
+                       "nothing to choose.",
+        "ins_modo2": "SERVER / CLIENT'S VM",
+        "ins_modo2_host": "0.0.0.0",
+        "ins_modo2_d": "Runs on the client's VM and the data never leaves it. "
+                       "Chosen on purpose.",
+        "ins_footer": "Any value that isn't exactly «servidor» falls back to local",
         "trial_h": "A full 7-day trial",
         "trial_sub": "You download the complete program — everything unlocked, no cuts",
         "trial_line1": "On day 8 it locks — but your data is NEVER deleted.",
@@ -359,6 +431,42 @@ TEXTS = {
                          "atrasa, o quanto isso empurra tudo o resto — antes que exploda em cima "
                          "de você.",
         "pmbok_footer": "Toda etapa não automatizável é anotada à mão e fica salva por empresa",
+        "reu_h": "Da reunião para a ata, sem parafrasear",
+        "reu_sub": "Zoom · Teams · Meet · WebEx — importa-se a transcrição que já geram",
+        "reu_minuta": [
+            ("0:12 · LAURA GÓMEZ", "Decidimos migrar o cadastro de clientes primeiro.", GREEN),
+            ("1:04 · DIEGO SILVA", "Comprometo-me a enviar a lista de fontes na sexta.", BLUE),
+            ("2:31 · LAURA GÓMEZ", "O risco é que Faturamento não tem dono definido.", AMBER),
+        ],
+        "reu_areas": "Áreas do pipeline que a reunião tocou: fontes · governança",
+        "rel_h": "O levantamento, pergunta por pergunta",
+        "rel_sub": "31 perguntas em 9 áreas do pipeline de dados do cliente",
+        "rel_areas": ["Fontes", "Ingestão", "Qualidade", "Modelagem", "Orquestração",
+                      "Governança", "Segurança", "Consumo", "Operação"],
+        "rel_campo1": "Quem respondeu e seu cargo",
+        "rel_campo2": "Confirmado pelo responsável, não de corredor",
+        "rel_campo3": "Se a resposta fica fraca, sugere o que reperguntar",
+        "bit_h": "O pipeline em termos técnicos e em linguagem simples",
+        "bit_sub": "12 etapas · o mesmo conteúdo na tela e no documento",
+        "bit_tag_tec": "EM TERMOS TÉCNICOS",
+        "bit_tecnico": "Cada dado manual é salvo como linha nova na tabela de "
+                       "versões; o estado vigente é o mais recente por empresa.",
+        "bit_tag_criollo": "EM LINGUAGEM SIMPLES",
+        "bit_criollo": "Corrigir um dado não apaga o anterior: sempre dá para "
+                       "mostrar o que dizia antes e quem mudou.",
+        "bit_formatos": "HTML · WORD · PDF",
+        "bit_footer": "Baixa completo para enviar a quem aprova a compra",
+        "ins_h": "Dois modos de instalação, bem separados",
+        "ins_sub": "Abrir o painel para a rede é sempre uma decisão explícita",
+        "ins_modo1": "INSTALAÇÃO NORMAL",
+        "ins_modo1_host": "127.0.0.1",
+        "ins_modo1_d": "O painel escuta só naquele PC. É o padrão: não há nada "
+                       "para escolher.",
+        "ins_modo2": "SERVIDOR / VM DO CLIENTE",
+        "ins_modo2_host": "0.0.0.0",
+        "ins_modo2_d": "Roda na VM do cliente e o dado nunca sai de lá. "
+                       "Escolhe-se de propósito.",
+        "ins_footer": "Qualquer valor que não seja exatamente «servidor» cai em local",
         "trial_h": "Teste completo de 7 dias",
         "trial_sub": "Você baixa o programa completo — tudo desbloqueado, sem cortes",
         "trial_line1": "No dia 8, bloqueia — mas seus dados NÃO são apagados.",
@@ -563,6 +671,117 @@ def scene_pmbok(p: float, lang: str) -> Image.Image:
     return img
 
 
+def scene_reuniones(p: float, lang: str) -> Image.Image:
+    """La minuta con cita textual y minuto.
+
+    Las tres líneas de ejemplo son inventadas A PROPÓSITO y con nombres que no
+    existen: es una demo de formato, no una reunión real de un cliente. Lo que
+    la escena promete de verdad —que cada punto es una cita con su marca de
+    tiempo, no un resumen parafraseado— es lo que hace `mvpm/reuniones.py`."""
+    t = TEXTS[lang]
+    img = base_frame()
+    d = ImageDraw.Draw(img)
+    center_text_fit(d, 40, t["reu_h"], 32, 1080, INK)
+    center_text_fit(d, 86, t["reu_sub"], 17, 1080, MUTED, bold=False, min_size=13)
+    y = 155
+    for i, (quien, cita, col) in enumerate(t["reu_minuta"]):
+        if ease(p * 2.2 - i * 0.26) <= 0:
+            continue
+        d.rounded_rectangle([130, y, 1150, y + 104], radius=14, fill=(13, 30, 51),
+                            outline=col, width=2)
+        d.text((155, y + 16), quien, font=fit_font(d, quien, 970, 17, 13), fill=col)
+        cf, lines, lh = fit_paragraph(d, f"«{cita}»", 970, 48, 19, min_size=14, bold=False)
+        for li, line in enumerate(lines[:2]):
+            d.text((155, y + 46 + li * lh), line, font=cf, fill=INK)
+        y += 120
+    if p > 0.82:
+        center_text_fit(d, 520, t["reu_areas"], 18, 1080, FAINT, bold=False, min_size=13)
+    return img
+
+
+def scene_relevamiento(p: float, lang: str) -> Image.Image:
+    t = TEXTS[lang]
+    img = base_frame()
+    d = ImageDraw.Draw(img)
+    center_text_fit(d, 40, t["rel_h"], 32, 1080, INK)
+    center_text_fit(d, 86, t["rel_sub"], 17, 1080, MUTED, bold=False, min_size=13)
+    # Las 9 áreas en tres filas: es el agrupamiento real de mvpm/relevamiento_preguntas.py
+    af = font(17, True)
+    # Cada píldora se centra en su columna: dibujarlas todas desde un x fijo
+    # deja la grilla corrida a la izquierda respecto del título centrado, que
+    # es lo que pasaba antes de medir el texto.
+    centros = (320, 640, 960)
+    for i, area in enumerate(t["rel_areas"]):
+        if ease(p * 2.6 - i * 0.1) <= 0:
+            continue
+        col, row = i % 3, i // 3
+        x = centros[col] - d.textlength(area, font=af) / 2 - 1
+        _pill(d, x, 160 + row * 52, area, BLUE if row == 0 else (AMBER if row == 1 else GREEN), af)
+    for i, clave in enumerate(("rel_campo1", "rel_campo2", "rel_campo3")):
+        if ease(p * 2.0 - 0.5 - i * 0.16) <= 0:
+            continue
+        yy = 350 + i * 62
+        d.rounded_rectangle([130, yy, 1150, yy + 50], radius=12, fill=(13, 30, 51),
+                            outline=(29, 49, 73), width=1)
+        tf = fit_font(d, t[clave], 970, 19, 14, bold=False)
+        d.text((155, yy + 14), t[clave], font=tf, fill=INK)
+    return img
+
+
+def scene_bitacora(p: float, lang: str) -> Image.Image:
+    t = TEXTS[lang]
+    img = base_frame()
+    d = ImageDraw.Draw(img)
+    center_text_fit(d, 40, t["bit_h"], 32, 1080, INK)
+    center_text_fit(d, 86, t["bit_sub"], 17, 1080, MUTED, bold=False, min_size=13)
+    if p > 0.18:
+        d.rounded_rectangle([130, 150, 630, 375], radius=14, fill=(13, 30, 51),
+                            outline=BLUE, width=2)
+        d.text((155, 170), t["bit_tag_tec"],
+               font=fit_font(d, t["bit_tag_tec"], 450, 18, 14), fill=BLUE)
+        tf, lines, lh = fit_paragraph(d, t["bit_tecnico"], 450, 150, 18, min_size=14, bold=False)
+        for li, line in enumerate(lines):
+            d.text((155, 210 + li * lh), line, font=tf, fill=INK)
+    if p > 0.42:
+        d.rounded_rectangle([650, 150, 1150, 375], radius=14, fill=(13, 30, 51),
+                            outline=AMBER, width=2)
+        d.text((675, 170), t["bit_tag_criollo"],
+               font=fit_font(d, t["bit_tag_criollo"], 450, 18, 14), fill=AMBER)
+        cf, lines, lh = fit_paragraph(d, t["bit_criollo"], 450, 150, 18, min_size=14, bold=False)
+        for li, line in enumerate(lines):
+            d.text((675, 210 + li * lh), line, font=cf, fill=INK)
+    if p > 0.68:
+        badge(d, W // 2, 415, t["bit_formatos"], fit_font(d, t["bit_formatos"], 1080, 20, 14))
+    if p > 0.82:
+        center_text_fit(d, 475, t["bit_footer"], 17, 1080, FAINT, bold=False, min_size=12)
+    return img
+
+
+def scene_instalacion(p: float, lang: str) -> Image.Image:
+    t = TEXTS[lang]
+    img = base_frame()
+    d = ImageDraw.Draw(img)
+    center_text_fit(d, 40, t["ins_h"], 32, 1080, INK)
+    center_text_fit(d, 86, t["ins_sub"], 17, 1080, MUTED, bold=False, min_size=13)
+    # Verde el modo cerrado, ámbar el expuesto: el color dice cuál es el default
+    # seguro sin que haya que leer el texto.
+    lados = ((130, "ins_modo1", "ins_modo1_host", "ins_modo1_d", GREEN, 0.18),
+             (650, "ins_modo2", "ins_modo2_host", "ins_modo2_d", AMBER, 0.44))
+    for x, k_tag, k_host, k_desc, col, umbral in lados:
+        if p <= umbral:
+            continue
+        d.rounded_rectangle([x, 150, x + 500, 385], radius=14, fill=(13, 30, 51),
+                            outline=col, width=2)
+        d.text((x + 25, 170), t[k_tag], font=fit_font(d, t[k_tag], 450, 18, 13), fill=col)
+        d.text((x + 25, 208), t[k_host], font=font(34, True), fill=INK)
+        df, lines, lh = fit_paragraph(d, t[k_desc], 450, 112, 18, min_size=14, bold=False)
+        for li, line in enumerate(lines):
+            d.text((x + 25, 258 + li * lh), line, font=df, fill=MUTED)
+    if p > 0.74:
+        center_text_fit(d, 425, t["ins_footer"], 18, 1080, FAINT, bold=False, min_size=13)
+    return img
+
+
 def scene_trial(p: float, lang: str) -> Image.Image:
     t = TEXTS[lang]
     img = base_frame()
@@ -612,6 +831,10 @@ SCENES = [
     (scene_governance, 9.0),
     (scene_organigrama, 8.5),
     (scene_pmbok, 8.5),
+    (scene_reuniones, 9.0),
+    (scene_relevamiento, 8.5),
+    (scene_bitacora, 9.0),
+    (scene_instalacion, 9.0),
     (scene_trial, 9.0),
     (scene_outro, 5.0),
 ]
@@ -643,6 +866,18 @@ NARRATIONS = {
         "Y para demostrar conocimiento, cada área del PMBOK viene con su definición "
         "técnica y su explicación en criollo. Cualquier etapa que no sea "
         "automatizable, la anotás a mano y queda guardada por empresa.",
+        "Importás la transcripción que ya generan Zoom, Teams, Meet o WebEx, y la "
+        "minuta sale sola: quién dijo qué, con la cita textual y el minuto. Nunca "
+        "parafraseada.",
+        "Para relevar el pipeline del cliente, treinta y una preguntas en nueve "
+        "áreas. Anotás quién respondió y su cargo, y si la respuesta queda floja, "
+        "el motor sugiere qué repreguntar.",
+        "Todo lo que hace el producto queda documentado etapa por etapa, contado "
+        "dos veces: en técnico y en criollo. Se baja en HTML, Word o PDF, para "
+        "mandárselo a quien aprueba la compra.",
+        "Y se instala de dos formas: la normal, donde el tablero escucha sólo en "
+        "esa computadora, o el modo servidor, en la máquina virtual del cliente, "
+        "donde el dato se queda. Abrirlo a la red es siempre explícito.",
         "Lo descargás completo y funciona cien por ciento durante siete días, con "
         "todo desbloqueado. Al vencer se bloquea, pero tus datos no se borran: "
         "cargás tu licencia Professional y seguís exactamente donde estabas.",
@@ -671,6 +906,18 @@ NARRATIONS = {
         "And to show real methodology knowledge, every PMBOK area comes with "
         "its technical definition and a plain-language explanation. Any stage "
         "that can't be automated, you note by hand, and it's saved per company.",
+        "You import the transcript Zoom, Teams, Meet or WebEx already generates, "
+        "and the minutes build themselves: who said what, with the verbatim quote "
+        "and the timestamp. Never paraphrased.",
+        "To map the client's pipeline, thirty-one questions across nine areas. You "
+        "record who answered and their role, and if the answer comes back thin, "
+        "the engine suggests what to follow up on.",
+        "Everything the product does is documented stage by stage, told twice: in "
+        "technical terms and in plain words. It downloads as HTML, Word or PDF, to "
+        "send to whoever signs off on the purchase.",
+        "And it installs two ways: normal, where the dashboard listens on that "
+        "computer only, or server mode, on the client's virtual machine, where the "
+        "data stays. Opening it to the network is always deliberate.",
         "You download it in full, and it runs one hundred percent for seven "
         "days, everything unlocked. When it expires, it locks — but your data "
         "is never deleted: load your Professional license and you're right "
@@ -702,6 +949,18 @@ NARRATIONS = {
         "definição técnica e sua explicação em linguagem simples. Qualquer "
         "etapa que não seja automatizável, você anota à mão e fica salva por "
         "empresa.",
+        "Você importa a transcrição que Zoom, Teams, Meet ou WebEx já geram, e a "
+        "ata sai sozinha: quem disse o quê, com a citação textual e o minuto. "
+        "Nunca parafraseada.",
+        "Para levantar o pipeline do cliente, trinta e uma perguntas em nove "
+        "áreas. Você anota quem respondeu e seu cargo, e se a resposta fica fraca, "
+        "o motor sugere o que reperguntar.",
+        "Tudo o que o produto faz fica documentado etapa por etapa, contado duas "
+        "vezes: em termos técnicos e em linguagem simples. Baixa em HTML, Word ou "
+        "PDF, para enviar a quem aprova a compra.",
+        "E instala-se de duas formas: a normal, onde o painel escuta só naquele "
+        "computador, ou o modo servidor, na máquina virtual do cliente, onde o "
+        "dado fica. Abrir para a rede é sempre explícito.",
         "Você baixa completo e funciona cem por cento durante sete dias, com "
         "tudo desbloqueado. Ao vencer, bloqueia — mas seus dados não são "
         "apagados: você carrega sua licença Professional e continua exatamente "
