@@ -41,6 +41,8 @@ from mvpm import (
     help_center,
     i18n,
     importer,
+    relevamiento,
+    reuniones,
     invitado,
     licensing,
     modelos,
@@ -344,7 +346,7 @@ else:
         T("nav_governance"), T("nav_organigrama"), T("nav_pmbok"), T("nav_plantillas"),
         T("nav_reviews"), T("nav_glossary"), T("nav_policies"),
         T("nav_import"), T("nav_conectores"), T("nav_data_eng"), T("nav_capacitacion"),
-        T("nav_bitacora"), T("nav_config_ia"),
+        T("nav_bitacora"), T("nav_reuniones"), T("nav_relevamiento"), T("nav_config_ia"),
     ]
     if user["rol"] == "admin":
         nav_options.append(T("nav_users"))
@@ -1424,6 +1426,128 @@ elif section == T("nav_bitacora"):
             for _campo in ("tecnico", "criollo", "porque", "repercusion"):
                 st.markdown(f"**{T('bit_' + _campo)}**")
                 st.write(_e[_campo])
+elif section == T("nav_reuniones"):
+    st.subheader(T("nav_reuniones"))
+    st.caption(T("reu_bajada"))
+    st.info(T("reu_por_que_no_graba"), icon=":material/info:")
+
+    _archivo = st.file_uploader(T("reu_subir"), type=["vtt", "srt", "txt"])
+    with st.expander(T("reu_grabar")):
+        # Se guarda y se reproduce, y se dice que NO se transcribe sola. El
+        # producto no tiene motor de voz: simular que sí sería exactamente la
+        # clase de promesa que después no se puede cumplir en una reunión real.
+        _audio = st.audio_input(T("reu_grabar"))
+        if _audio:
+            st.audio(_audio)
+            st.caption(T("reu_grabado_nota"))
+
+    if _archivo is not None:
+        _texto = _archivo.getvalue().decode("utf-8", errors="replace")
+        _ints = reuniones.parsear(_texto)
+        _reunion = reuniones.Reunion(
+            titulo=_archivo.name, cliente=(empresa_sel if not INVITADO else ""),
+            fecha=str(date.today()), intervenciones=_ints,
+            origen=reuniones.detectar_formato(_texto))
+        _res = reuniones.resumen(_reunion)
+
+        c1, c2, c3 = st.columns(3)
+        c1.metric(T("reu_participantes"), _res["participantes"])
+        c2.metric(T("reu_minuta").split("—")[0].strip(), _res["puntos"])
+        c3.metric("Total", _res["intervenciones"])
+
+        st.markdown(f"**{T('reu_participantes')}**")
+        st.dataframe(pd.DataFrame(reuniones.participantes(_ints)),
+                     use_container_width=True)
+
+        st.markdown(f"**{T('reu_minuta')}**")
+        _puntos = reuniones.minuta(_ints)
+        if not _puntos:
+            st.info(T("reu_sin_puntos"))
+        for _tipo in reuniones.TIPOS:
+            _del_tipo = reuniones.por_tipo(_puntos, _tipo)
+            if not _del_tipo:
+                continue
+            st.markdown(f"*{_tipo.replace('_', ' ')}* ({len(_del_tipo)})")
+            for _pt in _del_tipo:
+                st.markdown(f"> «{_pt['cita']}»  \n"
+                            f"— **{_pt['orador']}** · {_pt['marca'] or '—'}")
+
+        st.divider()
+        st.markdown(f"**{T('reu_areas')}**")
+        st.caption(T("reu_areas_nota"))
+        _tocadas = [a for a in relevamiento.areas_tocadas(_ints, LANG)
+                    if a["menciones"]]
+        st.dataframe(
+            pd.DataFrame([{"área": a["nombre"], "señales": ", ".join(a["señales"])}
+                          for a in _tocadas]) if _tocadas else pd.DataFrame(),
+            use_container_width=True)
+
+elif section == T("nav_relevamiento"):
+    st.subheader(T("nav_relevamiento"))
+    st.caption(T("rel_bajada"))
+    if INVITADO or EMPRESA_ID is None:
+        st.warning(T("empty_guest_caption"))
+        st.stop()
+
+    st.markdown(f"**{T('rel_avance')}**")
+    st.dataframe(pd.DataFrame(relevamiento.avance(EMPRESA_ID, LANG)),
+                 use_container_width=True)
+    st.divider()
+
+    for _area in relevamiento.areas(LANG):
+        with st.expander(_area["nombre"]):
+            st.caption(_area["por_que"])
+            for _pg in relevamiento.preguntas(_area["clave"], LANG):
+                st.markdown(f"**{_pg['pregunta']}**")
+                st.caption(f"{T('rel_por_que')}: {_pg['por_que']}")
+                _actual = relevamiento.respuesta_de(EMPRESA_ID, _pg["clave"]) or {}
+                with st.form(f"rel_{_pg['clave']}"):
+                    _c1, _c2 = st.columns(2)
+                    _resp_nom = _c1.text_input(
+                        T("rel_responsable"), value=_actual.get("responsable", ""),
+                        key=f"n_{_pg['clave']}")
+                    _resp_area = _c2.text_input(
+                        T("rel_area_resp"), value=_actual.get("area_responsable", ""),
+                        key=f"a_{_pg['clave']}")
+                    _texto_resp = st.text_area(
+                        T("rel_respuesta"), value=_actual.get("respuesta", ""),
+                        key=f"r_{_pg['clave']}")
+                    _validado = st.checkbox(
+                        T("rel_validado"),
+                        value=_actual.get("estado") == "validado",
+                        key=f"v_{_pg['clave']}")
+                    if st.form_submit_button(T("rel_guardar")) and _texto_resp.strip():
+                        relevamiento.guardar_respuesta(
+                            EMPRESA_ID, _pg["clave"], _texto_resp, _resp_nom,
+                            _resp_area, "validado" if _validado else "borrador")
+                        st.success(T("rel_guardado"))
+                        st.rerun()
+
+                # El casillero de repregunta: reglas siempre, IA si hay clave.
+                _sug = relevamiento.repreguntas_sugeridas(
+                    _pg["clave"], _actual.get("respuesta", ""), LANG)
+                if _sug:
+                    st.markdown(f"*{T('rel_repreguntar')}*")
+                    for _s in _sug:
+                        st.markdown(f"- {_s}")
+                if _actual.get("respuesta"):
+                    # El proveedor se resuelve acá, como en las demás secciones:
+                    # si no hay ninguna clave configurada la lista viene vacía y
+                    # el relevamiento sigue funcionando con las reglas de arriba.
+                    _provs = advisor.proveedores_disponibles()
+                    if _provs:
+                        if st.button(T("rel_repregunta_ia"), key=f"ia_{_pg['clave']}"):
+                            _sys, _usr = relevamiento.prompt_de_repregunta(
+                                _pg["clave"], _actual["respuesta"], LANG)
+                            _r = ai.completar(_sys, _usr, _provs[0], max_tokens=120)
+                            st.info(_r or T("rel_sin_ia"))
+                    else:
+                        st.caption(T("rel_sin_ia"))
+                    with st.expander(T("rel_historial")):
+                        st.dataframe(
+                            relevamiento.historial(EMPRESA_ID, _pg["clave"]),
+                            use_container_width=True)
+                st.divider()
 
 elif section == T("nav_data_eng"):
     st.subheader(T("nav_data_eng"))
