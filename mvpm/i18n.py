@@ -28,6 +28,114 @@ _STRINGS = {
     "nav_data_eng": {"es": "Ingeniería de datos", "en": "Data engineering", "pt": "Engenharia de dados"},
     "nav_capacitacion": {"es": "Capacitación por rol", "en": "Training by role", "pt": "Treinamento por função"},
     "nav_config_ia": {"es": "Configuración de IA", "en": "AI settings", "pt": "Configuração de IA"},
+    "nav_reuniones": {"es": "Reuniones y minutas", "en": "Meetings and minutes",
+                      "pt": "Reuniões e atas"},
+    "nav_relevamiento": {"es": "Relevamiento del cliente",
+                         "en": "Client discovery", "pt": "Levantamento do cliente"},
+    "reu_bajada": {
+        "es": "Importá la transcripción que ya genera Zoom, Teams, Meet o WebEx y el "
+              "motor arma la minuta: quién dijo qué, con la cita textual y el minuto. "
+              "Para reuniones presenciales, grabá con el micrófono y anotá a mano.",
+        "en": "Import the transcript Zoom, Teams, Meet or WebEx already generates and "
+              "the engine builds the minutes: who said what, with the verbatim quote "
+              "and the timestamp. For in-person meetings, record with the mic and take "
+              "notes by hand.",
+        "pt": "Importe a transcrição que Zoom, Teams, Meet ou WebEx já gera e o motor "
+              "monta a ata: quem disse o quê, com a citação textual e o minuto. Para "
+              "reuniões presenciais, grave com o microfone e anote à mão."},
+    "reu_por_que_no_graba": {
+        "es": "Un navegador no puede capturar el audio interno de una videollamada: el "
+              "micrófono graba lo que entra por el micrófono. Por eso se importa la "
+              "transcripción de la plataforma, que además ya trae el nombre de cada "
+              "orador — más confiable que un modelo adivinando voces.",
+        "en": "A browser cannot capture a video call's internal audio: the microphone "
+              "records what reaches the microphone. That is why the platform's "
+              "transcript is imported instead — and it already carries each speaker's "
+              "name, which beats a model guessing voices.",
+        "pt": "Um navegador não pode capturar o áudio interno de uma videochamada: o "
+              "microfone grava o que entra pelo microfone. Por isso se importa a "
+              "transcrição da plataforma, que já traz o nome de cada orador — mais "
+              "confiável que um modelo adivinhando vozes."},
+    "reu_subir": {"es": "Transcripción (.vtt, .srt o .txt)",
+                  "en": "Transcript (.vtt, .srt or .txt)",
+                  "pt": "Transcrição (.vtt, .srt ou .txt)"},
+    "reu_grabar": {"es": "O grabá la reunión presencial",
+                   "en": "Or record the in-person meeting",
+                   "pt": "Ou grave a reunião presencial"},
+    "reu_grabado_nota": {
+        "es": "Grabación guardada en esta sesión. No se transcribe sola: no hay motor "
+              "de voz en el producto. Escuchala y cargá los puntos a mano.",
+        "en": "Recording kept in this session. It is not transcribed automatically: "
+              "there is no speech engine in the product. Listen and enter the points "
+              "by hand.",
+        "pt": "Gravação guardada nesta sessão. Não é transcrita sozinha: não há motor "
+              "de voz no produto. Ouça e carregue os pontos à mão."},
+    "reu_participantes": {"es": "Quién habló", "en": "Who spoke", "pt": "Quem falou"},
+    "reu_minuta": {"es": "Minuta — cada punto es una cita textual",
+                   "en": "Minutes — every point is a verbatim quote",
+                   "pt": "Ata — cada ponto é uma citação textual"},
+    "reu_sin_puntos": {
+        "es": "No se detectaron decisiones, compromisos, riesgos ni pendientes en esta "
+              "transcripción. El motor busca giros concretos; si la reunión fue de "
+              "exploración, es esperable.",
+        "en": "No decisions, commitments, risks or open items were detected in this "
+              "transcript. The engine looks for concrete phrasing; if the meeting was "
+              "exploratory, that is expected.",
+        "pt": "Não foram detectadas decisões, compromissos, riscos nem pendências "
+              "nesta transcrição. O motor busca expressões concretas; se a reunião foi "
+              "exploratória, é esperado."},
+    "reu_areas": {"es": "Áreas del pipeline que tocó esta reunión",
+                  "en": "Pipeline areas this meeting touched",
+                  "pt": "Áreas do pipeline que esta reunião tocou"},
+    "reu_areas_nota": {
+        "es": "Detectado por palabras clave: dice dónde mirar, no da el área por "
+              "relevada.",
+        "en": "Detected by keywords: it tells you where to look, it does not mark the "
+              "area as covered.",
+        "pt": "Detectado por palavras-chave: diz onde olhar, não dá a área por "
+              "levantada."},
+    "rel_bajada": {
+        "es": "Las preguntas del relevamiento agrupadas por área del pipeline del "
+              "cliente. Cada una dice qué está buscando. Anotá quién respondió y qué "
+              "dijo; si la respuesta queda floja, el motor sugiere qué repreguntar.",
+        "en": "Discovery questions grouped by area of the client's pipeline. Each one "
+              "says what it is looking for. Record who answered and what they said; if "
+              "the answer is thin, the engine suggests what to follow up on.",
+        "pt": "As perguntas do levantamento agrupadas por área do pipeline do cliente. "
+              "Cada uma diz o que está buscando. Anote quem respondeu e o que disse; se "
+              "a resposta ficar fraca, o motor sugere o que reperguntar."},
+    "rel_avance": {"es": "Avance por área", "en": "Progress by area",
+                   "pt": "Avanço por área"},
+    "rel_por_que": {"es": "Qué busca esta pregunta", "en": "What this question is after",
+                    "pt": "O que esta pergunta busca"},
+    "rel_responsable": {"es": "Quién respondió", "en": "Who answered",
+                        "pt": "Quem respondeu"},
+    "rel_area_resp": {"es": "Su área o cargo", "en": "Their area or role",
+                      "pt": "Sua área ou cargo"},
+    "rel_respuesta": {"es": "Qué respondió", "en": "What they answered",
+                      "pt": "O que respondeu"},
+    "rel_validado": {"es": "Confirmado por el responsable (no es de pasillo)",
+                     "en": "Confirmed by the owner (not a hallway answer)",
+                     "pt": "Confirmado pelo responsável (não é de corredor)"},
+    "rel_guardar": {"es": "Guardar respuesta", "en": "Save answer",
+                    "pt": "Salvar resposta"},
+    "rel_guardado": {"es": "Guardado. La respuesta anterior queda en el historial.",
+                     "en": "Saved. The previous answer stays in the history.",
+                     "pt": "Salvo. A resposta anterior fica no histórico."},
+    "rel_repreguntar": {"es": "Qué conviene repreguntar",
+                        "en": "What to follow up on", "pt": "O que reperguntar"},
+    "rel_repregunta_ia": {"es": "Pedirle una repregunta a la IA",
+                          "en": "Ask the AI for a follow-up",
+                          "pt": "Pedir uma repergunta à IA"},
+    "rel_sin_ia": {
+        "es": "No hay proveedor de IA configurado. Las sugerencias por reglas de arriba "
+              "funcionan igual — la IA acá sólo redacta.",
+        "en": "No AI provider configured. The rule-based suggestions above work anyway "
+              "— the AI here only does the wording.",
+        "pt": "Nenhum provedor de IA configurado. As sugestões por regras acima "
+              "funcionam do mesmo jeito — a IA aqui só redige."},
+    "rel_historial": {"es": "Historial de esta respuesta",
+                      "en": "History of this answer", "pt": "Histórico desta resposta"},
     "cfg_titulo": {"es": "Configuración de IA",
                    "en": "AI settings",
                    "pt": "Configuração de IA"},
