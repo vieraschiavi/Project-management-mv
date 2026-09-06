@@ -401,6 +401,59 @@ SECTIONS = [
         ],
     },
     {
+        "id": "nav_reuniones",
+        "titulo": "Reuniones y minutas",
+        "resumen": "Importar la transcripción de una videollamada y obtener la minuta de "
+                   "quién dijo qué, con cita textual y minuto, para saber qué áreas del "
+                   "relevamiento quedaron cubiertas.",
+        "pasos": [
+            "Zoom, Teams, Meet y WebEx generan su propia transcripción CON el nombre de "
+            "cada orador. Bajala de la plataforma y subila acá (.vtt, .srt o .txt).",
+            "El motor arma la minuta sola: separa decisiones, compromisos, riesgos y "
+            "pendientes, y cada punto queda con la frase textual, quién la dijo y el "
+            "minuto — se puede ir al audio y verificarla.",
+            "Abajo aparece qué áreas del pipeline tocó la reunión, para armar la agenda "
+            "de la próxima con lo que quedó sin hablar.",
+            "Para una reunión presencial no hay plataforma que transcriba: se graba con "
+            "el micrófono y los puntos se cargan a mano.",
+        ],
+        "tips": [
+            "Un navegador NO puede capturar el audio interno de Zoom o Teams — el "
+            "micrófono graba lo que le llega al micrófono. Por eso se importa la "
+            "transcripción, que además ya sabe quién habló.",
+            "La minuta nunca parafrasea: cada punto es una cita textual. Un resumen que "
+            "reescribe mal una decisión de directorio es peor que no tener minuta.",
+        ],
+    },
+    {
+        "id": "nav_relevamiento",
+        "titulo": "Relevamiento del cliente",
+        "resumen": "El banco de preguntas para entender el pipeline de datos del cliente, "
+                   "agrupado por área, con quién respondió cada una y qué conviene "
+                   "repreguntar cuando la respuesta queda floja.",
+        "pasos": [
+            "Las preguntas están agrupadas por área del pipeline del CLIENTE: fuentes, "
+            "ingesta, calidad, modelado, orquestación, gobernanza, seguridad, consumo y "
+            "operación.",
+            "Cada pregunta dice qué está buscando. Eso es lo que separa un relevamiento "
+            "de un cuestionario: sin el por qué, se hace de memoria y no se escucha la "
+            "respuesta.",
+            "Anotá quién respondió y su área. Marcá 'confirmado por el responsable' sólo "
+            "cuando lo validó el dueño del dato: una respuesta de pasillo y una "
+            "confirmada no valen lo mismo en un informe.",
+            "Si la respuesta queda vaga, el motor sugiere qué repreguntar. Con un "
+            "proveedor de IA configurado se le puede pedir además una repregunta "
+            "redactada sobre esa respuesta concreta.",
+        ],
+        "tips": [
+            "Las respuestas se guardan versionadas por empresa: corregir una no borra la "
+            "anterior. En un relevamiento eso importa — qué contestaron primero suele ser "
+            "la mitad del hallazgo.",
+            "El avance por área es lo que se muestra en una reunión de seguimiento: dice "
+            "cuánto falta sin tener que abrir pregunta por pregunta.",
+        ],
+    },
+    {
         "id": "nav_config_ia",
         "titulo": "Configuración de IA",
         "resumen": "Elegir qué modelo usa cada proveedor de IA que tengas configurado, para "
