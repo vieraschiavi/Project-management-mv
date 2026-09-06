@@ -80,6 +80,11 @@ rem encuentra ninguno cae solo a la pestana comun. Va en segundo plano porque
 rem espera a que Streamlit escuche, y Streamlit arranca en la linea siguiente.
 start "" /b ".venv\Scripts\python.exe" -m mvpm.ventana "http://localhost:%MVPM_PUERTO%"
 
-".venv\Scripts\python.exe" -m streamlit run app\app.py --server.headless true --server.port %MVPM_PUERTO%
+REM --server.address 127.0.0.1: esta version portable es la INSTALACION
+REM NORMAL, una persona y esta PC. Sin esa opcion Streamlit escucha en
+REM todas las interfaces y el tablero quedaba publicado en la red de la
+REM oficina con el login de la app como unica puerta. Para el modo
+REM servidor/VM esta "run.sh servidor", que es una decision explicita.
+".venv\Scripts\python.exe" -m streamlit run app\app.py --server.headless true --server.port %MVPM_PUERTO% --server.address 127.0.0.1
 
 pause

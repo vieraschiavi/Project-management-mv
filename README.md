@@ -306,13 +306,60 @@ de GitHub — el motor Python/Streamlit es exactamente el mismo en los dos:
 
 Más detalle en [`distribucion/README.md`](distribucion/README.md).
 
+## Las dos formas de instalar
+
+Son dos, y la diferencia importa cuando la PC donde se instala no pertenece a
+quien es dueño del dato — el caso típico de una consultora trabajando para un
+cliente.
+
+| | **Instalación normal** | **Servidor / VM del cliente** |
+|---|---|---|
+| Comando | `./run.sh app` (o el `.exe`, o el `.bat`) | `./run.sh servidor` |
+| Escucha en | `127.0.0.1` — **sólo esa PC** | `0.0.0.0` — la red alcanza la máquina |
+| Quién entra | quien esté sentado ahí | quien tenga cuenta **y** llegue por red |
+| Dónde vive el dato | en esa PC | en la VM del cliente, y **sólo** ahí |
+| Hace falta | nada, es el default | elegirlo a propósito |
+
+**Cuándo usar cada una.** La normal es una persona y su máquina: el `.exe`, el
+`.bat` portable y `./run.sh app` instalan así, y nadie más de la red llega al
+tablero ni sabiendo la contraseña.
+
+El modo servidor es para cuando el área de seguridad del cliente no acepta que
+su dato viva en la laptop de un proveedor. El programa corre en una VM del
+cliente, el equipo entra por el navegador, y **la laptop de la consultora
+nunca guarda una fila**: entra y ve, no copia. Es el argumento concreto ante
+un área de seguridad, y se puede demostrar mirando dónde está el archivo.
+
+```bash
+# En la VM del cliente:
+MVPM_MODO_INSTALACION=servidor ./run.sh servidor
+
+# Y si además Power BI va a leer desde otra máquina, la API pide clave:
+export MVPM_API_HOST=0.0.0.0
+export MVPM_API_KEY=<una clave larga>
+./run.sh api
+```
+
+`./run.sh servidor` imprime en qué modo quedó y qué implica **antes** de
+abrir el puerto. `./run.sh doctor` lo dice en cualquier momento.
+
+> **Lo que cambia al exponerlo:** en modo servidor el login de la app pasa a
+> ser la única puerta. Revisá que no queden cuentas de prueba ni contraseñas
+> de la demo antes de abrirlo.
+
+Abrir a la red es siempre una decisión explícita: cualquier valor de
+`MVPM_MODO_INSTALACION` que no sea exactamente `servidor` cae en la instalación
+normal, así que un error de tipeo no puede publicar el tablero del cliente.
+
 ## Cómo correrlo
 
 ```bash
 ./run.sh install   # crea .venv e instala dependencias
-./run.sh app        # dashboard en http://localhost:8501
-./run.sh api         # API REST en http://localhost:8600
-./run.sh test         # corre la suite de tests del motor (Python/pytest)
+./run.sh app        # dashboard SÓLO en esta PC (instalación normal)
+./run.sh servidor    # dashboard accesible en la red (VM del cliente)
+./run.sh api          # API REST en http://localhost:8600
+./run.sh doctor        # en qué modo está, y qué falta configurar
+./run.sh test           # corre la suite de tests del motor (Python/pytest)
 ```
 
 `./run.sh test` corre solo la suite de Python. La ruta del dinero (emitir
