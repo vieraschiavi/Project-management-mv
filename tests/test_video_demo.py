@@ -27,8 +27,6 @@ Lo que se fija acá:
     olvido natural al sumar una escena.
 """
 
-import re
-import subprocess
 from pathlib import Path
 
 import pytest
@@ -163,6 +161,86 @@ def test_el_relevamiento_muestra_sus_nueve_areas():
 VIDEOS = ("demo.mp4", "demo_en.mp4", "demo_pt.mp4")
 
 
+# --------------------------------------------------- leer el .mp4 sin ffmpeg
+#
+# Estos dos tests son los únicos que miran el ARCHIVO publicado, así que tienen
+# que correr donde importa: en CI. La primera versión llamaba a ffmpeg vía
+# `imageio_ffmpeg`, que está en mi entorno de desarrollo pero NO en
+# `requirements.txt` — la suite local pasaba y CI se caía con
+# ModuleNotFoundError. Saltear el test cuando falta el módulo lo habría puesto
+# verde dejándolo sin correr nunca en CI, que es exactamente donde tiene que
+# proteger.
+#
+# Un .mp4 es un árbol de cajas [tamaño uint32][tipo 4 bytes][contenido]. Las
+# dos cosas que hace falta saber están ahí y se leen con la biblioteca
+# estándar, igual que el .docx y el PDF de la bitácora:
+#   · la duración, en la caja `mvhd` (duración / escala de tiempo);
+#   · si hay audio, en alguna caja `hdlr` con manejador `soun`.
+
+def _cajas(datos: bytes, ini: int = 0, fin: int | None = None):
+    """Itera (tipo, inicio_contenido, fin_contenido) de las cajas de un nivel."""
+    fin = len(datos) if fin is None else fin
+    pos = ini
+    while pos + 8 <= fin:
+        tam = int.from_bytes(datos[pos:pos + 4], "big")
+        tipo = datos[pos + 4:pos + 8]
+        cuerpo = pos + 8
+        if tam == 1:  # tamaño de 64 bits, guardado justo después del tipo
+            tam = int.from_bytes(datos[pos + 8:pos + 16], "big")
+            cuerpo = pos + 16
+        elif tam == 0:  # "hasta el final del archivo"
+            tam = fin - pos
+        if tam < 8:
+            return
+        yield tipo, cuerpo, min(pos + tam, fin)
+        pos += tam
+
+
+def _buscar(datos: bytes, tipo: bytes, ini: int = 0, fin: int | None = None):
+    """Busca una caja por tipo, recursivamente. Devuelve (inicio, fin) o None."""
+    for t, cuerpo, tope in _cajas(datos, ini, fin):
+        if t == tipo:
+            return cuerpo, tope
+        # Sólo bajar por los contenedores: una caja de datos puede contener
+        # cualquier byte y parecer una caja anidada.
+        if t in (b"moov", b"trak", b"mdia", b"minf", b"stbl", b"udta"):
+            hallado = _buscar(datos, tipo, cuerpo, tope)
+            if hallado:
+                return hallado
+    return None
+
+
+def _duracion_mp4(ruta: Path) -> float:
+    datos = ruta.read_bytes()
+    caja = _buscar(datos, b"mvhd")
+    assert caja, f"{ruta.name} no tiene caja mvhd: ¿es un .mp4 válido?"
+    ini, _ = caja
+    version = datos[ini]
+    # v0: creación y modificación de 32 bits; v1: de 64. Después van siempre
+    # la escala de tiempo y la duración.
+    desp = ini + 4 + (16 if version == 1 else 8)
+    escala = int.from_bytes(datos[desp:desp + 4], "big")
+    largo = 8 if version == 1 else 4
+    duracion = int.from_bytes(datos[desp + 4:desp + 4 + largo], "big")
+    assert escala, f"{ruta.name} declara escala de tiempo 0"
+    return duracion / escala
+
+
+def _tiene_pista_de_audio(ruta: Path) -> bool:
+    datos = ruta.read_bytes()
+    moov = _buscar(datos, b"moov")
+    if not moov:
+        return False
+    for tipo, cuerpo, tope in _cajas(datos, *moov):
+        if tipo != b"trak":
+            continue
+        hdlr = _buscar(datos, b"hdlr", cuerpo, tope)
+        # hdlr: versión+banderas (4) · predefinido (4) · tipo de manejador (4)
+        if hdlr and datos[hdlr[0] + 8:hdlr[0] + 12] == b"soun":
+            return True
+    return False
+
+
 @pytest.mark.skipif(not (LANDING / "video").exists(),
                     reason="landing/ no viaja en el paquete: es del repositorio")
 @pytest.mark.parametrize("nombre", VIDEOS)
@@ -176,14 +254,9 @@ def test_el_video_publicado_dura_lo_que_promete_la_landing(nombre):
     ningún test porque no había ninguno: se vio midiendo el archivo a mano.
     Este test lo mide sobre el archivo PUBLICADO, que es el que mira el
     visitante, no sobre el guion."""
-    from imageio_ffmpeg import get_ffmpeg_exe
     ruta = LANDING / "video" / nombre
     assert ruta.exists(), f"{nombre} no está publicado en landing/video/"
-    salida = subprocess.run([get_ffmpeg_exe(), "-i", str(ruta)],
-                            capture_output=True, text=True).stderr
-    m = re.search(r"Duration: (\d+):(\d+):(\d+\.\d+)", salida)
-    assert m, f"no se pudo leer la duración de {nombre}"
-    segundos = int(m.group(1)) * 3600 + int(m.group(2)) * 60 + float(m.group(3))
+    segundos = _duracion_mp4(ruta)
     assert segundos <= TECHO_SEGUNDOS, (
         f"{nombre} dura {segundos:.0f}s y la landing promete menos de "
         f"{TECHO_SEGUNDOS}s — corregí el copy en los 3 idiomas o acortá el video")
@@ -196,10 +269,8 @@ def test_el_video_publicado_tiene_voz(nombre):
     """Renderizar sin los modelos de voz configurados NO falla: sale un video
     mudo. Es el error más fácil de commitear sin notarlo, porque el archivo se
     ve perfecto — hasta que alguien le da play delante de un cliente."""
-    from imageio_ffmpeg import get_ffmpeg_exe
-    salida = subprocess.run([get_ffmpeg_exe(), "-i", str(LANDING / "video" / nombre)],
-                            capture_output=True, text=True).stderr
-    assert "Audio:" in salida, f"{nombre} salió sin pista de audio (¿render sin voz?)"
+    assert _tiene_pista_de_audio(LANDING / "video" / nombre), (
+        f"{nombre} salió sin pista de audio (¿render sin los modelos de voz?)")
 
 
 def test_los_dos_modos_de_instalacion_dicen_los_hosts_reales():
