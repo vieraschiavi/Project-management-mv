@@ -80,7 +80,12 @@ python3 iniciar.py
 La primera vez arma un entorno virtual **dentro de esta misma carpeta** e
 instala las dependencias ahí. No instala nada en el sistema, no pide
 administrador y no toca el registro de Windows: borrar la carpeta lo deshace
-todo.
+todo, sin dejar residuos en el perfil del usuario.
+
+Eso último es deliberado: la instalación usa `--no-cache-dir`, porque pip por
+defecto deja cientos de megas de wheels en el perfil, que es justo donde una
+máquina corporativa suele tener cuota de disco. Se paga con que una
+reinstalación vuelva a descargar.
 
 Antes de abrir el puerto imprime en qué modo está, en qué dirección escucha y
 en qué carpeta va a guardar. Eso último es el argumento entero, y se verifica
@@ -98,6 +103,13 @@ python3 iniciar.py --local              # sólo esa máquina, nadie más entra
 python3 iniciar.py --puerto 9000
 python3 iniciar.py --datos /srv/mvpm    # o la variable MVPM_DATA_DIR
 ```
+
+> **Si la VM del cliente es Windows**, el comando es `python iniciar.py` — sin
+> el `3`. En Windows `python3` normalmente no existe y, peor, en las versiones
+> recientes abre la Microsoft Store en vez de dar un error, así que parece que
+> el paquete no funciona cuando en realidad es el nombre del comando.
+> Todo lo demás es idéntico: mismo entorno virtual dentro de la carpeta, misma
+> carpeta `datos\`, mismos modos.
 
 ## Opción C — Tu laptop, sin instalar nada
 

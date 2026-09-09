@@ -97,9 +97,16 @@ def _preparar_entorno() -> Path:
             "faltar el paquete python3-venv.")
     if not _tiene_dependencias(python):
         print("Instalando dependencias en el entorno local...")
+        # `--no-cache-dir` no es una optimización: sin él pip deja cientos de
+        # megas de wheels en el perfil del usuario de la máquina del cliente,
+        # o sea FUERA de esta carpeta. Rompe la promesa de "borrar la carpeta
+        # lo deshace todo" y, en una máquina corporativa con cuota de disco en
+        # el perfil, puede directamente fallar. Se paga con que reinstalar
+        # vuelva a descargar, que pasa una vez.
         subprocess.run([str(python), "-m", "pip", "install", "--quiet",
-                        "--upgrade", "pip"], check=True)
+                        "--no-cache-dir", "--upgrade", "pip"], check=True)
         subprocess.run([str(python), "-m", "pip", "install", "--quiet",
+                        "--no-cache-dir",
                         "-r", str(AQUI / "requirements.txt")], check=True)
     return python
 

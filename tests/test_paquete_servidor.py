@@ -129,6 +129,22 @@ def test_la_telemetria_de_streamlit_esta_apagada(archivo: str):
         f"{archivo} arranca Streamlit sin apagar la telemetría")
 
 
+def test_la_instalacion_no_deja_cache_en_el_perfil_del_usuario():
+    """Sin `--no-cache-dir`, pip deja cientos de megas de wheels en el perfil
+    del usuario de la máquina del cliente — FUERA de la carpeta del paquete.
+
+    Rompe dos cosas a la vez: la promesa de que borrar la carpeta lo deshace
+    todo, y una máquina corporativa con cuota de disco en el perfil, donde la
+    instalación puede directamente fallar por falta de espacio.
+    """
+    texto = (SERVIDOR_DIR / "iniciar.py").read_text(encoding="utf-8")
+    instalaciones = texto.count('"install"')
+    assert instalaciones, "cambió la forma de invocar pip; revisar este test"
+    assert texto.count('"--no-cache-dir"') >= instalaciones, (
+        "hay un `pip install` sin --no-cache-dir: va a dejar la caché en el "
+        "perfil del usuario del cliente")
+
+
 def test_el_contenedor_no_corre_como_root():
     dockerfile = (SERVIDOR_DIR / "Dockerfile").read_text(encoding="utf-8")
     assert "USER mvpm" in dockerfile, "el contenedor correría como root"
