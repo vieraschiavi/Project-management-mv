@@ -1,0 +1,53 @@
+# © 2026 Martín Viera. Todos los derechos reservados.
+#
+# Levantar en el servidor del cliente:
+#     docker compose up -d --build
+#
+# Apagar sin perder el dato:      docker compose down
+# Apagar y BORRAR el dato:        docker compose down -v
+#
+# El equipo entra por http://<ip-del-servidor>:8501 — la laptop de la
+# consultora sólo abre el navegador.
+
+services:
+  mvpm:
+    build: .
+    image: mv-project-management:owner-servidor
+    container_name: mvpm
+    restart: unless-stopped
+
+    ports:
+      # "8501:8501" publica en TODAS las interfaces del servidor. Si el equipo
+      # entra por VPN o por un proxy inverso, cambiar a "127.0.0.1:8501:8501"
+      # y publicar sólo el proxy: es una línea y reduce la superficie a cero.
+      - "8501:8501"
+
+    volumes:
+      # Acá vive el dato del cliente, en SU disco. Es un volumen con nombre:
+      # sobrevive a `down`, a un rebuild y a una actualización de la imagen.
+      # Para verlo en una ruta concreta que se pueda auditar o respaldar,
+      # cambiar por un bind mount:  - /srv/mvpm/datos:/datos
+      - mvpm_datos:/datos
+
+    environment:
+      MVPM_DATA_DIR: /datos
+      MVPM_MODO_INSTALACION: servidor
+      # Las claves de IA NO van acá y no hacen falta: el motor de reglas
+      # funciona entero sin ninguna. Si el cliente quiere el copiloto, pone SU
+      # propia clave en un archivo .env que nunca sale de este servidor.
+      # ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+
+    # El contenedor no necesita escribir en su propio sistema de archivos: todo
+    # lo que persiste va al volumen. Dejarlo de sólo lectura convierte
+    # "alguien mete un archivo en el contenedor" en algo que falla, no en algo
+    # que hay que detectar después.
+    read_only: true
+    tmpfs:
+      - /tmp
+      - /home/mvpm/.streamlit
+
+    security_opt:
+      - no-new-privileges:true
+
+volumes:
+  mvpm_datos:
