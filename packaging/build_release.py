@@ -151,10 +151,92 @@ def build_owner_zip(version: str = VERSION, destino: Path | None = None) -> Path
     return salida
 
 
+#: Lo que va en el paquete servidor y no en los otros: la puerta de entrada sin
+#: `.bat` y las dos formas de levantarlo en infraestructura del cliente.
+EXTRAS_SERVIDOR = {
+    "packaging/servidor/iniciar.py": "iniciar.py",
+    "packaging/servidor/Dockerfile": "Dockerfile",
+    "packaging/servidor/docker-compose.yml": "docker-compose.yml",
+    "packaging/servidor/LEEME.md": "LEEME.md",
+}
+
+#: Lo que este paquete NO puede contener, y por qué cada uno:
+#: un `.bat` o un `.exe` es exactamente lo que la laptop corporativa bloquea, y
+#: si viajan igual el paquete deja de resolver el caso para el que existe.
+EXTENSIONES_PROHIBIDAS = (".bat", ".exe", ".cmd", ".ps1", ".msi")
+
+
+def build_owner_servidor(version: str = VERSION, destino: Path | None = None) -> Path:
+    """El paquete para correr en el servidor o la VM del cliente, sin instalar.
+
+    Es el tercer formato, y existe porque los otros dos no sirven para el caso
+    real de una consultora: el `.exe` y el `.bat` son justo lo que bloquea la
+    política de una laptop corporativa, y el ZIP portable los lleva adentro.
+
+    Qué tiene de distinto:
+
+    * **Ni un `.bat` ni un `.exe`.** Se arranca con `python3 iniciar.py`. Lo
+      fija un test, porque es la única razón por la que este paquete existe y
+      se rompe con sólo agregar un archivo a la lista de arriba.
+    * **Arranca en modo servidor**, o sea que el dato se queda en la máquina
+      del cliente y la laptop de la consultora nunca guarda una fila. Con
+      `--local` se comporta como la instalación normal.
+    * **Trae Dockerfile y compose**, para el cliente que prefiere no tocar
+      Python: `docker compose up -d` y el dato queda en un volumen suyo.
+
+    Abre sin candado y sin pedir nada (`ES_OWNER_BUILD = True`), igual que
+    `build_owner_zip` y con la misma advertencia: `mvpm/` viaja en texto plano,
+    así que cualquiera que tenga este archivo tiene el producto completo. No es
+    para publicar — es para llevarlo uno mismo al servidor del cliente.
+    """
+    edicion_owner = (ROOT / "mvpm" / "edicion.py").read_text(encoding="utf-8").replace(
+        "ES_OWNER_BUILD = False", "ES_OWNER_BUILD = True")
+    if "ES_OWNER_BUILD = True" not in edicion_owner:
+        raise RuntimeError(
+            "No pude marcar mvpm/edicion.py como Owner Edition: el paquete "
+            "servidor saldría pidiendo licencia, que es lo que no queremos.")
+
+    DIST_DIR.mkdir(exist_ok=True)
+    salida = (Path(destino) if destino is not None
+              else DIST_DIR / f"MVPM_Owner_Servidor_v{version}.zip")
+    salida.parent.mkdir(parents=True, exist_ok=True)
+
+    with zipfile.ZipFile(salida, "w", zipfile.ZIP_DEFLATED) as zf:
+        for dirname in INCLUDE_DIRS:
+            for path in (ROOT / dirname).rglob("*"):
+                if not path.is_file() or _should_skip(path.relative_to(ROOT)):
+                    continue
+                interno = path.relative_to(ROOT).as_posix()
+                if interno == "mvpm/edicion.py":
+                    zf.writestr(interno, edicion_owner)
+                else:
+                    zf.write(path, interno)
+        # Del paquete portable se hereda todo MENOS los lanzadores de Windows.
+        for filename in INCLUDE_FILES:
+            if filename.endswith(EXTENSIONES_PROHIBIDAS):
+                continue
+            src = ROOT / filename
+            if src.exists():
+                zf.write(src, filename)
+        for origen, interno in EXTRAS_SERVIDOR.items():
+            src = ROOT / origen
+            if not src.exists():
+                raise RuntimeError(
+                    f"Falta {origen}: sin eso el paquete servidor no se puede "
+                    "arrancar sin .bat, que es su único motivo de existir.")
+            zf.write(src, interno)
+
+    return salida
+
+
 if __name__ == "__main__":
     import sys
 
-    if "--owner" in sys.argv[1:]:
+    if "--servidor" in sys.argv[1:]:
+        path = build_owner_servidor()
+        print(f"Paquete SERVIDOR del dueño generado: {path} "
+              f"({path.stat().st_size / 1024:.0f} KB)")
+    elif "--owner" in sys.argv[1:]:
         path = build_owner_zip()
         print(f"Paquete del DUEÑO generado: {path} ({path.stat().st_size / 1024:.0f} KB)")
     else:
