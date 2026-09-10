@@ -41,7 +41,7 @@ def test_projects_tasks_team_match_demo_data_schema(tmp_db):
 # ------------------------------------------------------------- CRUD proyectos
 
 def test_crear_y_leer_proyecto(tmp_db):
-    admin = auth.registrar("admin@test.com", "Admin", "password123")
+    admin = auth.registrar("admin@test.com", "Admin", "Turbina-9-Verde")
     pid = tmp_db.crear_proyecto(nombre="Migración X", portafolio="Core", sponsor="G. Suárez",
                                  dueno_id=admin["id"], segmento="Interno",
                                  fecha_inicio="2026-01-01", fecha_fin="2026-06-01",
@@ -105,7 +105,7 @@ def test_actualizar_tarea_cambia_estado(tmp_db):
 # --------------------------------------------------------------------- team
 
 def test_team_carga_actual_es_proxy_de_tareas_activas(tmp_db):
-    admin = auth.registrar("admin@test.com", "Admin", "password123")
+    admin = auth.registrar("admin@test.com", "Admin", "Turbina-9-Verde")
     pid = tmp_db.crear_proyecto(nombre="P", portafolio="Core", sponsor=None, dueno_id=None,
                                  segmento="Interno", fecha_inicio=None, fecha_fin=None,
                                  presupuesto=0, ejecutado=0, criticidad="Media")
@@ -120,7 +120,7 @@ def test_team_carga_actual_es_proxy_de_tareas_activas(tmp_db):
 # ---------------------------------------------------------------- motor real
 
 def test_engine_funciona_sobre_datos_reales_de_db(tmp_db):
-    admin = auth.registrar("admin@test.com", "Admin", "password123")
+    admin = auth.registrar("admin@test.com", "Admin", "Turbina-9-Verde")
     pid = tmp_db.crear_proyecto(nombre="Proyecto real", portafolio="Core", sponsor="Sponsor",
                                  dueno_id=admin["id"], segmento="Interno",
                                  fecha_inicio="2026-01-01", fecha_fin="2026-12-31",
@@ -143,7 +143,7 @@ def test_engine_funciona_con_proyecto_recien_creado_sin_tareas(tmp_db):
     """Primer flujo real de un usuario nuevo: crea un proyecto y todavía no
     cargó ninguna tarea — todas las secciones del dashboard deben poder
     renderizar sobre eso sin excepciones."""
-    admin = auth.registrar("admin@test.com", "Admin", "password123")
+    admin = auth.registrar("admin@test.com", "Admin", "Turbina-9-Verde")
     tmp_db.crear_proyecto(nombre="Proyecto nuevo", portafolio="Core", sponsor=None,
                            dueno_id=admin["id"], segmento="Interno",
                            fecha_inicio=None, fecha_fin=None,
@@ -170,7 +170,7 @@ def test_engine_funciona_con_servidor_recien_instalado_sin_proyectos(tmp_db):
     con "TypeError: Expected numeric dtype, got object instead." apenas
     alguien — literalmente cualquiera que instala el programa hoy — abría
     Portafolio, Asistente IA o Reportes."""
-    auth.registrar("admin@test.com", "Admin", "password123")
+    auth.registrar("admin@test.com", "Admin", "Turbina-9-Verde")
     proj, tasks, team = tmp_db.projects(), tmp_db.tasks(), tmp_db.team()
     assert proj.empty and tasks.empty
     # Confirma que este test reproduce el caso real: dtype "object", no
@@ -204,7 +204,7 @@ def test_cargar_datos_de_ejemplo_requiere_usuario_previo(tmp_db):
 
 def test_cargar_datos_de_ejemplo_puebla_proyectos_y_tareas(tmp_db):
     from mvpm import demo_data
-    auth.registrar("admin@test.com", "Admin", "password123")
+    auth.registrar("admin@test.com", "Admin", "Turbina-9-Verde")
     tmp_db.cargar_datos_de_ejemplo()
     assert len(tmp_db.projects()) == len(demo_data.projects())
     assert len(tmp_db.tasks()) == len(demo_data.tasks())
@@ -213,19 +213,19 @@ def test_cargar_datos_de_ejemplo_puebla_proyectos_y_tareas(tmp_db):
 # ----------------------------------------------------------------------- auth
 
 def test_registrar_primer_usuario_es_admin(tmp_db):
-    u = auth.registrar("primero@test.com", "Primero", "password123")
+    u = auth.registrar("primero@test.com", "Primero", "Turbina-9-Verde")
     assert u["rol"] == "admin"
 
 
 def test_registrar_segundo_usuario_es_miembro(tmp_db):
-    auth.registrar("primero@test.com", "Primero", "password123")
-    u2 = auth.registrar("segundo@test.com", "Segundo", "password123")
+    auth.registrar("primero@test.com", "Primero", "Turbina-9-Verde")
+    u2 = auth.registrar("segundo@test.com", "Segundo", "Turbina-9-Verde")
     assert u2["rol"] == "miembro"
 
 
 def test_registrar_rechaza_email_invalido(tmp_db):
     with pytest.raises(ValueError):
-        auth.registrar("no-es-un-email", "Nombre", "password123")
+        auth.registrar("no-es-un-email", "Nombre", "Turbina-9-Verde")
 
 
 def test_registrar_rechaza_password_corta(tmp_db):
@@ -234,20 +234,20 @@ def test_registrar_rechaza_password_corta(tmp_db):
 
 
 def test_registrar_rechaza_email_duplicado(tmp_db):
-    auth.registrar("dup@test.com", "Uno", "password123")
+    auth.registrar("dup@test.com", "Uno", "Turbina-9-Verde")
     with pytest.raises(ValueError):
-        auth.registrar("dup@test.com", "Dos", "password456")
+        auth.registrar("dup@test.com", "Dos", "Molino-4-Azul")
 
 
 def test_iniciar_sesion_correcto(tmp_db):
-    auth.registrar("login@test.com", "Login", "password123")
-    user = auth.iniciar_sesion("login@test.com", "password123")
+    auth.registrar("login@test.com", "Login", "Turbina-9-Verde")
+    user = auth.iniciar_sesion("login@test.com", "Turbina-9-Verde")
     assert user is not None
     assert user["email"] == "login@test.com"
 
 
 def test_iniciar_sesion_password_incorrecta(tmp_db):
-    auth.registrar("login2@test.com", "Login2", "password123")
+    auth.registrar("login2@test.com", "Login2", "Turbina-9-Verde")
     assert auth.iniciar_sesion("login2@test.com", "password-mala") is None
 
 
@@ -256,7 +256,7 @@ def test_iniciar_sesion_usuario_inexistente(tmp_db):
 
 
 def test_cuentas_de_ejemplo_no_pueden_loguearse(tmp_db):
-    auth.registrar("admin@test.com", "Admin", "password123")
+    auth.registrar("admin@test.com", "Admin", "Turbina-9-Verde")
     tmp_db.cargar_datos_de_ejemplo()
     equipo = tmp_db.listar_usuarios()
     demo_user = equipo[equipo["email"].str.endswith("@demo.local")].iloc[0]
@@ -271,7 +271,7 @@ def test_exporters_usan_datos_reales_de_db_no_la_demo(tmp_db):
     exporters — si portfolio_tables() ignorara esos argumentos y volviera a
     demo_data por dentro, este test detectaría el nombre del proyecto demo en
     vez del real."""
-    admin = auth.registrar("admin@test.com", "Admin", "password123")
+    admin = auth.registrar("admin@test.com", "Admin", "Turbina-9-Verde")
     tmp_db.crear_proyecto(nombre="Proyecto Real Único", portafolio="Core", sponsor=None,
                            dueno_id=admin["id"], segmento="Interno",
                            fecha_inicio=None, fecha_fin=None,

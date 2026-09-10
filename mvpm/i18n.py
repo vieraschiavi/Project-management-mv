@@ -318,6 +318,12 @@ _STRINGS = {
     "login_err_bad_credentials": {
         "es": "Email o contraseña incorrectos.", "en": "Incorrect email or password.",
         "pt": "E-mail ou senha incorretos."},
+    # No dice cuántos intentos quedan ni si el email existe: eso le confirmaría
+    # a quien prueba claves que la cuenta es real y le mediría el freno.
+    "login_err_bloqueada": {
+        "es": "Demasiados intentos fallidos. Probá de nuevo en {minutos} minuto(s).",
+        "en": "Too many failed attempts. Try again in {minutos} minute(s).",
+        "pt": "Tentativas falhas demais. Tente de novo em {minutos} minuto(s)."},
 
     # -------------------------------------------------- sidebar / licencia
     "license_token_label": {"es": "Token de licencia", "en": "License token", "pt": "Token de licença"},

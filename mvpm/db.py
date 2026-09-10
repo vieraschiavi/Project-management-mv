@@ -31,12 +31,31 @@ def _now() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
+#: Cuánto espera una escritura a que se libere el lock antes de rendirse.
+#: El default de sqlite3 son 5 segundos, que alcanzan de sobra para una PC de
+#: escritorio y se quedan cortos en el modo servidor, donde entra un equipo por
+#: el navegador. Medido: con el lock tomado, a los 5,0 s exactos el guardado de
+#: otro usuario moría con `database is locked` — y nadie captura esa excepción
+#: en todo el código, así que el usuario veía un traceback de Python.
+_TIMEOUT_SEGUNDOS = 30
+
+
 @contextmanager
 def _connect():
     _STORE_DIR.mkdir(parents=True, exist_ok=True)
-    conn = sqlite3.connect(_DB_FILE)
+    conn = sqlite3.connect(_DB_FILE, timeout=_TIMEOUT_SEGUNDOS)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys = ON")
+    # WAL: los que leen dejan de bloquear al que escribe y viceversa. Es la
+    # diferencia entre "un usuario" y "un equipo mirando el tablero mientras
+    # alguien guarda". Va en try porque WAL necesita memoria compartida y no
+    # funciona sobre algunos recursos de red (un CIFS montado, por ejemplo);
+    # ahí SQLite responde con error y se sigue en el modo por defecto, que
+    # anda igual, sólo que con menos concurrencia.
+    try:
+        conn.execute("PRAGMA journal_mode = WAL")
+    except sqlite3.DatabaseError:
+        pass
     try:
         yield conn
         conn.commit()
@@ -143,10 +162,82 @@ def init_db() -> None:
             fuente TEXT,
             creado_en TEXT NOT NULL
         );
+
+        -- Intentos de inicio de sesión, exitosos y fallidos. Sirve para dos
+        -- cosas a la vez, y por eso es una sola tabla:
+        --
+        --   1. Frenar la fuerza bruta (`mvpm/auth.py` cuenta los fallos
+        --      recientes antes de siquiera calcular el hash).
+        --   2. Responder "¿quién entró y quién lo intentó?", que es lo que
+        --      pide el área de seguridad de un cliente cuando el tablero corre
+        --      en SU servidor. Sin esto, la respuesta era "no sé".
+        --
+        -- No guarda la contraseña probada: sólo el email tipeado, si acertó y
+        -- desde dónde. Guardar el intento fallido sería guardar la contraseña
+        -- de otro sistema, que es el error clásico de este tipo de log.
+        CREATE TABLE IF NOT EXISTS intentos_login (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            email TEXT NOT NULL,
+            exito INTEGER NOT NULL,
+            origen TEXT,
+            creado_en TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_intentos_email
+            ON intentos_login (email, creado_en DESC);
         """)
 
 
 # ---------------------------------------------------------------- usuarios
+
+def registrar_intento_login(email: str, exito: bool, origen: str | None = None) -> None:
+    """Deja constancia de un inicio de sesión, haya acertado o no.
+
+    Nunca recibe ni guarda la contraseña probada: en un intento fallido esa
+    cadena suele ser la contraseña de OTRO sistema del usuario, y loguearla
+    convierte el registro de auditoría en el peor archivo del servidor.
+    """
+    with _connect() as conn:
+        conn.execute(
+            "INSERT INTO intentos_login (email, exito, origen, creado_en) "
+            "VALUES (?, ?, ?, ?)",
+            (email.strip().lower(), 1 if exito else 0, origen, _now()))
+
+
+def fallos_desde(email: str, desde_iso: str) -> int:
+    """Cuántos intentos fallidos seguidos hay para ese email desde `desde_iso`.
+
+    "Seguidos" importa: un acierto limpia la cuenta, así que quien entra bien
+    no arrastra el bloqueo de un tipeo anterior.
+    """
+    with _connect() as conn:
+        filas = conn.execute(
+            "SELECT exito FROM intentos_login "
+            "WHERE email = ? AND creado_en >= ? ORDER BY id DESC",
+            (email.strip().lower(), desde_iso)).fetchall()
+    fallos = 0
+    for f in filas:
+        if f["exito"]:
+            break
+        fallos += 1
+    return fallos
+
+
+def ultimo_intento(email: str) -> dict | None:
+    with _connect() as conn:
+        fila = conn.execute(
+            "SELECT email, exito, origen, creado_en FROM intentos_login "
+            "WHERE email = ? ORDER BY id DESC LIMIT 1",
+            (email.strip().lower(),)).fetchone()
+    return dict(fila) if fila else None
+
+
+def accesos_recientes(limite: int = 50) -> list[dict]:
+    """Para mostrarle al cliente quién entró y quién lo intentó."""
+    with _connect() as conn:
+        return [dict(f) for f in conn.execute(
+            "SELECT email, exito, origen, creado_en FROM intentos_login "
+            "ORDER BY id DESC LIMIT ?", (limite,)).fetchall()]
+
 
 def contar_usuarios() -> int:
     with _connect() as conn:
