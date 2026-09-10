@@ -191,12 +191,19 @@ if st.session_state["user"] is None:
                 password = st.text_input(T("field_password"), type="password", key="login_password")
                 enviado = st.form_submit_button(T("tab_login"))
                 if enviado:
-                    user = auth.iniciar_sesion(email, password)
-                    if user:
-                        st.session_state["user"] = user
-                        st.rerun()
+                    # El bloqueo por intentos se avisa distinto de la credencial
+                    # incorrecta: si se mostrara el mismo texto, alguien podría
+                    # seguir probando sin enterarse de que ya no se le contesta.
+                    try:
+                        user = auth.iniciar_sesion(email, password)
+                    except auth.CuentaBloqueada as bloqueo:
+                        st.error(T("login_err_bloqueada").format(minutos=bloqueo.minutos))
                     else:
-                        st.error(T("login_err_bad_credentials"))
+                        if user:
+                            st.session_state["user"] = user
+                            st.rerun()
+                        else:
+                            st.error(T("login_err_bad_credentials"))
         with tab_registro:
             with st.form("registro"):
                 nombre = st.text_input(T("field_name"), key="reg_nombre")
