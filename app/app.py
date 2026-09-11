@@ -53,6 +53,7 @@ from mvpm import (
     pmbok,
     policies,
     prioritizer,
+    respaldo,
     reports,
     reviews,
     seguro,
@@ -366,6 +367,9 @@ else:
     ]
     if user["rol"] == "admin":
         nav_options.append(T("nav_users"))
+        # Sólo admin: restaurar es la única acción del producto que destruye
+        # datos — reemplaza el portafolio entero por el del archivo.
+        nav_options.append(T("nav_respaldo"))
 
 # Un invitado que entró con el botón de "subir mi Excel" cae directo en
 # Importar: es el único paso que tiene sentido con el portafolio vacío.
@@ -1780,3 +1784,43 @@ elif section == T("nav_users"):
     st.subheader(T("nav_users"))
     st.dataframe(equipo_df, use_container_width=True)
     st.caption(T("users_caption"))
+
+elif section == T("nav_respaldo"):
+    st.subheader(T("nav_respaldo"))
+    st.caption(T("resp_bajada"))
+
+    st.download_button(
+        T("resp_descargar"),
+        # Se arma al vuelo, no al dibujar la página: el respaldo tiene que ser
+        # del momento en que se aprieta el botón.
+        data=respaldo.a_bytes(),
+        file_name=respaldo.nombre_sugerido(),
+        mime="application/octet-stream")
+    st.caption(T("resp_incluye"))
+    st.caption(T("resp_en_caliente"))
+
+    st.divider()
+    st.markdown(f"### {T('resp_restaurar_h')}")
+    st.warning(T("resp_restaurar_aviso"))
+
+    _subido = st.file_uploader(T("resp_subir"), type=["db"], key="resp_archivo")
+    if _subido is not None:
+        _bytes = _subido.getvalue()
+        # Se revisa ANTES de ofrecer el botón: un archivo corrupto o de otro
+        # programa no tiene que llegar ni a poder apretarse.
+        _revision = respaldo.verificar(_bytes)
+        if not _revision["valido"]:
+            st.error(T("resp_invalido").format(motivo=_revision["motivo"]))
+        else:
+            st.markdown(f"**{T('resp_contenido')}**")
+            st.dataframe(
+                pd.DataFrame(sorted(_revision["conteos"].items()),
+                             columns=["tabla", "filas"]),
+                use_container_width=True, hide_index=True)
+            if st.checkbox(T("resp_confirmar"), key="resp_confirmo"):
+                if st.button(T("resp_boton_restaurar"), type="primary"):
+                    _hecho = respaldo.restaurar(_bytes)
+                    st.success(T("resp_ok").format(
+                        copia=Path(_hecho["copia_previa"]).name
+                        if _hecho["copia_previa"] else "-"))
+                    st.cache_data.clear()
