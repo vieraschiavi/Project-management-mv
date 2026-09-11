@@ -6,6 +6,68 @@ _STRINGS = {
     "nav_portfolio": {"es": "Portafolio", "en": "Portfolio", "pt": "Portfólio"},
     "nav_tasks": {"es": "Tareas", "en": "Tasks", "pt": "Tarefas"},
     "nav_users": {"es": "Usuarios", "en": "Users", "pt": "Usuários"},
+    "nav_respaldo": {"es": "Respaldo y restauración",
+                     "en": "Backup and restore", "pt": "Backup e restauração"},
+    "resp_bajada": {
+        "es": "Todo el portafolio vive en un solo archivo en esta máquina. Bajá "
+              "una copia y guardala donde tu organización guarda los respaldos.",
+        "en": "The whole portfolio lives in a single file on this machine. "
+              "Download a copy and keep it wherever your organisation keeps "
+              "backups.",
+        "pt": "Todo o portfólio vive em um único arquivo nesta máquina. Baixe "
+              "uma cópia e guarde onde a sua organização guarda os backups."},
+    "resp_descargar": {"es": "Descargar respaldo", "en": "Download backup",
+                       "pt": "Baixar backup"},
+    "resp_incluye": {
+        "es": "Incluye todo: proyectos, tareas, usuarios y el historial "
+              "completo de versiones. No es lo mismo que exportar a Excel — de "
+              "esto se puede volver.",
+        "en": "Includes everything: projects, tasks, users and the full version "
+              "history. Not the same as exporting to Excel — you can come back "
+              "from this one.",
+        "pt": "Inclui tudo: projetos, tarefas, usuários e o histórico completo "
+              "de versões. Não é o mesmo que exportar para Excel — deste dá "
+              "para voltar."},
+    "resp_en_caliente": {
+        "es": "Se puede hacer con gente usando el sistema: la copia sale "
+              "coherente igual. Copiar el archivo a mano, en cambio, pierde lo "
+              "último que se guardó sin avisar.",
+        "en": "Safe to run while people are using the system: the copy is still "
+              "consistent. Copying the file by hand, on the other hand, "
+              "silently loses whatever was saved last.",
+        "pt": "Pode ser feito com gente usando o sistema: a cópia sai coerente "
+              "do mesmo jeito. Copiar o arquivo à mão, por outro lado, perde o "
+              "último que foi salvo sem avisar."},
+    "resp_restaurar_h": {"es": "Restaurar desde un respaldo",
+                         "en": "Restore from a backup",
+                         "pt": "Restaurar a partir de um backup"},
+    "resp_restaurar_aviso": {
+        "es": "Restaurar REEMPLAZA todo lo que hay ahora por el contenido del "
+              "archivo. Lo que esté cargado después de esa fecha se pierde. La "
+              "base actual se guarda al lado antes de reemplazarla.",
+        "en": "Restoring REPLACES everything currently here with the file's "
+              "contents. Anything entered after that date is lost. The current "
+              "database is saved alongside before being replaced.",
+        "pt": "Restaurar SUBSTITUI tudo o que existe agora pelo conteúdo do "
+              "arquivo. O que foi carregado depois dessa data se perde. A base "
+              "atual é salva ao lado antes de ser substituída."},
+    "resp_subir": {"es": "Archivo de respaldo (.db)",
+                   "en": "Backup file (.db)", "pt": "Arquivo de backup (.db)"},
+    "resp_contenido": {"es": "Lo que trae este archivo",
+                       "en": "What this file contains",
+                       "pt": "O que este arquivo traz"},
+    "resp_confirmar": {"es": "Entiendo que se reemplaza todo lo que hay ahora",
+                       "en": "I understand this replaces everything currently here",
+                       "pt": "Entendo que substitui tudo o que existe agora"},
+    "resp_boton_restaurar": {"es": "Restaurar ahora", "en": "Restore now",
+                             "pt": "Restaurar agora"},
+    "resp_ok": {
+        "es": "Restaurado. La base anterior quedó guardada como {copia}.",
+        "en": "Restored. The previous database was saved as {copia}.",
+        "pt": "Restaurado. A base anterior ficou salva como {copia}."},
+    "resp_invalido": {"es": "No se puede restaurar: {motivo}",
+                      "en": "Cannot restore: {motivo}",
+                      "pt": "Não dá para restaurar: {motivo}"},
     "nav_health": {"es": "Salud de proyecto", "en": "Project health", "pt": "Saúde do projeto"},
     "nav_dependencies": {"es": "Dependencias", "en": "Dependencies", "pt": "Dependências"},
     "nav_backlog": {"es": "Backlog priorizado", "en": "Prioritized backlog", "pt": "Backlog priorizado"},

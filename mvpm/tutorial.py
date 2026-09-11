@@ -542,6 +542,30 @@ SECTIONS = [
         "tips": [],
     },
     {
+        "id": "nav_respaldo",
+        "titulo": "Respaldo y restauración",
+        "resumen": "Bajar una copia completa de todo el portafolio y, si hace falta, "
+                   "volver a ella. Visible solo para administradores.",
+        "pasos": [
+            "Todo el portafolio —proyectos, tareas, usuarios y el historial completo de "
+            "versiones— vive en UN archivo en esta máquina. 'Descargar respaldo' baja ese "
+            "archivo entero.",
+            "Se puede hacer con el equipo trabajando: la copia sale coherente igual.",
+            "Para volver atrás, subí el archivo en 'Restaurar'. Primero se muestra qué trae "
+            "adentro y recién después se habilita el botón.",
+        ],
+        "tips": [
+            "NO alcanza con copiar el archivo de la carpeta de datos a mano: con la "
+            "aplicación abierta, esa copia pierde lo último que se guardó y no avisa. Abre "
+            "bien, parece sana y le falta justo lo que ibas a necesitar.",
+            "Tampoco sirve exportar a Excel como respaldo: eso lleva proyectos y tareas, "
+            "pero no los usuarios ni el historial de versiones, y no se puede volver de ahí.",
+            "Restaurar REEMPLAZA todo lo actual. Antes de pisar nada, la base que estaba se "
+            "guarda al lado con la fecha en el nombre, así equivocarse de archivo se puede "
+            "deshacer.",
+        ],
+    },
+    {
         "id": "licencia_ia",
         "titulo": "Licencia y plan de créditos de IA",
         "resumen": "Cómo activar el cupo de IA del copiloto después de comprar un plan.",
