@@ -7,6 +7,7 @@ viven en una base SQLite real (mvpm/db.py) en el equipo del cliente, detrás
 de un login con usuario y contraseña (mvpm/auth.py).
 """
 
+import os
 import pathlib
 import re
 import sys
@@ -110,6 +111,18 @@ st.markdown(
 )
 
 db.init_db()
+
+# Respaldo automático, como RED DE SEGURIDAD y no como el mecanismo principal:
+# el que de verdad sirve es un `cron` del cliente llamando a
+# `python -m mvpm.respaldo`, porque éste sólo corre si alguien abre el tablero
+# — un servidor que pasa una semana sin visitas tampoco tiene respaldo.
+#
+# Va en try porque un respaldo que falla (disco lleno, carpeta sin permiso) no
+# puede dejar a nadie sin poder trabajar: se pierde la copia de hoy, no el día.
+try:
+    respaldo.automatico(frase=os.environ.get("MVPM_RESPALDO_FRASE") or None)
+except Exception:  # noqa: BLE001 — ver arriba: nunca bloquear el arranque
+    pass
 
 
 def T(key: str) -> str:
@@ -1789,28 +1802,55 @@ elif section == T("nav_respaldo"):
     st.subheader(T("nav_respaldo"))
     st.caption(T("resp_bajada"))
 
+    _frase = st.text_input(T("resp_frase"), type="password", key="resp_frase")
+    st.caption(T("resp_frase_aviso"))
     st.download_button(
         T("resp_descargar"),
         # Se arma al vuelo, no al dibujar la página: el respaldo tiene que ser
         # del momento en que se aprieta el botón.
-        data=respaldo.a_bytes(),
-        file_name=respaldo.nombre_sugerido(),
+        data=respaldo.a_bytes(frase=_frase or None),
+        file_name=(respaldo.nombre_sugerido() + ".cifrado") if _frase
+        else respaldo.nombre_sugerido(),
         mime="application/octet-stream")
     st.caption(T("resp_incluye"))
     st.caption(T("resp_en_caliente"))
 
     st.divider()
+    st.markdown(f"### {T('resp_automaticos_h')}")
+    st.caption(T("resp_automaticos").format(
+        carpeta=respaldo.CARPETA_AUTOMATICOS, retener=respaldo.RETENER))
+    _hechos = respaldo.listar_automaticos()
+    if not _hechos:
+        st.caption(T("resp_sin_automaticos"))
+    else:
+        st.dataframe(
+            pd.DataFrame([{"archivo": p.name,
+                           "KB": round(p.stat().st_size / 1024)}
+                          for p in _hechos]),
+            use_container_width=True, hide_index=True)
+        # Decirlo explícito: un respaldo en el mismo disco es media solución, y
+        # creer que es la solución entera es lo que deja a alguien sin nada.
+        st.warning(T("resp_mismo_disco"))
+
+    st.divider()
     st.markdown(f"### {T('resp_restaurar_h')}")
     st.warning(T("resp_restaurar_aviso"))
 
-    _subido = st.file_uploader(T("resp_subir"), type=["db"], key="resp_archivo")
+    _subido = st.file_uploader(T("resp_subir"), type=["db", "cifrado"],
+                               key="resp_archivo")
+    _frase_rest = st.text_input(T("resp_frase_restaurar"), type="password",
+                                key="resp_frase_restaurar")
     if _subido is not None:
         _bytes = _subido.getvalue()
         # Se revisa ANTES de ofrecer el botón: un archivo corrupto o de otro
         # programa no tiene que llegar ni a poder apretarse.
-        _revision = respaldo.verificar(_bytes)
+        _revision = respaldo.verificar(_bytes, frase=_frase_rest or None)
         if not _revision["valido"]:
-            st.error(T("resp_invalido").format(motivo=_revision["motivo"]))
+            # Un cifrado sin frase no está roto: le falta un dato. Por eso se
+            # avisa y no se muestra como error de archivo — si no, alguien
+            # termina tirando un respaldo que estaba entero.
+            (st.info if _revision["cifrado"] else st.error)(
+                T("resp_invalido").format(motivo=_revision["motivo"]))
         else:
             st.markdown(f"**{T('resp_contenido')}**")
             st.dataframe(
@@ -1819,7 +1859,7 @@ elif section == T("nav_respaldo"):
                 use_container_width=True, hide_index=True)
             if st.checkbox(T("resp_confirmar"), key="resp_confirmo"):
                 if st.button(T("resp_boton_restaurar"), type="primary"):
-                    _hecho = respaldo.restaurar(_bytes)
+                    _hecho = respaldo.restaurar(_bytes, frase=_frase_rest or None)
                     st.success(T("resp_ok").format(
                         copia=Path(_hecho["copia_previa"]).name
                         if _hecho["copia_previa"] else "-"))

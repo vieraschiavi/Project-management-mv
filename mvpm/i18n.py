@@ -38,6 +38,53 @@ _STRINGS = {
         "pt": "Pode ser feito com gente usando o sistema: a cópia sai coerente "
               "do mesmo jeito. Copiar o arquivo à mão, por outro lado, perde o "
               "último que foi salvo sem avisar."},
+    "resp_frase": {"es": "Frase para cifrar el archivo (opcional)",
+                   "en": "Passphrase to encrypt the file (optional)",
+                   "pt": "Frase para criptografar o arquivo (opcional)"},
+    "resp_frase_aviso": {
+        "es": "Si ponés una frase, el archivo se cifra y sin ella NO se puede "
+              "restaurar. No hay forma de recuperarla: anotala donde guardes "
+              "las claves de tu organización, no en la misma carpeta.",
+        "en": "With a passphrase the file is encrypted, and without it the "
+              "backup CANNOT be restored. There is no way to recover it: write "
+              "it down wherever your organisation keeps credentials, not in the "
+              "same folder.",
+        "pt": "Com uma frase o arquivo é criptografado e sem ela NÃO dá para "
+              "restaurar. Não há como recuperá-la: anote onde a sua organização "
+              "guarda as senhas, não na mesma pasta."},
+    "resp_frase_restaurar": {"es": "Frase del respaldo (si está cifrado)",
+                             "en": "Backup passphrase (if encrypted)",
+                             "pt": "Frase do backup (se estiver criptografado)"},
+    "resp_automaticos_h": {"es": "Respaldos automáticos",
+                           "en": "Automatic backups",
+                           "pt": "Backups automáticos"},
+    "resp_automaticos": {
+        "es": "El programa deja una copia por día en `{carpeta}` y conserva las "
+              "últimas {retener}. Esto corre sólo cuando alguien abre el "
+              "tablero: para que sea de verdad automático, programá "
+              "`python -m mvpm.respaldo` en el servidor.",
+        "en": "The program keeps one copy a day in `{carpeta}` and retains the "
+              "last {retener}. This only runs when someone opens the dashboard: "
+              "to make it truly automatic, schedule `python -m mvpm.respaldo` on "
+              "the server.",
+        "pt": "O programa deixa uma cópia por dia em `{carpeta}` e mantém as "
+              "últimas {retener}. Isso roda só quando alguém abre o painel: para "
+              "ser realmente automático, agende `python -m mvpm.respaldo` no "
+              "servidor."},
+    "resp_sin_automaticos": {
+        "es": "Todavía no hay respaldos automáticos.",
+        "en": "No automatic backups yet.",
+        "pt": "Ainda não há backups automáticos."},
+    "resp_mismo_disco": {
+        "es": "Están en el MISMO disco que la base: sirven contra un borrado "
+              "por error, no contra que se pierda la máquina. Llevate una copia "
+              "afuera con el botón de arriba.",
+        "en": "They sit on the SAME disk as the database: they help against an "
+              "accidental deletion, not against losing the machine. Take a copy "
+              "off-site with the button above.",
+        "pt": "Estão no MESMO disco que a base: servem contra uma exclusão por "
+              "engano, não contra perder a máquina. Leve uma cópia para fora com "
+              "o botão acima."},
     "resp_restaurar_h": {"es": "Restaurar desde un respaldo",
                          "en": "Restore from a backup",
                          "pt": "Restaurar a partir de um backup"},
