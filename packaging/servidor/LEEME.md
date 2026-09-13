@@ -139,6 +139,40 @@ máquina donde se activa, de modo que copiarlo a otro lado no sirva de nada—
 ese mecanismo existe y sigue funcionando: es el marcador firmado de
 `mvpm/owner.py`, que se activa una vez por máquina con tu clave privada.
 
+## Respaldo: programalo en el servidor
+
+El programa deja una copia por día en `datos/respaldos/` y conserva las
+últimas 7 — pero **sólo cuando alguien abre el tablero**. Un servidor que pasa
+una semana sin visitas tampoco tiene respaldo.
+
+Para que sea automático de verdad, en el servidor del cliente:
+
+```bash
+# Linux — crontab -e, todos los días a las 2 de la mañana
+0 2 * * * cd /srv/mvpm && MVPM_DATA_DIR=/srv/mvpm/datos python3 -m mvpm.respaldo
+```
+
+En Windows, la misma línea como acción del Programador de tareas.
+
+Para que el archivo salga cifrado, la frase va en una **variable de entorno**,
+nunca como argumento: lo que se pasa por línea de comandos queda en el
+historial del shell y en la lista de procesos, a la vista de cualquiera con
+sesión en esa máquina.
+
+```bash
+MVPM_RESPALDO_FRASE='...' python3 -m mvpm.respaldo
+```
+
+Tres cosas que conviene saber antes de confiar en esto:
+
+- **Sin la frase no se restaura**, y no hay forma de recuperarla. Guardala
+  donde la organización guarda las credenciales, no al lado del respaldo.
+- **Activar el cifrado no protege los respaldos ya hechos**: los anteriores
+  siguen en claro hasta que la rotación los saque.
+- **Las copias están en el mismo disco que la base.** Sirven contra un borrado
+  por error, no contra perder la máquina. Llevar una afuera sigue siendo
+  necesario.
+
 ## Qué se lleva la laptop de la consultora
 
 En las opciones A y B: **nada**. Abre un navegador contra la máquina del

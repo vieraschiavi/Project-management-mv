@@ -563,6 +563,16 @@ SECTIONS = [
             "Restaurar REEMPLAZA todo lo actual. Antes de pisar nada, la base que estaba se "
             "guarda al lado con la fecha en el nombre, así equivocarse de archivo se puede "
             "deshacer.",
+            "El programa deja además una copia por día en la carpeta 'respaldos' y conserva "
+            "las últimas 7. Pero eso corre sólo cuando alguien abre el tablero: para que sea "
+            "automático de verdad, hay que programar 'python -m mvpm.respaldo' en el servidor "
+            "(cron en Linux, Programador de tareas en Windows).",
+            "Esas copias automáticas están en el MISMO disco que la base: sirven contra un "
+            "borrado por error, no contra que se pierda la máquina. Una copia afuera sigue "
+            "haciendo falta.",
+            "Si ponés una frase, el archivo se cifra y sin ella NO se puede restaurar: no hay "
+            "forma de recuperarla. Y ojo — activar el cifrado no protege los respaldos que ya "
+            "se habían hecho: esos siguen en claro hasta que la rotación los saque.",
         ],
     },
     {

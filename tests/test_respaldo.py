@@ -21,6 +21,8 @@ truncado a medio bajar o uno de otro programa no puede llegar a tocar nada.
 """
 
 import sqlite3
+from datetime import datetime, timezone
+from pathlib import Path
 
 import pytest
 
@@ -226,3 +228,137 @@ def test_la_pantalla_de_respaldo_abre_y_ofrece_la_descarga(tmp_path, monkeypatch
     etiquetas = [b.label for b in at.download_button]
     assert any("Descargar respaldo" in e for e in etiquetas), (
         f"no está el botón de descarga; los que hay: {etiquetas}")
+
+
+# ------------------------------------------------------------------- cifrado
+
+def test_sin_cifrar_el_dato_del_cliente_se_lee_en_el_archivo():
+    """El punto de partida, para que el test de al lado signifique algo: un
+    respaldo en claro es el portafolio del cliente legible con un editor de
+    texto. En un pendrive perdido, eso es la fuga."""
+    empresa = db.obtener_o_crear_empresa("Conaprole")
+    db.guardar_version(empresa, "gobernanza", "politica",
+                       "SECRETO-DEL-CLIENTE", "vigente")
+    assert b"SECRETO-DEL-CLIENTE" in respaldo.a_bytes()
+
+
+def test_cifrado_el_dato_ya_no_se_lee():
+    empresa = db.obtener_o_crear_empresa("Conaprole")
+    db.guardar_version(empresa, "gobernanza", "politica",
+                       "SECRETO-DEL-CLIENTE", "vigente")
+    cifrado = respaldo.a_bytes(frase="una frase larga del cliente")
+    assert b"SECRETO-DEL-CLIENTE" not in cifrado
+    assert respaldo.esta_cifrado(cifrado)
+
+
+def test_un_cifrado_sin_frase_no_se_reporta_como_archivo_roto():
+    """La distinción que evita que alguien tire un respaldo bueno: "está
+    cifrado" y "está corrupto" llevan a acciones opuestas."""
+    _con_datos()
+    cifrado = respaldo.a_bytes(frase="una frase larga del cliente")
+    revision = respaldo.verificar(cifrado)
+    assert not revision["valido"]
+    assert revision["cifrado"] is True
+    assert "cifrado" in revision["motivo"]
+
+
+def test_la_frase_equivocada_lo_dice_y_no_se_confunde_con_un_archivo_roto():
+    _con_datos()
+    cifrado = respaldo.a_bytes(frase="la buena")
+    revision = respaldo.verificar(cifrado, frase="la mala")
+    assert not revision["valido"]
+    assert revision["cifrado"] is True
+    assert "no coincide" in revision["motivo"]
+
+
+def test_se_puede_restaurar_desde_un_respaldo_cifrado():
+    empresa = _con_datos()
+    cifrado = respaldo.a_bytes(frase="una frase larga del cliente")
+    db.guardar_version(empresa, "gobernanza", "politica", "POSTERIOR", "vigente")
+
+    respaldo.restaurar(cifrado, frase="una frase larga del cliente")
+    assert db.obtener_version_actual(
+        empresa, "gobernanza", "politica")["contenido"] == "DATO-VIEJO"
+
+
+def test_restaurar_con_la_frase_equivocada_no_toca_la_base():
+    empresa = _con_datos()
+    cifrado = respaldo.a_bytes(frase="la buena")
+    db.guardar_version(empresa, "gobernanza", "politica", "POSTERIOR", "vigente")
+
+    with pytest.raises(ValueError, match="no coincide"):
+        respaldo.restaurar(cifrado, frase="la mala")
+    assert db.obtener_version_actual(
+        empresa, "gobernanza", "politica")["contenido"] == "POSTERIOR", (
+        "una frase equivocada llegó a pisar la base")
+
+
+# -------------------------------------------------------- automático y rotación
+
+def test_el_automatico_no_se_repite_si_ya_hay_uno_de_hoy():
+    """Se llama en cada arranque de la app, así que tiene que ser barato y no
+    dejar una copia por visita: eso llenaría el disco del cliente en un día."""
+    _con_datos()
+    primero = respaldo.automatico()
+    assert primero is not None
+    assert respaldo.automatico() is None
+
+
+def test_el_automatico_vuelve_a_correr_cuando_pasan_las_horas():
+    from datetime import timedelta
+    _con_datos()
+    respaldo.automatico()
+    despues = datetime.now(timezone.utc) + timedelta(hours=respaldo.CADA_HORAS + 1)
+    assert respaldo.automatico(ahora=despues) is not None
+
+
+def test_los_automaticos_se_rotan_y_no_llenan_el_disco():
+    """Sin tope, la carpeta crece hasta llenar el disco de la VM — y un disco
+    lleno deja de guardar el trabajo del día. El respaldo terminaría causando
+    la pérdida que venía a evitar."""
+    from datetime import timedelta
+    _con_datos()
+    base = datetime.now(timezone.utc)
+    for i in range(respaldo.RETENER + 5):
+        respaldo.automatico(ahora=base + timedelta(hours=respaldo.CADA_HORAS * i),
+                            forzar=True)
+    assert len(respaldo.listar_automaticos()) == respaldo.RETENER
+
+
+def test_las_copias_previas_a_restaurar_tambien_se_rotan():
+    """Pesan lo mismo que la base entera: son las que más rápido llenan el
+    disco si nadie las borra."""
+    empresa = _con_datos()
+    copia = respaldo.a_bytes()
+    for _ in range(respaldo.RETENER_PREVIAS + 3):
+        respaldo.restaurar(copia)
+        db.guardar_version(empresa, "gobernanza", "politica", "x", "vigente")
+    respaldo.automatico(forzar=True)
+
+    actual = Path(db._DB_FILE)
+    previas = list(actual.parent.glob(f"{actual.name}.antes-de-restaurar-*"))
+    assert len(previas) <= respaldo.RETENER_PREVIAS
+
+
+def test_el_automatico_cifrado_no_deja_el_archivo_en_claro_en_el_disco():
+    """Si se escribiera en claro y después se cifrara encima, quedaría una
+    ventana con el portafolio legible en la carpeta de respaldos — y los
+    borrados no garantizan que el contenido deje de ser recuperable."""
+    empresa = db.obtener_o_crear_empresa("Conaprole")
+    db.guardar_version(empresa, "gobernanza", "politica",
+                       "SECRETO-DEL-CLIENTE", "vigente")
+    hecho = respaldo.automatico(frase="una frase larga del cliente")
+    assert hecho is not None
+    for archivo in respaldo.carpeta_automaticos().iterdir():
+        assert b"SECRETO-DEL-CLIENTE" not in archivo.read_bytes(), (
+            f"{archivo.name} quedó en claro en la carpeta de respaldos")
+
+
+def test_la_frase_del_cron_sale_del_entorno_y_no_de_un_argumento(monkeypatch):
+    """Lo que se pasa por línea de comandos queda en el historial del shell y
+    en la lista de procesos, visible para cualquiera en esa máquina."""
+    import inspect
+    fuente = inspect.getsource(respaldo._main)
+    assert "MVPM_RESPALDO_FRASE" in fuente
+    assert "--frase" not in fuente, (
+        "la frase se estaría aceptando como argumento de línea de comandos")
