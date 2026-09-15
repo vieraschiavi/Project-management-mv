@@ -51,6 +51,9 @@ mvpm/            motor de dominio (un solo lugar, consumido por dashboard + API)
   case_study.py            caso de uso simulado completo: recorre un proyecto real de punta a punta
   demo_real.py             demo con datos públicos reales (portafolio de gobierno del Reino Unido)
   demo_pharma.py           demo pharma end-to-end con datos públicos reales (ClinicalTrials.gov / NIH)
+  azure_devops.py          conexión de sólo lectura a Azure DevOps Boards (PAT, WIQL) + CSV reimportable
+  backlog_calidad.py       16 reglas de calidad sobre un backlog: qué está mal, por qué, y cómo queda corregido
+  demo_azure.py            backlog de demo 100% sintético, con un defecto inyectado por cada regla
   governance.py            conceptos PM preestablecidos, recomendados por IA y validados por el data owner
   organigrama.py           carga de organigrama (Excel/CSV/SQLite) → IA autocompleta responsables por etapa
   advisor.py               asistente: detecta problemas y sugiere acciones, con seguimiento persistido
@@ -233,6 +236,56 @@ El flujo llega hasta Power BI de una punta a la otra: la API local expone el
 portafolio en `GET /api/demo/pharma` (JSON o CSV) y el archivo
 `distribucion/powerbi/MV_ProjectManagement_Pharma.pbids` conecta Power BI de un
 clic contra ese endpoint (ver `distribucion/powerbi/README.md`).
+
+## Azure DevOps: calidad del backlog (antes → después)
+
+Azure DevOps guarda lo que le pongan. Una tarea titulada `DELETE` es un título
+válido, un ítem en Doing hace tres meses es un estado válido y una iteración
+llamada `Sprint Actual` es una ruta válida. Ninguna de esas cosas es un error
+para la herramienta, así que no las marca nadie — y el costo aparece después,
+cuando hay que explicar por qué el sprint no cerró o por qué el reporte de
+velocidad no significa nada.
+
+La pestaña **Azure DevOps — calidad del backlog** (`mvpm/azure_devops.py` +
+`mvpm/backlog_calidad.py`) corre 16 reglas sobre el backlog y devuelve tres
+cosas: los hallazgos ordenados por severidad, **por qué cada uno es un
+problema**, y el CSV corregido listo para volver a subir.
+
+Ejemplo real, medido sobre un backlog de un equipo de datos de 65 ítems: **188
+hallazgos, y los 65 ítems con al menos un problema.** 22 de ellos en la misma
+iteración de nombre móvil, que es el defecto más caro y el que menos se nota.
+
+| Antes | Después |
+|---|---|
+| `DELETE` (Task, Done) | fuera del backlog |
+| `Revisión con COE Analytics` ×2 | cada una con su padre entre paréntesis |
+| `Refresh Automático c/8 hrs (Refresh MANUAL mientras no se resuelve)` | `Refresh Automático c/8 hrs` + nota de estado en la descripción |
+| `...\Sprint Actual` | `...\Sprint 2` (supuesto explícito, con antes/después en el informe) |
+| tag `VERLO DESPUES` | tag `revisar`, que sí se filtra |
+| descripción vacía | Objetivo / Entregable / Criterio de aceptación con `<completar>` |
+| en Doing desde junio | tag `estancado-96d` |
+
+**Lo que NO hace: inventar.** Si un ítem no tiene estimación, la corrección no
+le pone un número — le pone la etiqueta `sin-estimar`, que en Azure DevOps se
+filtra. Lo mismo con el padre de un huérfano y con el responsable. Poner un
+número inventado sería peor que no tener ninguno: el reporte saldría igual y
+estaría mal. Hay un test que lo verifica campo por campo.
+
+**Autenticación:** el mail corporativo y su contraseña **no sirven** para la
+API — una cuenta de Entra ID con MFA tiene bloqueado el acceso por contraseña,
+y las credenciales alternativas las retiró Microsoft. Hace falta un **token de
+acceso personal (PAT)** con alcance `Work Items → Read` y nada más. El mail sí
+se pide y se usa: va como usuario de la conexión, así que es lo que queda en el
+registro de auditoría del cliente. El token no se guarda en ningún lado: vive
+en la sesión del navegador, o en la variable `AZURE_DEVOPS_PAT`.
+
+**Sólo lectura, verificado:** el módulo no tiene ninguna llamada que escriba en
+Azure DevOps, y hay un test que recorre el árbol sintáctico del archivo y falla
+si alguien agrega un verbo de escritura. Lo corregido vuelve como archivo y lo
+sube una persona.
+
+La demo corre sin credenciales y sin conexión, sobre un backlog **100%
+inventado** (`mvpm/demo_azure.py`) que trae un defecto por cada regla.
 
 ## Conectar BI y agentes (Power BI, Tableau, Fabric, MCP)
 

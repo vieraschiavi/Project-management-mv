@@ -24,6 +24,8 @@ from mvpm import (
     advisor,
     ai,
     auth,
+    azure_devops,
+    backlog_calidad,
     capacitacion,
     case_study,
     catalog,
@@ -31,6 +33,7 @@ from mvpm import (
     data_engineering as dataeng,
     db,
     bitacora,
+    demo_azure,
     demo_pharma,
     demo_real,
     documento,
@@ -375,7 +378,8 @@ else:
         T("nav_backlog"), T("nav_copilot"), T("nav_advisor"), T("nav_reports"),
         T("nav_governance"), T("nav_organigrama"), T("nav_pmbok"), T("nav_plantillas"),
         T("nav_reviews"), T("nav_glossary"), T("nav_policies"),
-        T("nav_import"), T("nav_conectores"), T("nav_data_eng"), T("nav_capacitacion"),
+        T("nav_import"), T("nav_conectores"), T("nav_azure"), T("nav_data_eng"),
+        T("nav_capacitacion"),
         T("nav_bitacora"), T("nav_reuniones"), T("nav_relevamiento"), T("nav_config_ia"),
     ]
     if user["rol"] == "admin":
@@ -1792,6 +1796,89 @@ elif section == T("nav_config_ia"):
             with st.expander(f"{T('cfg_historial')} ({len(_hist_ia)})", icon=":material/history_edu:"):
                 st.dataframe(_hist_ia[["contenido", "recomendado_por", "creado_en"]],
                              use_container_width=True, hide_index=True)
+
+elif section == T("nav_azure"):
+    st.subheader(T("nav_azure"))
+    st.caption(T("ado_bajada"))
+    st.info(T("ado_solo_lectura"))
+
+    _origen = st.radio(
+        T("ado_origen"),
+        [T("ado_origen_demo"), T("ado_origen_csv"), T("ado_origen_api")],
+        horizontal=True, key="ado_origen")
+
+    _backlog = None
+    if _origen == T("ado_origen_demo"):
+        _backlog = demo_azure.backlog_demo()
+        st.caption(T("ado_demo_aviso"))
+    elif _origen == T("ado_origen_csv"):
+        _subido = st.file_uploader("CSV", type=["csv"], key="ado_csv")
+        if _subido is not None:
+            try:
+                _backlog = azure_devops.leer_csv(_subido.getvalue())
+            except (ValueError, UnicodeDecodeError) as e:
+                st.error(f"{T('ado_err_respuesta')} ({e})")
+    else:
+        _c1, _c2 = st.columns(2)
+        _org = azure_devops.organizacion_de_url(
+            _c1.text_input(T("ado_org"), key="ado_org", help=T("ado_org_ayuda")))
+        _proy = _c2.text_input(T("ado_proyecto"), key="ado_proyecto")
+        _mail = st.text_input(T("ado_email"), key="ado_mail", help=T("ado_email_ayuda"))
+        # El token del entorno se usa como valor inicial para no obligar a
+        # tipearlo, pero sigue siendo un campo password: no se muestra.
+        _tok = st.text_input(T("ado_token"), type="password", key="ado_tok",
+                             value=azure_devops.token_del_entorno())
+        st.caption(T("ado_token_ayuda"))
+        st.caption(T("ado_token_guardado"))
+        _cred = azure_devops.Credenciales(_org, _proy, _mail, _tok)
+
+        _b1, _b2 = st.columns(2)
+        if _b1.button(T("ado_probar"), key="ado_probar"):
+            _r = azure_devops.probar_conexion(_cred)
+            _texto = T(_r["clave"]) + (f" — {_r['detalle']}" if _r["detalle"] else "")
+            (st.success if _r["ok"] else st.error)(_texto)
+        if _b2.button(T("ado_traer"), key="ado_traer"):
+            try:
+                st.session_state["ado_backlog"] = azure_devops.traer_backlog(_cred)
+            except azure_devops.ErrorAzure as e:
+                st.session_state.pop("ado_backlog", None)
+                st.error(T(e.clave) + (f" — {e.detalle}" if e.detalle else ""))
+        _backlog = st.session_state.get("ado_backlog")
+
+    if _backlog is not None and not _backlog.empty:
+        _hallazgos = backlog_calidad.revisar(_backlog)
+        _corregido, _cambios = backlog_calidad.corregir(_backlog)
+        _resumen = backlog_calidad.resumen(_hallazgos)
+
+        _m = st.columns(4)
+        _m[0].metric(T("ado_hallazgos"), _resumen["total"])
+        _m[1].metric(T("ado_sev_alta"), _resumen["por_severidad"][backlog_calidad.ALTA])
+        _m[2].metric(T("ado_items_afectados"),
+                     f"{_resumen['items_afectados']}/{len(_backlog)}")
+        _m[3].metric(T("ado_correcciones"), len(_cambios))
+
+        if not _hallazgos:
+            st.success(T("ado_sin_hallazgos"))
+        else:
+            st.dataframe(backlog_calidad.a_dataframe(_hallazgos, T),
+                         use_container_width=True, hide_index=True)
+            st.caption(T("ado_no_inventa"))
+
+        with st.expander(f"{T('ado_antes')} → {T('ado_despues')}"):
+            st.dataframe(backlog_calidad.correcciones_a_dataframe(_cambios),
+                         use_container_width=True, hide_index=True)
+
+        _d1, _d2 = st.columns(2)
+        _d1.download_button(
+            T("ado_descargar_csv"),
+            data=azure_devops.a_csv_azure(_corregido).encode("utf-8-sig"),
+            file_name="backlog_corregido.csv", mime="text/csv")
+        _d2.download_button(
+            T("ado_descargar_informe"),
+            data=backlog_calidad.correcciones_a_dataframe(_cambios)
+            .to_csv(index=False).encode("utf-8-sig"),
+            file_name="correcciones.csv", mime="text/csv")
+        st.caption(T("ado_como_subir"))
 
 elif section == T("nav_users"):
     st.subheader(T("nav_users"))

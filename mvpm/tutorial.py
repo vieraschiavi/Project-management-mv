@@ -576,6 +576,45 @@ SECTIONS = [
         ],
     },
     {
+        "id": "nav_azure",
+        "titulo": "Azure DevOps — calidad del backlog",
+        "resumen": "Revisa el backlog de un equipo contra reglas de calidad, explica por "
+                   "qué cada cosa es un problema y devuelve el archivo corregido listo "
+                   "para volver a subir a Azure DevOps.",
+        "pasos": [
+            "Elegí de dónde sale el backlog: el de demo (inventado, para probar sin "
+            "credenciales), un CSV que exportaste de la grilla de Azure DevOps, o la "
+            "conexión directa a la API.",
+            "'Revisar' muestra los hallazgos ordenados por severidad, cada uno con el "
+            "ítem, el porqué del problema y cómo queda una vez corregido.",
+            "'Descargar el backlog corregido' baja un CSV con los nombres de columna del "
+            "importador de Azure DevOps. Se sube en Boards → Work Items → Import Work "
+            "Items.",
+        ],
+        "tips": [
+            "El mail corporativo y su contraseña NO sirven para la API: una cuenta con "
+            "MFA tiene bloqueado el acceso por contraseña, y las credenciales "
+            "alternativas de Azure DevOps las retiró Microsoft. Hace falta un token de "
+            "acceso personal (PAT), que se saca en un minuto desde la propia "
+            "organización con el alcance 'Work Items → Read' y nada más.",
+            "El mail igual se pide y se usa: va como usuario de la conexión, así que es "
+            "lo que queda en el registro de auditoría de Azure DevOps del lado del "
+            "cliente. Eso es justamente lo que un área de seguridad quiere poder ver.",
+            "El token no se guarda en ningún lado: vive en la sesión del navegador. Si "
+            "no querés tipearlo cada vez, exportá la variable AZURE_DEVOPS_PAT.",
+            "El CSV corregido lleva la columna ID. Con el ID puesto, el importador "
+            "ACTUALIZA el ítem que ya existe; si borrás esa columna, subir el archivo "
+            "duplica el backlog entero.",
+            "Lo que se puede derivar del backlog se corrige de verdad (títulos "
+            "duplicados, estados metidos en el título, iteraciones con nombre móvil, "
+            "etiquetas informales). Lo que no se puede derivar —una estimación que nadie "
+            "puso, a qué Epic pertenece un ítem huérfano— no se inventa: se etiqueta, y "
+            "la etiqueta se filtra en Azure DevOps.",
+            "El módulo es de sólo lectura: no tiene ninguna llamada que escriba en Azure "
+            "DevOps. Lo corregido vuelve como archivo y lo sube una persona.",
+        ],
+    },
+    {
         "id": "licencia_ia",
         "titulo": "Licencia y plan de créditos de IA",
         "resumen": "Cómo activar el cupo de IA del copiloto después de comprar un plan.",

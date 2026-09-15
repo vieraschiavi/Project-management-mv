@@ -1425,6 +1425,492 @@ _STRINGS = {
               "screen with \"Create account\".",
         "pt": "Para somar gente à equipe, peça que se cadastre na tela de login deste mesmo "
               "servidor com 'Criar conta'."},
+
+    # ---------------------------------------------------------- Azure DevOps
+    "nav_azure": {"es": "Azure DevOps — calidad del backlog",
+                  "en": "Azure DevOps — backlog quality",
+                  "pt": "Azure DevOps — qualidade do backlog"},
+    "ado_bajada": {
+        "es": "Azure DevOps guarda lo que le pongan: una tarea titulada 'DELETE' es un "
+              "título válido y un ítem en Doing hace tres meses es un estado válido. "
+              "Acá se revisa el backlog contra reglas de calidad, se explica por qué "
+              "cada cosa es un problema y se devuelve el archivo corregido, listo para "
+              "volver a subir.",
+        "en": "Azure DevOps stores whatever you put in it: a task titled 'DELETE' is a "
+              "valid title, and an item sitting in Doing for three months is a valid "
+              "state. Here the backlog is checked against quality rules, each problem "
+              "is explained, and you get the corrected file back, ready to re-import.",
+        "pt": "O Azure DevOps guarda o que colocarem: uma tarefa intitulada 'DELETE' é "
+              "um título válido e um item em Doing há três meses é um estado válido. "
+              "Aqui o backlog é revisado com regras de qualidade, cada problema é "
+              "explicado e o arquivo corrigido volta pronto para reimportar."},
+    "ado_origen": {"es": "De dónde sale el backlog", "en": "Where the backlog comes from",
+                   "pt": "De onde vem o backlog"},
+    "ado_origen_demo": {"es": "Backlog de demo (sintético)",
+                        "en": "Demo backlog (synthetic)",
+                        "pt": "Backlog de demonstração (sintético)"},
+    "ado_origen_csv": {"es": "Subir un CSV exportado", "en": "Upload an exported CSV",
+                       "pt": "Enviar um CSV exportado"},
+    "ado_origen_api": {"es": "Conectar a Azure DevOps", "en": "Connect to Azure DevOps",
+                       "pt": "Conectar ao Azure DevOps"},
+    "ado_demo_aviso": {
+        "es": "Este backlog es 100% inventado: ni la empresa ni las personas existen. "
+              "Lo que es real es la forma de los defectos — cada uno está puesto a "
+              "propósito para mostrar la regla que lo detecta.",
+        "en": "This backlog is 100% made up: neither the company nor the people exist. "
+              "What is real is the shape of the defects — each one is planted on "
+              "purpose to show the rule that catches it.",
+        "pt": "Este backlog é 100% inventado: nem a empresa nem as pessoas existem. O "
+              "que é real é a forma dos defeitos — cada um está posto de propósito "
+              "para mostrar a regra que o detecta."},
+    "ado_org": {"es": "Organización", "en": "Organisation", "pt": "Organização"},
+    "ado_org_ayuda": {
+        "es": "Lo que va después de dev.azure.com/. Podés pegar la URL entera.",
+        "en": "Whatever comes after dev.azure.com/. You can paste the whole URL.",
+        "pt": "O que vem depois de dev.azure.com/. Pode colar a URL inteira."},
+    "ado_proyecto": {"es": "Proyecto", "en": "Project", "pt": "Projeto"},
+    "ado_email": {"es": "Mail corporativo", "en": "Work email", "pt": "E-mail corporativo"},
+    "ado_email_ayuda": {
+        "es": "Va como usuario de la conexión y es lo que queda en el registro de "
+              "auditoría de Azure DevOps del lado del cliente.",
+        "en": "Used as the connection user, and it is what shows up in the customer's "
+              "Azure DevOps audit log.",
+        "pt": "Vai como usuário da conexão e é o que fica no registro de auditoria do "
+              "Azure DevOps do lado do cliente."},
+    "ado_token": {"es": "Token de acceso personal (PAT)", "en": "Personal access token (PAT)",
+                  "pt": "Token de acesso pessoal (PAT)"},
+    "ado_token_ayuda": {
+        "es": "No es la contraseña del mail. Una cuenta corporativa con MFA tiene "
+              "bloqueado el acceso por contraseña a la API — eso lo decide Microsoft, "
+              "no este programa. El token se saca en dev.azure.com/{organización}"
+              "/_usersSettings/tokens, con el alcance 'Work Items → Read' y nada más: "
+              "con eso alcanza y el token no puede escribir aunque quisiera.",
+        "en": "This is not your email password. A corporate account with MFA has "
+              "password access to the API blocked — that is Microsoft's decision, not "
+              "this program's. Create the token at dev.azure.com/{organisation}"
+              "/_usersSettings/tokens with scope 'Work Items → Read' and nothing else: "
+              "that is enough, and the token cannot write even if it wanted to.",
+        "pt": "Não é a senha do e-mail. Uma conta corporativa com MFA tem o acesso por "
+              "senha à API bloqueado — isso é decisão da Microsoft, não deste programa. "
+              "O token se cria em dev.azure.com/{organização}/_usersSettings/tokens com "
+              "escopo 'Work Items → Read' e nada mais: é suficiente e o token não "
+              "consegue escrever nem que quisesse."},
+    "ado_token_guardado": {
+        "es": "El token no se guarda: vive en esta sesión del navegador y se pierde al "
+              "cerrarla. Si no querés tipearlo cada vez, exportá la variable de entorno "
+              "AZURE_DEVOPS_PAT antes de abrir el programa.",
+        "en": "The token is not stored: it lives in this browser session and is gone "
+              "when you close it. To avoid typing it every time, export the "
+              "AZURE_DEVOPS_PAT environment variable before starting the program.",
+        "pt": "O token não é salvo: vive nesta sessão do navegador e some ao fechá-la. "
+              "Para não digitá-lo toda vez, exporte a variável de ambiente "
+              "AZURE_DEVOPS_PAT antes de abrir o programa."},
+    "ado_probar": {"es": "Probar conexión", "en": "Test connection", "pt": "Testar conexão"},
+    "ado_traer": {"es": "Traer el backlog", "en": "Fetch the backlog", "pt": "Buscar o backlog"},
+    "ado_solo_lectura": {
+        "es": "Sólo lectura: el módulo no tiene ninguna llamada que escriba en Azure "
+              "DevOps. Lo corregido vuelve como archivo y lo sube una persona.",
+        "en": "Read-only: the module makes no call that writes to Azure DevOps. The "
+              "corrections come back as a file and a person uploads them.",
+        "pt": "Somente leitura: o módulo não faz nenhuma chamada que escreva no Azure "
+              "DevOps. O corrigido volta como arquivo e uma pessoa o envia."},
+    "ado_ok": {"es": "Conexión correcta.", "en": "Connection OK.", "pt": "Conexão correta."},
+    "ado_falta_org": {"es": "Falta la organización.", "en": "Organisation is missing.",
+                      "pt": "Falta a organização."},
+    "ado_falta_proyecto": {"es": "Falta el proyecto.", "en": "Project is missing.",
+                           "pt": "Falta o projeto."},
+    "ado_falta_token": {"es": "Falta el token de acceso personal.",
+                        "en": "Personal access token is missing.",
+                        "pt": "Falta o token de acesso pessoal."},
+    "ado_err_auth": {
+        "es": "Azure DevOps rechazó las credenciales. Si pusiste la contraseña del "
+              "mail, ese es el motivo: hace falta un token de acceso personal.",
+        "en": "Azure DevOps rejected the credentials. If you entered your email "
+              "password, that is why: a personal access token is required.",
+        "pt": "O Azure DevOps rejeitou as credenciais. Se você colocou a senha do "
+              "e-mail, é por isso: é preciso um token de acesso pessoal."},
+    "ado_err_permiso": {
+        "es": "El token es válido pero no alcanza para leer este proyecto. Revisá que "
+              "tenga el alcance 'Work Items → Read'.",
+        "en": "The token is valid but not enough to read this project. Check that it "
+              "has the 'Work Items → Read' scope.",
+        "pt": "O token é válido mas não basta para ler este projeto. Verifique se tem o "
+              "escopo 'Work Items → Read'."},
+    "ado_err_no_existe": {
+        "es": "No existe esa organización o ese proyecto con este token.",
+        "en": "No such organisation or project for this token.",
+        "pt": "Não existe essa organização ou esse projeto com este token."},
+    "ado_err_red": {"es": "No se pudo llegar a Azure DevOps (red o proxy).",
+                    "en": "Could not reach Azure DevOps (network or proxy).",
+                    "pt": "Não foi possível alcançar o Azure DevOps (rede ou proxy)."},
+    "ado_err_respuesta": {"es": "Azure DevOps respondió algo que no se pudo leer.",
+                          "en": "Azure DevOps returned something unreadable.",
+                          "pt": "O Azure DevOps respondeu algo ilegível."},
+    "ado_err_http": {"es": "Azure DevOps devolvió un error.",
+                     "en": "Azure DevOps returned an error.",
+                     "pt": "O Azure DevOps retornou um erro."},
+    "ado_antes": {"es": "Antes", "en": "Before", "pt": "Antes"},
+    "ado_despues": {"es": "Después", "en": "After", "pt": "Depois"},
+    "ado_hallazgos": {"es": "Hallazgos", "en": "Findings", "pt": "Achados"},
+    "ado_items_afectados": {"es": "Ítems con algún problema", "en": "Items with a problem",
+                            "pt": "Itens com algum problema"},
+    "ado_correcciones": {"es": "Correcciones aplicadas", "en": "Corrections applied",
+                         "pt": "Correções aplicadas"},
+    "ado_sin_hallazgos": {"es": "El backlog pasó todas las reglas.",
+                          "en": "The backlog passed every rule.",
+                          "pt": "O backlog passou em todas as regras."},
+    "ado_descargar_csv": {"es": "Descargar el backlog corregido (CSV para Azure DevOps)",
+                          "en": "Download the corrected backlog (CSV for Azure DevOps)",
+                          "pt": "Baixar o backlog corrigido (CSV para Azure DevOps)"},
+    "ado_descargar_informe": {"es": "Descargar el informe de correcciones",
+                              "en": "Download the corrections report",
+                              "pt": "Baixar o relatório de correções"},
+    "ado_como_subir": {
+        "es": "Para aplicarlo: en Azure DevOps, Boards → Work Items → Import Work "
+              "Items, y subí este archivo. Lleva la columna ID, y con el ID puesto el "
+              "importador **actualiza** el ítem que ya existe en vez de crear uno "
+              "nuevo. Si borrás esa columna, subir el archivo duplica el backlog entero.",
+        "en": "To apply it: in Azure DevOps go to Boards → Work Items → Import Work "
+              "Items and upload this file. It carries the ID column, and with the ID "
+              "filled in the importer **updates** the existing item instead of creating "
+              "a new one. Delete that column and the upload duplicates the whole backlog.",
+        "pt": "Para aplicar: no Azure DevOps, Boards → Work Items → Import Work Items e "
+              "envie este arquivo. Ele leva a coluna ID, e com o ID preenchido o "
+              "importador **atualiza** o item existente em vez de criar um novo. Se "
+              "apagar essa coluna, o envio duplica o backlog inteiro."},
+    "ado_no_inventa": {
+        "es": "Lo que se puede derivar del propio backlog se corrige de verdad. Lo que "
+              "no —una estimación que nadie puso, un padre que no existe— **no se "
+              "inventa**: se etiqueta, y la etiqueta se filtra en Azure DevOps.",
+        "en": "Whatever can be derived from the backlog itself is really fixed. "
+              "Whatever cannot — an estimate nobody gave, a parent that does not "
+              "exist — **is not invented**: it gets a tag, and tags are filterable in "
+              "Azure DevOps.",
+        "pt": "O que se pode derivar do próprio backlog é realmente corrigido. O que "
+              "não — uma estimativa que ninguém deu, um pai que não existe — **não se "
+              "inventa**: recebe uma etiqueta, e etiquetas se filtram no Azure DevOps."},
+    "ado_sev_alta": {"es": "Alta", "en": "High", "pt": "Alta"},
+    "ado_sev_media": {"es": "Media", "en": "Medium", "pt": "Média"},
+    "ado_sev_baja": {"es": "Baja", "en": "Low", "pt": "Baixa"},
+
+    # --- reglas: nombre (r), por qué es un problema (p), cómo queda (f) -----
+    "adoq_r_titulo_marcador": {"es": "El título es un marcador, no un título",
+                               "en": "The title is a placeholder, not a title",
+                               "pt": "O título é um marcador, não um título"},
+    "adoq_p_titulo_marcador": {
+        "es": "Un ítem llamado DELETE o TBD no se puede buscar, no se puede priorizar y "
+              "nadie sabe si se puede cerrar. Quedó de un arrastre y ya nadie recuerda "
+              "qué era.",
+        "en": "An item called DELETE or TBD cannot be searched, cannot be prioritised, "
+              "and nobody knows whether it can be closed. It is leftover from a "
+              "drag-and-drop nobody remembers.",
+        "pt": "Um item chamado DELETE ou TBD não dá para buscar, não dá para priorizar "
+              "e ninguém sabe se pode ser fechado. Sobrou de um arrasto que ninguém "
+              "lembra."},
+    "adoq_f_titulo_marcador": {
+        "es": "Si dice DELETE o BORRAR sale del backlog corregido. Si dice TBD o "
+              "similar se queda —puede haber trabajo real detrás— con la etiqueta "
+              "'revisar-titulo', porque el título no se puede inventar.",
+        "en": "If it says DELETE it is dropped from the corrected backlog. If it says "
+              "TBD or similar it stays — there may be real work behind it — tagged "
+              "'revisar-titulo', because a title cannot be invented.",
+        "pt": "Se diz DELETE sai do backlog corrigido. Se diz TBD ou parecido fica — "
+              "pode haver trabalho real atrás — com a etiqueta 'revisar-titulo', porque "
+              "um título não se inventa."},
+    "adoq_r_titulo_duplicado": {"es": "Dos ítems con el mismo título",
+                                "en": "Two items with the same title",
+                                "pt": "Dois itens com o mesmo título"},
+    "adoq_p_titulo_duplicado": {
+        "es": "En el tablero se ven dos tarjetas idénticas. Alguien avanza la "
+              "equivocada, y el reporte de avance cuenta una cosa por otra.",
+        "en": "The board shows two identical cards. Someone moves the wrong one, and "
+              "the progress report counts one thing as the other.",
+        "pt": "No quadro aparecem dois cartões idênticos. Alguém move o errado e o "
+              "relatório de avanço conta uma coisa pela outra."},
+    "adoq_f_titulo_duplicado": {
+        "es": "Cada uno queda con el título de su padre entre paréntesis: 'Revisión con "
+              "analítica (Tablero acotado)'. Se distinguen sin tocar la jerarquía.",
+        "en": "Each one gets its parent's title in brackets: 'Review with analytics "
+              "(Scoped dashboard)'. They become distinguishable without touching the "
+              "hierarchy.",
+        "pt": "Cada um fica com o título do seu pai entre parênteses: 'Revisão com "
+              "analytics (Painel reduzido)'. Distinguem-se sem mexer na hierarquia."},
+    "adoq_r_titulo_con_estado": {"es": "El título arrastra un estado o un workaround",
+                                 "en": "The title carries a status or a workaround",
+                                 "pt": "O título arrasta um estado ou um contorno"},
+    "adoq_p_titulo_con_estado": {
+        "es": "'Refresco automático (manual mientras no se resuelve)' cambia de "
+              "significado cada vez que cambia la realidad, y el día que se resuelve el "
+              "título queda mintiendo. Para el estado ya existe el campo Estado.",
+        "en": "'Automatic refresh (manual until it is fixed)' changes meaning every "
+              "time reality changes, and the day it is fixed the title starts lying. "
+              "There is already a State field for that.",
+        "pt": "'Atualização automática (manual enquanto não se resolve)' muda de "
+              "sentido cada vez que a realidade muda, e no dia em que se resolver o "
+              "título passa a mentir. Para isso já existe o campo Estado."},
+    "adoq_f_titulo_con_estado": {
+        "es": "El título queda con el objetivo solo, y la aclaración se mueve a la "
+              "descripción como 'Nota de estado'. No se pierde nada.",
+        "en": "The title keeps only the goal, and the caveat moves into the description "
+              "as a 'status note'. Nothing is lost.",
+        "pt": "O título fica só com o objetivo, e a ressalva vai para a descrição como "
+              "'nota de estado'. Nada se perde."},
+    "adoq_r_sin_descripcion": {"es": "Sin descripción", "en": "No description",
+                               "pt": "Sem descrição"},
+    "adoq_p_sin_descripcion": {
+        "es": "El título solo alcanza para el que lo escribió. Cualquier otro tiene que "
+              "preguntar, y si esa persona se va, el ítem no se puede hacer.",
+        "en": "The title alone is enough only for whoever wrote it. Anyone else has to "
+              "ask, and if that person leaves, the item cannot be done at all.",
+        "pt": "Só o título basta para quem o escreveu. Qualquer outro tem que "
+              "perguntar, e se essa pessoa sai, o item não dá para fazer."},
+    "adoq_f_sin_descripcion": {
+        "es": "Queda la estructura mínima —Objetivo, Entregable, Criterio de "
+              "aceptación— con '<completar>' en cada una. El contenido no se inventa: "
+              "se deja a la vista lo que falta.",
+        "en": "It gets the minimum structure — Goal, Deliverable, Acceptance criteria — "
+              "with '<completar>' in each. The content is not invented: what is missing "
+              "is left in plain sight.",
+        "pt": "Fica a estrutura mínima — Objetivo, Entregável, Critério de aceitação — "
+              "com '<completar>' em cada uma. O conteúdo não se inventa: o que falta "
+              "fica à vista."},
+    "adoq_r_sin_criterio_aceptacion": {"es": "Sin criterio de aceptación",
+                                       "en": "No acceptance criteria",
+                                       "pt": "Sem critério de aceitação"},
+    "adoq_p_sin_criterio_aceptacion": {
+        "es": "Sin criterio, 'terminado' lo decide cada uno. Ahí nacen las tareas que "
+              "se reabren tres veces y los sprints que cierran con la mitad en revisión.",
+        "en": "With no criteria, 'done' is decided by whoever is looking. That is where "
+              "tasks that reopen three times and sprints that close half-in-review come "
+              "from.",
+        "pt": "Sem critério, 'pronto' cada um decide. É daí que saem as tarefas que "
+              "reabrem três vezes e as sprints que fecham com metade em revisão."},
+    "adoq_f_sin_criterio_aceptacion": {
+        "es": "Se agrega la sección 'Criterio de aceptación: <completar>' al final de la "
+              "descripción, para que la conversación pase antes de empezar y no después.",
+        "en": "An 'Acceptance criteria: <completar>' section is appended to the "
+              "description, so the conversation happens before the work, not after.",
+        "pt": "Acrescenta-se a seção 'Critério de aceitação: <completar>' ao fim da "
+              "descrição, para que a conversa aconteça antes e não depois."},
+    "adoq_r_depende_de_adjunto": {"es": "La descripción depende de un adjunto",
+                                  "en": "The description depends on an attachment",
+                                  "pt": "A descrição depende de um anexo"},
+    "adoq_p_depende_de_adjunto": {
+        "es": "'Ver imagen adjunta' no viaja: no sale en la exportación, no se busca, y "
+              "el que abre el ítem en el celular no ve nada. El requisito quedó fuera "
+              "del requisito.",
+        "en": "'See attached image' does not travel: it is not in the export, it is not "
+              "searchable, and whoever opens the item on a phone sees nothing. The "
+              "requirement ended up outside the requirement.",
+        "pt": "'Ver imagem anexa' não viaja: não sai na exportação, não é pesquisável e "
+              "quem abre o item no celular não vê nada. O requisito ficou fora do "
+              "requisito."},
+    "adoq_f_depende_de_adjunto": {
+        "es": "Se marca el ítem y se deja la nota de que hay que copiar en texto lo que "
+              "decía el adjunto. El contenido de la imagen no se puede adivinar.",
+        "en": "The item is flagged with a note saying the attachment's content has to be "
+              "written out as text. What the image said cannot be guessed.",
+        "pt": "O item é marcado com a nota de que é preciso escrever em texto o que o "
+              "anexo dizia. O conteúdo da imagem não dá para adivinhar."},
+    "adoq_r_sin_esfuerzo": {"es": "Sin estimación", "en": "No estimate", "pt": "Sem estimativa"},
+    "adoq_p_sin_esfuerzo": {
+        "es": "Sin esfuerzo cargado no hay velocidad, no hay capacidad de sprint y no "
+              "hay forma de decir que no a algo. El compromiso se toma a ojo.",
+        "en": "With no effort recorded there is no velocity, no sprint capacity and no "
+              "way to say no to anything. Commitments get made by eye.",
+        "pt": "Sem esforço carregado não há velocidade, não há capacidade de sprint e "
+              "não há como dizer não a nada. O compromisso é assumido no olho."},
+    "adoq_f_sin_esfuerzo": {
+        "es": "Se etiqueta 'sin-estimar' y se deja el campo vacío. Poner un número "
+              "inventado sería peor que no tener ninguno: el reporte saldría igual y "
+              "estaría mal.",
+        "en": "It is tagged 'sin-estimar' and the field stays empty. Inventing a number "
+              "would be worse than having none: the report would still come out, and it "
+              "would be wrong.",
+        "pt": "Marca-se 'sin-estimar' e o campo fica vazio. Inventar um número seria "
+              "pior do que não ter nenhum: o relatório sairia igual e estaria errado."},
+    "adoq_r_sin_padre": {"es": "Ítem huérfano habiendo Epics",
+                         "en": "Orphan item while Epics exist",
+                         "pt": "Item órfão havendo Epics"},
+    "adoq_p_sin_padre": {
+        "es": "Si el ítem no cuelga de nada, no aparece en el avance de ningún Epic. El "
+              "trabajo se hace y el tablero de arriba no se mueve — y alguien termina "
+              "explicando por qué el proyecto 'no avanzó'.",
+        "en": "If the item hangs off nothing, it shows up in no Epic's progress. The "
+              "work gets done and the top-level board does not move — and someone ends "
+              "up explaining why the project 'made no progress'.",
+        "pt": "Se o item não pende de nada, não aparece no avanço de nenhum Epic. O "
+              "trabalho é feito e o quadro de cima não se move — e alguém acaba "
+              "explicando por que o projeto 'não avançou'."},
+    "adoq_f_sin_padre": {
+        "es": "Se etiqueta 'sin-padre'. A cuál Epic pertenece lo sabe el equipo, no el "
+              "archivo: colgarlo del que parezca sería adivinar.",
+        "en": "It is tagged 'sin-padre'. Which Epic it belongs to is something the team "
+              "knows, not the file: attaching it to a likely-looking one would be "
+              "guessing.",
+        "pt": "Marca-se 'sin-padre'. A qual Epic pertence quem sabe é a equipe, não o "
+              "arquivo: pendurá-lo no que parecer seria adivinhar."},
+    "adoq_r_iteracion_movil": {"es": "Iteración con nombre móvil ('Sprint Actual')",
+                               "en": "Iteration with a moving name ('Current Sprint')",
+                               "pt": "Iteração com nome móvel ('Sprint Atual')"},
+    "adoq_p_iteracion_movil": {
+        "es": "Es el defecto más caro de la lista y el que menos se nota. 'Sprint "
+              "Actual' hoy apunta a una cosa y en dos meses a otra: la historia se "
+              "reescribe sola, el reporte de velocidad mezcla sprints distintos y no "
+              "hay forma de saber qué se comprometió cuándo.",
+        "en": "The most expensive defect on this list and the least visible. 'Current "
+              "Sprint' points at one thing today and another in two months: history "
+              "rewrites itself, the velocity report mixes different sprints, and there "
+              "is no way to tell what was committed when.",
+        "pt": "É o defeito mais caro da lista e o menos perceptível. 'Sprint Atual' "
+              "aponta para uma coisa hoje e outra em dois meses: a história se reescreve "
+              "sozinha, o relatório de velocidade mistura sprints diferentes e não há "
+              "como saber o que foi comprometido quando."},
+    "adoq_f_iteracion_movil": {
+        "es": "Se reemplaza por un sprint numerado: el que sigue al más alto que haya en "
+              "el backlog. Es un supuesto y está dicho — el informe de correcciones "
+              "muestra el antes y el después para que se pueda pisar.",
+        "en": "It is replaced by a numbered sprint: the one after the highest in the "
+              "backlog. That is an assumption and it is stated — the corrections report "
+              "shows before and after so it can be overridden.",
+        "pt": "É substituída por uma sprint numerada: a seguinte à mais alta do backlog. "
+              "É um pressuposto e está dito — o relatório de correções mostra o antes e "
+              "o depois para poder ser alterado."},
+    "adoq_r_iteracion_inconsistente": {"es": "Unos ítems en sprint y otros en la raíz",
+                                       "en": "Some items in a sprint, others at the root",
+                                       "pt": "Uns itens em sprint e outros na raiz"},
+    "adoq_p_iteracion_inconsistente": {
+        "es": "Los que quedan en la raíz no entran en ningún sprint, así que no se "
+              "planifican y no se cierran. Están en el backlog y a la vez en ningún lado.",
+        "en": "Items left at the root belong to no sprint, so they never get planned and "
+              "never get closed. They are in the backlog and nowhere at the same time.",
+        "pt": "Os que ficam na raiz não entram em nenhuma sprint, então não se planejam "
+              "nem se fecham. Estão no backlog e em lugar nenhum ao mesmo tempo."},
+    "adoq_f_iteracion_inconsistente": {
+        "es": "Se etiquetan 'sin-sprint' para que se puedan filtrar y repartir en la "
+              "próxima planificación. A qué sprint van lo decide el equipo.",
+        "en": "They are tagged 'sin-sprint' so they can be filtered and distributed at "
+              "the next planning. Which sprint they go to is the team's call.",
+        "pt": "São marcados 'sin-sprint' para poderem ser filtrados e distribuídos no "
+              "próximo planejamento. Para qual sprint vão, decide a equipe."},
+    "adoq_r_estancado": {"es": "En curso hace demasiado", "en": "In progress for too long",
+                         "pt": "Em curso há tempo demais"},
+    "adoq_p_estancado": {
+        "es": "Un ítem en Doing hace meses no está en curso: está trabado y nadie lo "
+              "dijo. Mientras tanto ocupa un lugar en el tablero y hace parecer que el "
+              "equipo tiene trabajo en marcha que en realidad no se mueve.",
+        "en": "An item in Doing for months is not in progress: it is stuck and nobody "
+              "said so. Meanwhile it takes up a slot on the board and makes the team "
+              "look busy with work that is not moving.",
+        "pt": "Um item em Doing há meses não está em curso: está travado e ninguém "
+              "disse. Enquanto isso ocupa um lugar no quadro e faz parecer que a equipe "
+              "tem trabalho andando que na verdade não anda."},
+    "adoq_f_estancado": {
+        "es": "Se etiqueta con los días que lleva quieto ('estancado-96d'). El número "
+              "sale de la fecha de modificación, no de una opinión, y es lo que hace "
+              "que la conversación se pueda tener.",
+        "en": "It is tagged with how many days it has been still ('estancado-96d'). The "
+              "number comes from the changed date, not from an opinion, and that is what "
+              "makes the conversation possible.",
+        "pt": "Marca-se com os dias parado ('estancado-96d'). O número vem da data de "
+              "modificação, não de uma opinião, e é o que torna a conversa possível."},
+    "adoq_r_sin_asignar": {"es": "Sin responsable", "en": "No owner", "pt": "Sem responsável"},
+    "adoq_p_sin_asignar": {
+        "es": "Lo que no tiene nombre no lo hace nadie. En la revisión de sprint el ítem "
+              "sigue ahí y no hay a quién preguntarle.",
+        "en": "Whatever has no name gets done by nobody. At sprint review the item is "
+              "still there and there is no one to ask.",
+        "pt": "O que não tem nome ninguém faz. Na revisão de sprint o item continua lá e "
+              "não há a quem perguntar."},
+    "adoq_f_sin_asignar": {
+        "es": "Se etiqueta 'sin-responsable'. Asignarle alguien automáticamente sería "
+              "repartir trabajo sin que esa persona se entere.",
+        "en": "It is tagged 'sin-responsable'. Assigning someone automatically would be "
+              "handing out work without that person knowing.",
+        "pt": "Marca-se 'sin-responsable'. Atribuir alguém automaticamente seria "
+              "distribuir trabalho sem que a pessoa soubesse."},
+    "adoq_r_tag_informal": {"es": "Etiqueta informal", "en": "Informal tag",
+                            "pt": "Etiqueta informal"},
+    "adoq_p_tag_informal": {
+        "es": "'VERLO DESPUES' no se puede filtrar, no significa lo mismo para dos "
+              "personas y compite con las etiquetas que sí sirven. Es una nota mental "
+              "guardada en el lugar equivocado.",
+        "en": "'LOOK AT IT LATER' cannot be filtered, means different things to "
+              "different people, and competes with the tags that do work. It is a mental "
+              "note stored in the wrong place.",
+        "pt": "'VER DEPOIS' não dá para filtrar, não significa o mesmo para duas pessoas "
+              "e compete com as etiquetas que servem. É uma nota mental guardada no "
+              "lugar errado."},
+    "adoq_f_tag_informal": {
+        "es": "Se reemplaza por 'revisar', que es una etiqueta que se filtra y quiere "
+              "decir lo mismo para todos.",
+        "en": "It is replaced by 'revisar', a tag that can be filtered and means the "
+              "same thing to everyone.",
+        "pt": "É substituída por 'revisar', uma etiqueta filtrável que quer dizer o "
+              "mesmo para todos."},
+    "adoq_r_rev_alta": {"es": "Demasiadas revisiones", "en": "Too many revisions",
+                        "pt": "Revisões demais"},
+    "adoq_p_rev_alta": {
+        "es": "Veintitantas ediciones sobre un mismo ítem casi siempre quieren decir que "
+              "no estaba claro qué había que hacer, y que se fue redefiniendo sobre la "
+              "marcha. Es la señal más temprana de que ese ítem va a desbordar.",
+        "en": "Twenty-odd edits on one item almost always mean it was not clear what had "
+              "to be done, and it kept being redefined along the way. It is the earliest "
+              "signal that the item is going to overrun.",
+        "pt": "Vinte e tantas edições num mesmo item quase sempre querem dizer que não "
+              "estava claro o que fazer e que foi sendo redefinido no caminho. É o sinal "
+              "mais precoce de que esse item vai estourar."},
+    "adoq_f_rev_alta": {
+        "es": "No se corrige: se informa. Es un síntoma, no un campo mal cargado, y lo "
+              "que corresponde es mirar ese ítem en la próxima revisión.",
+        "en": "Not corrected, reported. It is a symptom, not a badly filled field, and "
+              "the right move is to look at that item at the next review.",
+        "pt": "Não se corrige: se informa. É um sintoma, não um campo mal preenchido, e "
+              "o correto é olhar esse item na próxima revisão."},
+    "adoq_r_prioridad_uniforme": {"es": "La prioridad no distingue nada",
+                                  "en": "Priority tells nothing apart",
+                                  "pt": "A prioridade não distingue nada"},
+    "adoq_p_prioridad_uniforme": {
+        "es": "Si casi todo el backlog tiene la misma prioridad, el campo no está "
+              "ordenando nada: es el valor por defecto que nadie tocó. Cuando haya que "
+              "recortar alcance, no va a ayudar.",
+        "en": "If nearly the whole backlog shares one priority, the field is not "
+              "ordering anything: it is the default nobody touched. When scope has to be "
+              "cut, it will be no help.",
+        "pt": "Se quase todo o backlog tem a mesma prioridade, o campo não está "
+              "ordenando nada: é o valor padrão que ninguém mexeu. Quando for preciso "
+              "cortar escopo, não vai ajudar."},
+    "adoq_f_prioridad_uniforme": {
+        "es": "No se corrige: priorizar es una decisión del negocio, no una regla. Se "
+              "informa con el número exacto para que la conversación arranque con un "
+              "dato.",
+        "en": "Not corrected: prioritising is a business decision, not a rule. It is "
+              "reported with the exact number so the conversation starts from a fact.",
+        "pt": "Não se corrige: priorizar é decisão do negócio, não uma regra. Informa-se "
+              "com o número exato para que a conversa comece com um dado."},
+    "adoq_r_bus_factor": {"es": "Casi todo depende de una persona",
+                          "en": "Almost everything depends on one person",
+                          "pt": "Quase tudo depende de uma pessoa"},
+    "adoq_p_bus_factor": {
+        "es": "Con una sola persona asignada a casi todo, el equipo no tiene capacidad: "
+              "tiene una cola. Una licencia, una renuncia o una gripe frenan el proyecto "
+              "entero, y el riesgo no aparece en ningún reporte.",
+        "en": "With one person assigned to almost everything, the team has no capacity: "
+              "it has a queue. One holiday, one resignation or one flu stops the whole "
+              "project, and the risk shows up in no report.",
+        "pt": "Com uma só pessoa atribuída a quase tudo, a equipe não tem capacidade: "
+              "tem uma fila. Uma licença, uma demissão ou uma gripe param o projeto "
+              "inteiro, e o risco não aparece em nenhum relatório."},
+    "adoq_f_bus_factor": {
+        "es": "No se corrige: repartir trabajo es una decisión del equipo. Se informa "
+              "con la proporción exacta, que es el dato que hace falta para pedir "
+              "refuerzo o para justificar un segundo perfil.",
+        "en": "Not corrected: sharing out work is the team's decision. It is reported "
+              "with the exact ratio, which is the fact you need to ask for help or "
+              "justify a second profile.",
+        "pt": "Não se corrige: repartir trabalho é decisão da equipe. Informa-se com a "
+              "proporção exata, que é o dado necessário para pedir reforço ou justificar "
+              "um segundo perfil."},
 }
 
 
