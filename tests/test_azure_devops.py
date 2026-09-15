@@ -777,6 +777,22 @@ def test_la_pantalla_abre_y_ofrece_el_csv_corregido(tmp_path, monkeypatch):
     assert any(m.value != "0" for m in at.metric)
 
 
+@pytest.mark.parametrize("clave, args", [
+    ("ado_truncado", {"n": 500, "sobran": 1500}),
+    ("ado_columnas_faltan", {"cols": "Tags, Descripcion_texto"}),
+])
+def test_los_avisos_con_datos_formatean_en_los_tres_idiomas(clave, args):
+    """Un marcador mal escrito en una sola traducción no lo agarra el test de
+    paridad —la clave existe en los tres idiomas— y revienta en ejecución sólo
+    para los usuarios de ese idioma, justo en el aviso que más importa."""
+    from mvpm import i18n
+    for idioma in ("es", "en", "pt"):
+        texto = i18n.t(clave, idioma).format(**args)
+        assert "{" not in texto, f"quedó un marcador sin reemplazar en {idioma}"
+        for valor in args.values():
+            assert str(valor) in texto, f"{clave}/{idioma} no usa {valor}"
+
+
 def test_la_tabla_de_hallazgos_sale_traducida(demo):
     from mvpm import i18n
     tabla = bc.a_dataframe(bc.revisar(demo, hoy=HOY), lambda k: i18n.t(k, "en"))
