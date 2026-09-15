@@ -80,14 +80,21 @@ class _Respuesta(io.BytesIO):
         self.close()
 
 
-def _falso_urlopen(respuestas: list, vistos: list):
+def _doble(monkeypatch, respuestas: list, vistos: list | None = None):
+    """Reemplaza el abridor del módulo. Apunta a `_ABRIDOR.open` y no a
+    `urlopen` a propósito: el módulo usa un abridor propio que NO sigue
+    redirects (para que el PAT no viaje a otro host), así que parchear
+    `urlopen` dejaría los tests saliendo a la red de verdad."""
+    vistos = [] if vistos is None else vistos
+
     def abrir(pedido, timeout=None):
         vistos.append(pedido)
         r = respuestas.pop(0)
         if isinstance(r, Exception):
             raise r
         return r
-    return abrir
+    monkeypatch.setattr(ado._ABRIDOR, "open", abrir)
+    return vistos
 
 
 def test_una_pagina_de_login_no_pasa_por_respuesta_valida(monkeypatch):
@@ -95,7 +102,7 @@ def test_una_pagina_de_login_no_pasa_por_respuesta_valida(monkeypatch):
     # Azure DevOps NO devuelve 401, devuelve 200 con HTML de login. Si sólo se
     # mira el código de estado, el error que se reporta es el equivocado.
     html = _Respuesta(b"<html>Sign in to your account</html>", "text/html")
-    monkeypatch.setattr(ado.urllib.request, "urlopen", _falso_urlopen([html], []))
+    _doble(monkeypatch, [html])
     r = ado.probar_conexion(ado.Credenciales("acme", "Datos", "a@b.com", "malo"))
     assert r["ok"] is False
     assert r["clave"] == "ado_err_auth"
@@ -108,7 +115,7 @@ def test_una_pagina_de_login_no_pasa_por_respuesta_valida(monkeypatch):
 def test_cada_codigo_http_da_un_motivo_distinto(monkeypatch, codigo, clave):
     err = urllib.error.HTTPError(
         "u", codigo, "x", {}, io.BytesIO(json.dumps({"message": "detalle"}).encode()))
-    monkeypatch.setattr(ado.urllib.request, "urlopen", _falso_urlopen([err], []))
+    _doble(monkeypatch, [err])
     r = ado.probar_conexion(ado.Credenciales("acme", "Datos", "a@b.com", "t"))
     assert r["clave"] == clave
 
@@ -116,13 +123,12 @@ def test_cada_codigo_http_da_un_motivo_distinto(monkeypatch, codigo, clave):
 def test_probar_conexion_no_llama_a_la_red_si_faltan_campos(monkeypatch):
     def explotar(*a, **k):
         raise AssertionError("no debería salir a la red sin token")
-    monkeypatch.setattr(ado.urllib.request, "urlopen", explotar)
+    monkeypatch.setattr(ado._ABRIDOR, "open", explotar)
     assert ado.probar_conexion(ado.Credenciales("acme", "Datos")) == {
         "ok": False, "clave": "ado_falta_token", "proyecto": "", "detalle": ""}
 
 
 def test_traer_backlog_manda_el_mail_como_usuario_y_no_escribe(monkeypatch):
-    vistos: list = []
     wiql = _Respuesta(json.dumps({"workItems": [{"id": 7}]}).encode())
     lote = _Respuesta(json.dumps({"value": [{
         "id": 7, "rev": 3, "fields": {
@@ -135,8 +141,7 @@ def test_traer_backlog_manda_el_mail_como_usuario_y_no_escribe(monkeypatch):
             "System.ChangedDate": "2026-09-01T10:00:00Z",
             "System.Description": "<p>Objetivo:</p><p>Entregable: PBI</p>",
         }}]}).encode())
-    monkeypatch.setattr(ado.urllib.request, "urlopen",
-                        _falso_urlopen([wiql, lote], vistos))
+    vistos = _doble(monkeypatch, [wiql, lote])
 
     df = ado.traer_backlog(ado.Credenciales("acme", "Datos", "yo@empresa.com", "pat"))
 
@@ -518,6 +523,220 @@ def test_cada_regla_tiene_nombre_porque_y_como_queda_en_los_tres_idiomas():
             assert clave in i18n._STRINGS, f"falta la clave {clave}"
             for idioma in ("es", "en", "pt"):
                 assert i18n._STRINGS[clave].get(idioma), f"falta {clave} en {idioma}"
+
+
+# ------------------------------------- lo que la fuente no trajo, no se toca
+
+
+def test_no_escribe_una_columna_que_el_export_no_trajo():
+    """El peor error posible de este módulo, y no era hipotético.
+
+    La grilla de Azure Boards NO puede exportar Descripción: los campos de texto
+    largo no se pueden poner como columna de una query. O sea que el export
+    real entra sin esa columna. Si el corrector la rellenaba con la plantilla y
+    el CSV la emitía con el ID puesto, seguir la instrucción de la pantalla
+    ('Import Work Items') reemplazaba la descripción real de TODOS los work
+    items del proyecto por «<completar>».
+
+    Un dato inventado en un informe es un error. Escrito en el Azure DevOps del
+    cliente es un incidente.
+    """
+    crudo = (b"ID,Work Item Type,Title,Assigned To,State,Iteration Path\n"
+             b"101,Task,Conectar el tablero,Ana,Doing,P\\Sprint 1\n")
+    df = ado.leer_csv(crudo)
+    corregido, _ = bc.corregir(df, hoy=HOY)
+    salida = ado.a_csv_azure(corregido)
+
+    encabezado = salida.splitlines()[0]
+    assert "Description" not in encabezado, "emite una columna que la fuente no trajo"
+    assert "Tags" not in encabezado
+    assert "<completar>" not in salida, "inventó una descripción"
+    # Lo que sí vino se corrige y se exporta con normalidad.
+    assert "Title" in encabezado and "Iteration Path" in encabezado
+
+
+def test_la_demo_si_se_corrige_entera():
+    # El contrapunto del test de arriba: cuando la fuente sí trae todo (la demo
+    # y la API traen las 14 columnas), no hay nada que retener.
+    df = backlog_demo()
+    assert bc.campos_disponibles(df) >= set(bc.CAMPOS_EDITABLES)
+    corregido, _ = bc.corregir(df, hoy=HOY)
+    salida = ado.a_csv_azure(corregido)
+    assert "Description" in salida.splitlines()[0]
+
+
+def test_la_procedencia_sobrevive_a_la_correccion():
+    crudo = b"ID,Title,State\n1,T,To Do\n"
+    df = ado.leer_csv(crudo)
+    corregido, _ = bc.corregir(df, hoy=HOY)
+    assert bc.campos_disponibles(corregido) == bc.campos_disponibles(df)
+
+
+# ------------------------------------------- lo que el informe promete, se aplica
+
+
+def test_toda_regla_con_etiqueta_la_aplica_de_verdad(demo):
+    """La etiqueta sale del hallazgo, no de una condición escrita aparte.
+
+    Estaban desalineadas: `sin_padre` se informaba para cualquier tipo y se
+    etiquetaba sólo en las Task, así que el usuario filtraba por `sin-padre` en
+    Azure DevOps y no encontraba los ítems que el informe le había prometido.
+    """
+    hallazgos = bc.revisar(demo, hoy=HOY)
+    corregido, _ = bc.corregir(demo, hoy=HOY)
+    tags_por_id = {r["ID"]: r["Tags"] for _, r in corregido.iterrows()}
+    for h in hallazgos:
+        etiqueta = bc.ETIQUETA_DE_REGLA.get(h.regla)
+        if not etiqueta or h.item not in tags_por_id:
+            continue
+        assert etiqueta in tags_por_id[h.item], (
+            f"el ítem {h.item} tiene el hallazgo {h.regla} pero le falta la "
+            f"etiqueta '{etiqueta}' que la pantalla promete")
+
+
+def test_el_informe_no_esconde_cambios_aunque_falte_el_ID():
+    """Se filtraban los cambios de Tags con un `any()` comparando por ID. Con el
+    ID vacío —un CSV armado a mano— las filas se pisaban entre sí y el informe
+    reportaba UNA corrección para tres ítems que sí se habían modificado."""
+    df = pd.DataFrame([_fila(Tipo="Task", Titulo=f"T{n}", Estado="To Do")
+                       for n in (1, 2, 3)])
+    corregido, cambios = bc.corregir(df, hoy=HOY)
+    tocados = sum(1 for _, r in corregido.iterrows() if r["Tags"])
+    reportados = sum(1 for c in cambios if c.campo == "Tags")
+    assert reportados == tocados == 3
+
+
+def test_la_etiqueta_de_estancado_no_se_acumula_entre_corridas(demo):
+    """Lleva los días adentro, así que no se deduplica contra la de la corrida
+    anterior. Un equipo que corre esto cada mes acumulaba
+    `estancado-96d; estancado-126d; estancado-157d…` hasta ensuciar el ítem."""
+    sep, _ = bc.corregir(demo, hoy=date(2026, 9, 15))
+    oct_, _ = bc.corregir(sep, hoy=date(2026, 10, 15))
+    nov, _ = bc.corregir(oct_, hoy=date(2026, 11, 15))
+    tags = nov[nov["ID"] == "201"].iloc[0]["Tags"]
+    assert tags.count(bc.ETIQUETA_ESTANCADO) == 1, tags
+    assert "estancado-157d" in tags          # y es el número de HOY, no el viejo
+
+
+# ----------------------------------------------------------- robustez del motor
+
+
+@pytest.mark.parametrize("hoja, movil", [
+    ("Sprint Actual", True), ("Current Sprint", True), ("Próximo Sprint", True),
+    ("Actual", True), ("Next", True),
+    ("Sprint 1", False), ("Sprint 12", False), ("Hardening", False),
+])
+def test_el_nombre_movil_se_detecta_de_los_dos_lados(hoja, movil):
+    # El modificador va antes en español ("Sprint Actual") y después en inglés
+    # ("Current Sprint"). Con el patrón de un solo lado, el texto en inglés de
+    # la regla ponía de ejemplo justo el caso que no detectaba.
+    assert bool(bc._ITERACION_MOVIL.match(hoja)) is movil
+
+
+def test_dos_estados_en_el_titulo_se_sacan_los_dos():
+    df = pd.DataFrame([_fila(
+        ID="1", Tipo="Task", Estado="To Do",
+        Titulo="Refresco (manual mientras no se resuelve) y carga "
+               "(bloqueado por accesos)")])
+    corregido, _ = bc.corregir(df, hoy=HOY)
+    fila = corregido.iloc[0]
+    assert fila["Titulo"] == "Refresco y carga"
+    # Y ninguna de las dos salvedades se pierde.
+    assert "manual mientras no se resuelve" in fila["Descripcion_texto"]
+    assert "bloqueado por accesos" in fila["Descripcion_texto"]
+
+
+def test_corregir_tolera_un_dataframe_al_que_le_faltan_columnas():
+    # `revisar()` lo toleraba y `corregir()` levantaba KeyError. Es API pública
+    # del motor: la asimetría entre las dos era una trampa.
+    corregido, _ = bc.corregir(pd.DataFrame([{"ID": "1", "Titulo": "T"}]), hoy=HOY)
+    assert len(corregido) == 1
+
+
+def test_una_celda_vacia_de_pandas_no_termina_como_la_etiqueta_nan():
+    # `str(valor or "")` sobre NaN da el texto "nan", porque NaN es truthy.
+    df = pd.DataFrame([_fila(ID="1", Tipo="Task", Titulo="T", Estado="To Do")])
+    df.at[0, "Tags"] = float("nan")
+    df.at[0, "Descripcion_texto"] = float("nan")
+    corregido, _ = bc.corregir(df, hoy=HOY)
+    assert "nan" not in corregido.iloc[0]["Tags"]
+    assert "nan" not in corregido.iloc[0]["Descripcion_texto"]
+
+
+def test_dos_columnas_para_el_mismo_campo_toman_la_que_tiene_dato():
+    # Un export con 'Description' y 'Descripción': quedarse con la primera a
+    # secas elegía la vacía y disparaba `sin_descripcion` por un motivo falso.
+    crudo = "ID,Title,Description,Descripción\n1,T,,el texto real\n".encode()
+    df = ado.leer_csv(crudo)
+    assert df.iloc[0]["Descripcion_texto"] == "el texto real"
+
+
+# ------------------------------------------------------------------- red y PAT
+
+
+def test_no_sigue_redirects_para_que_el_PAT_no_viaje_a_otro_host():
+    # `HTTPRedirectHandler` copia las cabeceras al pedido redirigido, así que un
+    # 3xx a otro host se llevaría el Basic Auth con el PAT en claro.
+    manejador = next(h for h in ado._ABRIDOR.handlers
+                     if isinstance(h, ado._SinRedirect))
+    assert manejador.redirect_request(None, None, 302, "", {}, "https://otro") is None
+
+
+def test_una_conexion_cortada_no_tira_la_pantalla(monkeypatch):
+    """urllib NO envuelve lo que levanta getresponse(): un proxy que corta la
+    conexión sale como RemoteDisconnected en crudo. `probar_conexion` promete en
+    su docstring que no levanta, y la pantalla depende de eso."""
+    import http.client
+    _doble(monkeypatch, [http.client.RemoteDisconnected("sin respuesta")])
+    r = ado.probar_conexion(ado.Credenciales("acme", "Datos", "a@b.com", "t"))
+    assert r["ok"] is False
+    assert r["clave"] == "ado_err_red"
+
+
+def test_avisa_cuando_quedaron_items_afuera(monkeypatch):
+    """Analizar 500 de 2.000 y no decirlo deja al usuario creyendo que revisó su
+    backlog: el informe sale limpio porque no vio el resto."""
+    ids = [{"id": n} for n in range(1, 8)]
+    wiql = _Respuesta(json.dumps({"workItems": ids}).encode())
+    lote = _Respuesta(json.dumps({"value": [
+        {"id": n, "rev": 1, "fields": {"System.Title": f"T{n}"}} for n in range(1, 6)
+    ]}).encode())
+    _doble(monkeypatch, [wiql, lote])
+    df = ado.traer_backlog(ado.Credenciales("acme", "D", "a@b.com", "t"), limite=5)
+    assert len(df) == 5
+    assert ado.sobraron(df) == 2
+
+
+def test_no_avisa_truncado_cuando_entro_todo(monkeypatch):
+    wiql = _Respuesta(json.dumps({"workItems": [{"id": 1}]}).encode())
+    lote = _Respuesta(json.dumps({"value": [
+        {"id": 1, "rev": 1, "fields": {"System.Title": "T"}}]}).encode())
+    _doble(monkeypatch, [wiql, lote])
+    df = ado.traer_backlog(ado.Credenciales("acme", "D", "a@b.com", "t"), limite=5)
+    assert ado.sobraron(df) == 0
+
+
+def test_la_pantalla_no_manda_el_token_del_entorno_al_navegador():
+    """Con type='password' los caracteres no se ven, pero el valor igual viaja
+    al navegador y queda en el DOM. En modo servidor, cualquier usuario podía
+    leer con 'inspeccionar elemento' el PAT del dueño de la instalación."""
+    import pathlib
+    raiz = pathlib.Path(__file__).resolve().parent.parent
+    app = (raiz / "app" / "app.py").read_text(encoding="utf-8")
+    seccion = app.split('elif section == T("nav_azure"):')[1].split("\nelif section")[0]
+    assert "value=azure_devops.token_del_entorno()" not in seccion
+    assert 'key="ado_tok"' in seccion
+
+
+def test_la_pantalla_olvida_el_backlog_si_cambian_las_credenciales():
+    # Traer el proyecto A, cambiar el campo Proyecto a B y seguir mostrando los
+    # hallazgos de A bajo el rótulo de B es peor que no mostrar nada.
+    import pathlib
+    raiz = pathlib.Path(__file__).resolve().parent.parent
+    app = (raiz / "app" / "app.py").read_text(encoding="utf-8")
+    seccion = app.split('elif section == T("nav_azure"):')[1].split("\nelif section")[0]
+    assert "ado_huella" in seccion
+    assert 'st.session_state.pop("ado_backlog", None)' in seccion
 
 
 def test_la_pantalla_abre_y_ofrece_el_csv_corregido(tmp_path, monkeypatch):

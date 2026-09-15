@@ -61,9 +61,12 @@ _ESTADO_EN_TITULO = re.compile(
 
 # Rutas de iteración cuyo nombre se mueve con el tiempo. El problema no es el
 # nombre: es que dentro de dos meses apunta a otro sprint y la historia miente.
+# El modificador puede ir de los dos lados: en español se dice "Sprint Actual"
+# y en inglés "Current Sprint". Tenerlo sólo de un lado dejaba pasar sin
+# detectar justo el caso que el texto en inglés de la regla pone de ejemplo.
 _ITERACION_MOVIL = re.compile(
-    r"(?i)^(sprint\s+)?(actual|current|corriente|en curso|proximo|próximo|next|"
-    r"atual|esta semana|this week)$"
+    r"(?i)^(?:sprint\s+)?(actual|current|corriente|en curso|proximo|próximo|next|"
+    r"atual|esta semana|this week)(?:\s+sprint)?$"
 )
 _SPRINT_NUMERADO = re.compile(r"(?i)^sprint\s+(\d+)$")
 
@@ -123,6 +126,29 @@ REGLAS: dict[str, dict] = {
 }
 
 ORDEN_SEVERIDAD = {ALTA: 0, MEDIA: 1, BAJA: 2}
+
+# Qué etiqueta deja cada regla. Está acá y no repartido dentro del corrector a
+# propósito: cuando la condición que levanta el hallazgo y la que pone la
+# etiqueta se escriben por separado, se separan. Pasó: `sin_padre` se informaba
+# para cualquier tipo y se etiquetaba sólo en las Task, así que el usuario
+# filtraba por `sin-padre` en Azure DevOps y no encontraba los ítems que el
+# informe le había prometido. Ahora la etiqueta sale del hallazgo, no de una
+# segunda condición escrita a mano.
+ETIQUETA_DE_REGLA = {
+    "sin_esfuerzo": ETIQUETA_SIN_ESTIMAR,
+    "sin_asignar": ETIQUETA_SIN_RESPONSABLE,
+    "sin_padre": ETIQUETA_SIN_PADRE,
+    "iteracion_inconsistente": ETIQUETA_SIN_SPRINT,
+}
+
+# Campos que el corrector llega a escribir. Ningún otro se toca nunca.
+CAMPOS_EDITABLES = ("Titulo", "Descripcion_texto", "Iteracion", "Tags")
+
+# Clave donde el conector deja qué columnas venían DE VERDAD en la fuente.
+# Sin esto, una columna que el export no trajo es indistinguible de una columna
+# vacía, y el corrector la rellena con una plantilla que después se escribe
+# encima del dato real del cliente. Ver `azure_devops.normalizar`.
+CLAVE_ORIGEN = "mvpm_columnas_origen"
 
 
 @dataclass(frozen=True)
@@ -226,31 +252,46 @@ def revisar(df: pd.DataFrame, hoy: date | None = None) -> list[Hallazgo]:
     hoy = hoy or date.today()
     if df.empty:
         return []
-    hallazgos: list[Hallazgo] = []
-    hallazgos.extend(_reglas_por_item(df, hoy))
+    hallazgos = [h for _, h in _reglas_por_item(df, hoy)]
     hallazgos.extend(_reglas_de_backlog(df))
     hallazgos.sort(key=lambda h: (ORDEN_SEVERIDAD.get(h.severidad, 9),
                                   h.regla, str(h.item)))
     return hallazgos
 
 
-def _reglas_por_item(df: pd.DataFrame, hoy: date) -> list[Hallazgo]:
-    salida: list[Hallazgo] = []
+def campos_disponibles(df: pd.DataFrame) -> frozenset:
+    """Columnas que venían de verdad en la fuente, no las que se rellenaron.
+
+    Cuando el conector no anotó nada (la demo, o un DataFrame armado a mano),
+    se asume que están todas: ahí no hay una fuente externa que respetar.
+    """
+    origen = df.attrs.get(CLAVE_ORIGEN)
+    return frozenset(origen) if origen else frozenset(df.columns)
+
+
+def _reglas_por_item(df: pd.DataFrame, hoy: date) -> list[tuple]:
+    """(índice de fila, hallazgo). El índice es lo que usa el corrector.
+
+    Va por índice y no por ID porque el ID puede venir vacío o repetido en un
+    CSV armado a mano, y ahí agrupar por ID mezclaría ítems distintos.
+    """
+    salida: list[tuple] = []
     duplicados = _titulos_duplicados(df)
     hay_padres = any(_clave(_texto(f, "Tipo")) in {_clave(t) for t in _TIPOS_PADRE}
                      for _, f in df.iterrows())
     hay_sprints = any(_SPRINT_NUMERADO.match(_hoja_iteracion(_texto(f, "Iteracion")))
                       for _, f in df.iterrows())
 
-    for _, fila in df.iterrows():
+    for indice, fila in df.iterrows():
         item = _texto(fila, "ID")
         titulo = _texto(fila, "Titulo")
         estado = _texto(fila, "Estado")
         tipo = _clave(_texto(fila, "Tipo"))
         descripcion = _texto(fila, "Descripcion_texto")
 
-        def anotar(regla: str, dato: str = "") -> None:
-            salida.append(Hallazgo(regla, REGLAS[regla]["severidad"], item, titulo, dato))
+        def anotar(regla: str, dato: str = "", _i=indice, _id=item, _t=titulo) -> None:
+            salida.append((_i, Hallazgo(regla, REGLAS[regla]["severidad"],
+                                        _id, _t, dato)))
 
         if _es_marcador(titulo):
             anotar("titulo_marcador", titulo)
@@ -279,11 +320,14 @@ def _reglas_por_item(df: pd.DataFrame, hoy: date) -> list[Hallazgo]:
                 and not _texto(fila, "Padre"):
             anotar("sin_padre")
 
-        hoja = _hoja_iteracion(_texto(fila, "Iteracion"))
+        ruta = _texto(fila, "Iteracion")
+        hoja = _hoja_iteracion(ruta)
         if _ITERACION_MOVIL.match(hoja):
             anotar("iteracion_movil", hoja)
-        elif hay_sprints and not _SPRINT_NUMERADO.match(hoja) and _texto(fila, "Iteracion"):
-            anotar("iteracion_inconsistente", _texto(fila, "Iteracion"))
+        elif hay_sprints and not _SPRINT_NUMERADO.match(hoja):
+            # Sin iteración también es "no está en ningún sprint": antes este
+            # caso no levantaba nada y el ítem quedaba invisible para la regla.
+            anotar("iteracion_inconsistente", ruta or "(sin iteración)")
 
         dias = _dias_quieto(fila, hoy)
         if _es_activo(estado) and dias is not None and dias > DIAS_ESTANCADO:
@@ -365,68 +409,119 @@ def corregir(df: pd.DataFrame, hoy: date | None = None
     Lo que se puede derivar del backlog se arregla de verdad. Lo que no —una
     estimación que nadie puso, un padre que no existe— se etiqueta para que se
     pueda filtrar en Azure DevOps, pero **no se inventa**.
+
+    **Sólo escribe campos que venían en la fuente.** Si el export no trajo la
+    columna Descripción —la grilla de Azure Boards no puede exportarla— este
+    corrector no la completa con la plantilla, porque ese archivo se vuelve a
+    subir con el ID puesto y la plantilla pisaría la descripción real de todos
+    los work items del proyecto. Un dato inventado en un informe es un error;
+    escrito en el Azure DevOps del cliente es un incidente.
     """
     hoy = hoy or date.today()
     if df.empty:
         return df.copy(), []
 
+    editables = campos_disponibles(df) & set(CAMPOS_EDITABLES)
     salida = df.copy()
+    for c in CAMPOS_EDITABLES:
+        if c not in salida.columns:
+            salida[c] = ""
+
+    # Las etiquetas se derivan de los hallazgos, no de condiciones reescritas:
+    # así no pueden quedar desalineadas con lo que el informe promete.
+    por_fila: dict = {}
+    for indice, h in _reglas_por_item(df, hoy):
+        por_fila.setdefault(indice, []).append(h)
+
     cambios: list[Correccion] = []
     duplicados = _titulos_duplicados(df)
     por_id = {_texto(f, "ID"): _texto(f, "Titulo") for _, f in df.iterrows()}
     siguiente = _sprint_siguiente(df)
-    a_quitar: list[int] = []
-    # Títulos que ya son únicos: los que no están duplicados. Sirve para que la
-    # desambiguación no genere una colisión nueva contra un título que ya existe.
+    a_quitar: list = []
+    # Títulos que ya son únicos. Sirve para que la desambiguación no genere una
+    # colisión nueva contra un título que ya existía.
     usados = {_clave(_texto(f, "Titulo")) for _, f in df.iterrows()
               if _clave(_texto(f, "Titulo")) not in duplicados}
 
     for i, fila in salida.iterrows():
         item = _texto(fila, "ID")
         titulo = _texto(fila, "Titulo")
+        reglas = {h.regla: h for h in por_fila.get(i, [])}
 
         if _clave(titulo) in {_clave(m) for m in _MARCADORES_BORRAR}:
             a_quitar.append(i)
             cambios.append(Correccion("titulo_marcador", item, "Titulo",
                                       titulo, "", "quitar"))
             continue
-        if _es_marcador(titulo):
-            salida.at[i, "Tags"] = _con_etiqueta(_texto(fila, "Tags"), ETIQUETA_REVISAR)
-            cambios.append(Correccion("titulo_marcador", item, "Tags",
-                                      _texto(fila, "Tags"),
-                                      str(salida.at[i, "Tags"]), "etiquetar"))
 
-        titulo = _corregir_titulo(salida, i, fila, item, titulo, duplicados,
-                                  por_id, usados, cambios)
-        _corregir_descripcion(salida, i, fila, item, cambios)
-        _corregir_iteracion(salida, i, fila, item, siguiente, cambios)
-        _corregir_etiquetas(salida, i, fila, item, hoy, cambios)
+        if "Titulo" in editables:
+            _corregir_titulo(salida, i, fila, item, titulo, duplicados,
+                             por_id, usados, cambios)
+        if "Descripcion_texto" in editables:
+            _corregir_descripcion(salida, i, fila, item, cambios)
+        if "Iteracion" in editables:
+            _corregir_iteracion(salida, i, fila, item, siguiente, cambios)
+        if "Tags" in editables:
+            _corregir_etiquetas(salida, i, fila, item, reglas, cambios)
 
     if a_quitar:
         salida = salida.drop(index=a_quitar)
-    return salida.reset_index(drop=True), cambios
+    salida = salida.reset_index(drop=True)
+    salida.attrs[CLAVE_ORIGEN] = frozenset(campos_disponibles(df))
+    return salida, cambios
+
+
+def _leer(salida, i, campo: str) -> str:
+    """Lee una celda del DataFrame de salida tolerando NaN y columna ausente.
+
+    Sin esto, `str(valor or "")` sobre un NaN devuelve el texto literal "nan":
+    una celda vacía de pandas terminaba como una etiqueta llamada `nan` en el
+    Azure DevOps del cliente.
+    """
+    if campo not in salida.columns:
+        return ""
+    valor = salida.at[i, campo]
+    if valor is None or (isinstance(valor, float) and pd.isna(valor)):
+        return ""
+    return str(valor).strip()
+
+
+def _sin_estado_en_titulo(titulo: str) -> tuple[str, list[str]]:
+    """Saca TODOS los paréntesis de estado, no sólo el primero.
+
+    Con un solo paso, «Refresco (manual mientras no se resuelve) y carga
+    (bloqueado por accesos)» quedaba con el segundo estado adentro del título y
+    el informe decía que se había corregido.
+    """
+    notas: list[str] = []
+    while True:
+        m = _ESTADO_EN_TITULO.search(titulo)
+        if not m:
+            break
+        notas.append(m.group(1).strip())
+        titulo = titulo.replace(m.group(0), "", 1)
+    return re.sub(r"\s{2,}", " ", titulo).strip(" -–—"), notas
 
 
 def _corregir_titulo(salida, i, fila, item, titulo, duplicados, por_id,
                      usados, cambios) -> str:
-    m = _ESTADO_EN_TITULO.search(titulo)
-    if m:
-        limpio = re.sub(r"\s{2,}", " ", titulo.replace(m.group(0), "")).strip(" -–—")
-        if limpio:
-            salida.at[i, "Titulo"] = limpio
-            descripcion = _texto(fila, "Descripcion_texto")
-            nota = NOTA_ESTADO + m.group(1).strip()
+    limpio, notas = _sin_estado_en_titulo(titulo)
+    if notas and limpio:
+        salida.at[i, "Titulo"] = limpio
+        descripcion = _leer(salida, i, "Descripcion_texto")
+        nota = NOTA_ESTADO + " / ".join(notas)
+        if nota not in descripcion:
             salida.at[i, "Descripcion_texto"] = (
                 f"{descripcion}\n{nota}".strip() if descripcion else nota)
-            cambios.append(Correccion("titulo_con_estado", item, "Titulo",
-                                      titulo, limpio))
-            titulo = limpio
+        cambios.append(Correccion("titulo_con_estado", item, "Titulo",
+                                  titulo, limpio))
+        titulo = limpio
 
     if _clave(titulo) in duplicados:
         padre = por_id.get(_texto(fila, "Padre"), "")
         distintivo = padre or _texto(fila, "Iteracion") or item
         nuevo = f"{titulo} ({distintivo})"
-        # Dos tareas con el mismo título COLGADAS DEL MISMO PADRE (o sin padre,
+        # Dos tareas con el mismo título colgadas del MISMO padre (o sin padre,
         # en la misma iteración) seguirían idénticas: el padre no las distingue.
         # Ahí sólo queda el ID, que es lo único que con seguridad es único.
         if _clave(nuevo) in usados:
@@ -440,14 +535,14 @@ def _corregir_titulo(salida, i, fila, item, titulo, duplicados, por_id,
 
 
 def _corregir_descripcion(salida, i, fila, item, cambios) -> None:
-    descripcion = str(salida.at[i, "Descripcion_texto"] or "").strip()
+    descripcion = _leer(salida, i, "Descripcion_texto")
     if not descripcion:
         salida.at[i, "Descripcion_texto"] = PLANTILLA_DESCRIPCION
         cambios.append(Correccion("sin_descripcion", item, "Descripcion_texto",
                                   "", PLANTILLA_DESCRIPCION))
         return
-    # La nota se agrega una sola vez: sin este chequeo, cada pasada del
-    # corrector pegaría otra copia y el archivo se degradaría solo.
+    # Cada nota se agrega UNA vez: sin este chequeo, cada pasada del corrector
+    # pegaría otra copia y el archivo se degradaría solo.
     if _ADJUNTO.search(descripcion) and NOTA_ADJUNTO not in descripcion:
         nuevo = f"{descripcion}\n{NOTA_ADJUNTO}"
         salida.at[i, "Descripcion_texto"] = nuevo
@@ -474,36 +569,42 @@ def _corregir_iteracion(salida, i, fila, item, siguiente, cambios) -> None:
     cambios.append(Correccion("iteracion_movil", item, "Iteracion", ruta, nuevo))
 
 
-def _corregir_etiquetas(salida, i, fila, item, hoy, cambios) -> None:
-    antes = str(salida.at[i, "Tags"] or "")
-    tags = antes
-    estado = _texto(fila, "Estado")
+def _corregir_etiquetas(salida, i, fila, item, reglas, cambios) -> None:
+    """Las etiquetas salen de los hallazgos de ESTE ítem, no de condiciones
+    reescritas: si una regla se informa, su etiqueta se pone, y al revés."""
+    antes = _leer(salida, i, "Tags")
+    informales = [t for t in _etiquetas(antes)
+                  if _clave(t) in {_clave(x) for x in _TAGS_INFORMALES}]
+    # La etiqueta de estancado lleva los días adentro, así que `_con_etiqueta`
+    # no la deduplica contra la de la corrida anterior. Sin sacar la vieja, un
+    # equipo que corre esto cada mes acumula estancado-96d; estancado-126d; …
+    # Ojo con `_clave()` acá: convierte el guion en espacio, así que
+    # `_clave("estancado-96d")` es "estancado 96d" y nunca empezaría por
+    # "estancado-". La comparación va sobre el texto crudo en minúsculas.
+    viejo_estancado = (ETIQUETA_ESTANCADO + "-").lower()
+    tags = "; ".join(t for t in _etiquetas(antes)
+                     if t not in informales
+                     and not t.strip().lower().startswith(viejo_estancado))
+    if informales:
+        tags = _con_etiqueta(tags, "revisar")
 
-    for etiqueta in _etiquetas(tags):
-        if _clave(etiqueta) in {_clave(t) for t in _TAGS_INFORMALES}:
-            tags = "; ".join(t for t in _etiquetas(tags) if t != etiqueta)
-            tags = _con_etiqueta(tags, "revisar")
-            cambios.append(Correccion("tag_informal", item, "Tags", etiqueta, "revisar"))
+    if "titulo_marcador" in reglas:
+        tags = _con_etiqueta(tags, ETIQUETA_REVISAR)
+    for regla, etiqueta in ETIQUETA_DE_REGLA.items():
+        if regla in reglas:
+            tags = _con_etiqueta(tags, etiqueta)
+    if "estancado" in reglas:
+        tags = _con_etiqueta(tags, f"{ETIQUETA_ESTANCADO}-{reglas['estancado'].dato}d")
 
-    if not _texto(fila, "Esfuerzo") and not _es_cerrado(estado):
-        tags = _con_etiqueta(tags, ETIQUETA_SIN_ESTIMAR)
-    if not _texto(fila, "AsignadoA"):
-        tags = _con_etiqueta(tags, ETIQUETA_SIN_RESPONSABLE)
-    if not _texto(fila, "Padre") and _clave(_texto(fila, "Tipo")) in \
-            {_clave(t) for t in _TIPOS_HOJA}:
-        tags = _con_etiqueta(tags, ETIQUETA_SIN_PADRE)
-    if not _texto(fila, "Iteracion"):
-        tags = _con_etiqueta(tags, ETIQUETA_SIN_SPRINT)
-
-    dias = _dias_quieto(fila, hoy)
-    if _es_activo(estado) and dias is not None and dias > DIAS_ESTANCADO:
-        tags = _con_etiqueta(tags, f"{ETIQUETA_ESTANCADO}-{dias}d")
-
-    if tags != antes:
-        salida.at[i, "Tags"] = tags
-        if not any(c.item == item and c.campo == "Tags" for c in cambios):
-            cambios.append(Correccion("etiquetas", item, "Tags", antes, tags,
-                                      "etiquetar"))
+    if tags == antes:
+        return
+    salida.at[i, "Tags"] = tags
+    # UN cambio por ítem y por campo, con el antes y el después reales. Antes se
+    # filtraba con un `any()` sobre todos los cambios comparando por ID, así que
+    # un ID vacío o repetido escondía del informe cambios que igual se escribían
+    # en el archivo descargado.
+    regla = "tag_informal" if informales else "etiquetas"
+    cambios.append(Correccion(regla, item, "Tags", antes, tags, "etiquetar"))
 
 
 # ----------------------------------------------------------------------- resumen

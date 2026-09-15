@@ -585,8 +585,9 @@ SECTIONS = [
             "Elegí de dónde sale el backlog: el de demo (inventado, para probar sin "
             "credenciales), un CSV que exportaste de la grilla de Azure DevOps, o la "
             "conexión directa a la API.",
-            "'Revisar' muestra los hallazgos ordenados por severidad, cada uno con el "
-            "ítem, el porqué del problema y cómo queda una vez corregido.",
+            "El análisis sale solo, sin apretar nada más: los hallazgos aparecen "
+            "ordenados por severidad, cada uno con el ítem, el porqué del problema y "
+            "cómo queda una vez corregido.",
             "'Descargar el backlog corregido' baja un CSV con los nombres de columna del "
             "importador de Azure DevOps. Se sube en Boards → Work Items → Import Work "
             "Items.",

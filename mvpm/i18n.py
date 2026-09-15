@@ -1505,6 +1505,45 @@ _STRINGS = {
         "pt": "O token não é salvo: vive nesta sessão do navegador e some ao fechá-la. "
               "Para não digitá-lo toda vez, exporte a variável de ambiente "
               "AZURE_DEVOPS_PAT antes de abrir o programa."},
+    "ado_token_entorno": {
+        "es": "Hay un token en la variable AZURE_DEVOPS_PAT y se va a usar si "
+              "dejás este campo vacío. No se muestra acá a propósito: aunque "
+              "los caracteres estén tapados, el valor de un campo viaja al "
+              "navegador y se puede leer desde el inspector.",
+        "en": "There is a token in AZURE_DEVOPS_PAT and it will be used if you "
+              "leave this field empty. It is deliberately not shown here: even "
+              "with the characters masked, a field's value travels to the "
+              "browser and can be read from the inspector.",
+        "pt": "Há um token em AZURE_DEVOPS_PAT e será usado se você deixar este "
+              "campo vazio. Não é mostrado aqui de propósito: mesmo com os "
+              "caracteres ocultos, o valor de um campo viaja até o navegador e "
+              "pode ser lido pelo inspetor."},
+    "ado_truncado": {
+        "es": "Se trajeron {n} ítems y quedaron {sobran} afuera por el límite de "
+              "la consulta. Lo de abajo es el análisis de esos {n}, no de todo "
+              "el proyecto: para el resto, acotá la consulta por iteración o por "
+              "área y corré una tanda por cada una.",
+        "en": "{n} items were fetched and {sobran} were left out by the query "
+              "limit. What follows analyses those {n}, not the whole project: "
+              "for the rest, narrow the query by iteration or area and run one "
+              "batch per slice.",
+        "pt": "Foram trazidos {n} itens e {sobran} ficaram de fora pelo limite "
+              "da consulta. O que segue analisa esses {n}, não o projeto "
+              "inteiro: para o resto, restrinja a consulta por iteração ou área "
+              "e rode um lote por fatia."},
+    "ado_columnas_faltan": {
+        "es": "El archivo no trae estas columnas: {cols}. No se corrigen ni se "
+              "exportan — escribir una columna que la fuente no trajo pisaría "
+              "el valor real de todos los ítems al reimportar. Para que entren "
+              "en la corrección, agregalas a la vista antes de exportar.",
+        "en": "The file does not carry these columns: {cols}. They are neither "
+              "corrected nor exported — writing a column the source never "
+              "provided would overwrite every item's real value on re-import. "
+              "To include them, add them to the view before exporting.",
+        "pt": "O arquivo não traz estas colunas: {cols}. Não são corrigidas nem "
+              "exportadas — escrever uma coluna que a fonte não trouxe "
+              "sobrescreveria o valor real de todos os itens ao reimportar. "
+              "Para incluí-las, adicione-as à exibição antes de exportar."},
     "ado_probar": {"es": "Probar conexión", "en": "Test connection", "pt": "Testar conexão"},
     "ado_traer": {"es": "Traer el backlog", "en": "Fetch the backlog", "pt": "Buscar o backlog"},
     "ado_solo_lectura": {
@@ -1611,12 +1650,14 @@ _STRINGS = {
         "es": "Si dice DELETE o BORRAR sale del backlog corregido. Si dice TBD o "
               "similar se queda —puede haber trabajo real detrás— con la etiqueta "
               "'revisar-titulo', porque el título no se puede inventar.",
-        "en": "If it says DELETE it is dropped from the corrected backlog. If it says "
-              "TBD or similar it stays — there may be real work behind it — tagged "
-              "'revisar-titulo', because a title cannot be invented.",
-        "pt": "Se diz DELETE sai do backlog corrigido. Se diz TBD ou parecido fica — "
-              "pode haver trabalho real atrás — com a etiqueta 'revisar-titulo', porque "
-              "um título não se inventa."},
+        "en": "If it says DELETE, BORRAR, ELIMINAR, REMOVE or EXCLUIR it is dropped "
+              "from the corrected backlog. If it says TBD or similar it stays — there "
+              "may be real work behind it — tagged 'revisar-titulo', because a title "
+              "cannot be invented.",
+        "pt": "Se diz DELETE, BORRAR, ELIMINAR, REMOVE ou EXCLUIR sai do backlog "
+              "corrigido. Se diz TBD ou parecido fica — pode haver trabalho real "
+              "atrás — com a etiqueta 'revisar-titulo', porque um título não se "
+              "inventa."},
     "adoq_r_titulo_duplicado": {"es": "Dos ítems con el mismo título",
                                 "en": "Two items with the same title",
                                 "pt": "Dois itens com o mesmo título"},

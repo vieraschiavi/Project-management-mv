@@ -60,6 +60,11 @@ from urllib.parse import quote, urlencode
 
 import pandas as pd
 
+from mvpm.backlog_calidad import CLAVE_ORIGEN
+
+# Cuántos ítems dejó afuera el límite de la consulta, anotado en el DataFrame.
+CLAVE_TRUNCADO = "mvpm_truncado"
+
 HOST = "https://dev.azure.com"
 API_VERSION = "7.1"
 TIMEOUT = 30
@@ -220,6 +225,23 @@ def _url(cred: Credenciales, ruta: str, **params) -> str:
     return f"{base}?{urlencode(params)}"
 
 
+class _SinRedirect(urllib.request.HTTPRedirectHandler):
+    """Corta los redirects en vez de seguirlos con el PAT puesto.
+
+    `HTTPRedirectHandler` copia las cabeceras del pedido original al redirigido:
+    un 3xx hacia otro host se llevaría el Basic Auth con el PAT en claro. La API
+    de Azure DevOps no necesita redirects para nada de lo que se usa acá, así
+    que lo correcto es no seguir ninguno: si aparece uno, es justamente la
+    página de login, y eso ya es un error de autenticación.
+    """
+
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        return None
+
+
+_ABRIDOR = urllib.request.build_opener(_SinRedirect)
+
+
 def _pedir(cred: Credenciales, url: str, cuerpo: dict | None = None,
            timeout: int = TIMEOUT) -> dict:
     datos = json.dumps(cuerpo).encode() if cuerpo is not None else None
@@ -229,7 +251,7 @@ def _pedir(cred: Credenciales, url: str, cuerpo: dict | None = None,
     if datos:
         pedido.add_header("Content-Type", "application/json")
     try:
-        with urllib.request.urlopen(pedido, timeout=timeout) as r:  # noqa: S310
+        with _ABRIDOR.open(pedido, timeout=timeout) as r:  # noqa: S310
             crudo = r.read()
             tipo = r.headers.get("Content-Type", "")
     except urllib.error.HTTPError as e:
@@ -238,6 +260,12 @@ def _pedir(cred: Credenciales, url: str, cuerpo: dict | None = None,
         raise ErrorAzure("ado_err_red", str(e.reason)) from e
     except TimeoutError as e:
         raise ErrorAzure("ado_err_red", "timeout") from e
+    except OSError as e:
+        # urllib NO envuelve lo que levanta getresponse(): un proxy que corta la
+        # conexión sale como http.client.RemoteDisconnected / BadStatusLine en
+        # crudo. Sin esto, la pantalla se cae con un traceback rojo en vez de
+        # decir "no se pudo llegar a Azure DevOps".
+        raise ErrorAzure("ado_err_red", type(e).__name__) from e
 
     # El detalle que más confunde de esta API: con credenciales inválidas NO
     # devuelve 401. Devuelve 200/203 con la página HTML de login, y el cliente
@@ -283,6 +311,12 @@ def probar_conexion(cred: Credenciales) -> dict:
         r = _pedir(cred, _url(cred, ruta))
     except ErrorAzure as e:
         return {"ok": False, "clave": e.clave, "proyecto": "", "detalle": e.detalle}
+    except Exception as e:  # noqa: BLE001
+        # El docstring promete que esta función no levanta, y la pantalla
+        # depende de eso. Cualquier cosa inesperada sale como un motivo legible,
+        # nunca como un traceback que deja la sección sin renderizar.
+        return {"ok": False, "clave": "ado_err_respuesta", "proyecto": "",
+                "detalle": type(e).__name__}
     return {
         "ok": True,
         "clave": "ado_ok",
@@ -291,11 +325,19 @@ def probar_conexion(cred: Credenciales) -> dict:
     }
 
 
-def _ids(cred: Credenciales, wiql: str, limite: int) -> list[int]:
+def _ids(cred: Credenciales, wiql: str, limite: int) -> tuple[list[int], int]:
+    """Devuelve (ids recortados al límite, cuántos había en total)."""
     ruta = f"{quote(cred.proyecto.strip(), safe='')}/_apis/wit/wiql"
-    r = _pedir(cred, _url(cred, ruta, **{"$top": limite}), {"query": wiql})
+    # Se pide uno más que el límite justamente para poder avisar que sobra.
+    r = _pedir(cred, _url(cred, ruta, **{"$top": limite + 1}), {"query": wiql})
     filas = r.get("workItems") or []
-    return [int(f["id"]) for f in filas if "id" in f][:limite]
+    todos = []
+    for f in filas:
+        try:
+            todos.append(int(f["id"]))
+        except (KeyError, TypeError, ValueError):
+            continue
+    return todos[:limite], len(todos)
 
 
 def _lote(cred: Credenciales, ids: list[int]) -> list[dict]:
@@ -314,13 +356,26 @@ def traer_backlog(cred: Credenciales, wiql: str | None = None,
     falta = cred.faltante()
     if falta:
         raise ErrorAzure(falta)
-    ids = _ids(cred, wiql or WIQL_BACKLOG, limite)
+    ids, total = _ids(cred, wiql or WIQL_BACKLOG, limite)
     if not ids:
-        return pd.DataFrame(columns=list(COLUMNAS))
+        vacio = pd.DataFrame(columns=list(COLUMNAS))
+        vacio.attrs[CLAVE_ORIGEN] = frozenset(COLUMNAS)
+        vacio.attrs[CLAVE_TRUNCADO] = 0
+        return vacio
     items: list[dict] = []
     for i in range(0, len(ids), LOTE):
         items.extend(_lote(cred, ids[i:i + LOTE]))
-    return _a_dataframe(items)
+    df = _a_dataframe(items)
+    # Cuántos quedaron afuera. Analizar 500 de 2.000 y no decirlo deja al
+    # usuario creyendo que revisó su backlog: el informe sale "limpio" porque
+    # no vio el resto, que es la misma mentira que inventar un dato.
+    df.attrs[CLAVE_TRUNCADO] = max(0, total - len(ids))
+    return df
+
+
+def sobraron(df: pd.DataFrame) -> int:
+    """Ítems que la consulta dejó afuera por el límite. 0 = se trajo todo."""
+    return int(df.attrs.get(CLAVE_TRUNCADO, 0) or 0)
 
 
 def _a_dataframe(items: list[dict]) -> pd.DataFrame:
@@ -401,13 +456,41 @@ def normalizar(df: pd.DataFrame) -> pd.DataFrame:
             renombres[col] = _ALIAS[clave]
     salida = df.rename(columns=renombres).copy()
     # Un export puede traer dos columnas que mapean al mismo destino (p.ej.
-    # 'Description' y 'Descripcion'); nos quedamos con la primera no vacía.
-    salida = salida.loc[:, ~salida.columns.duplicated()]
+    # 'Description' y 'Descripción'). Quedarse con la primera a secas elegía la
+    # vacía la mitad de las veces, se disparaba `sin_descripcion` por un motivo
+    # falso y la plantilla terminaba pisando el texto real.
+    salida = _fusionar_duplicadas(salida)
+
+    # Qué columnas venían DE VERDAD. Es la diferencia entre "el campo está
+    # vacío en Azure" y "el export no trajo ese campo", y de eso depende que el
+    # corrector no escriba encima de un dato que nunca vio. La grilla de Azure
+    # Boards no puede exportar Descripción, así que este caso es el normal.
+    presentes = frozenset(c for c in COLUMNAS if c in salida.columns)
     for c in COLUMNAS:
         if c not in salida.columns:
             salida[c] = ""
     salida = salida[list(COLUMNAS)]
-    return salida.fillna("").astype(str).apply(lambda s: s.str.strip())
+    salida = salida.fillna("").astype(str).apply(lambda s: s.str.strip())
+    salida.attrs[CLAVE_ORIGEN] = presentes
+    return salida
+
+
+def _fusionar_duplicadas(df: pd.DataFrame) -> pd.DataFrame:
+    """Colapsa columnas con el mismo nombre quedándose con el primer valor útil."""
+    if not df.columns.duplicated().any():
+        return df
+    salida = pd.DataFrame(index=df.index)
+    for nombre in dict.fromkeys(df.columns):
+        bloque = df.loc[:, df.columns == nombre]
+        if bloque.shape[1] == 1:
+            salida[nombre] = bloque.iloc[:, 0]
+            continue
+        combinada = bloque.iloc[:, 0]
+        for k in range(1, bloque.shape[1]):
+            vacia = combinada.isna() | (combinada.astype(str).str.strip() == "")
+            combinada = combinada.where(~vacia, bloque.iloc[:, k])
+        salida[nombre] = combinada
+    return salida
 
 
 def a_csv_azure(df: pd.DataFrame) -> str:
@@ -416,9 +499,17 @@ def a_csv_azure(df: pd.DataFrame) -> str:
     Se conserva el ID: con el ID puesto, el importador **actualiza** el ítem que
     ya existe en vez de crear uno nuevo. Ese es el punto de todo esto — si el ID
     va vacío, subir el archivo corregido duplica el backlog entero.
+
+    **Sólo salen las columnas que venían en la fuente.** Emitir una columna que
+    el export no trajo la escribiría vacía (o con lo que el corrector hubiera
+    puesto) encima del valor real de todos los ítems al reimportar. Con un
+    export de la grilla de Azure Boards, que no puede incluir Descripción, eso
+    borraba la descripción del proyecto entero.
     """
     salida = io.StringIO()
-    columnas = [c for c in _A_AZURE if c in df.columns]
+    origen = df.attrs.get(CLAVE_ORIGEN)
+    permitidas = frozenset(origen) if origen else frozenset(df.columns)
+    columnas = [c for c in _A_AZURE if c in df.columns and c in permitidas]
     escritor = csv.writer(salida, lineterminator="\n")
     escritor.writerow([_A_AZURE[c] for c in columnas])
     for _, fila in df.iterrows():

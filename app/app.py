@@ -1824,13 +1824,27 @@ elif section == T("nav_azure"):
             _c1.text_input(T("ado_org"), key="ado_org", help=T("ado_org_ayuda")))
         _proy = _c2.text_input(T("ado_proyecto"), key="ado_proyecto")
         _mail = st.text_input(T("ado_email"), key="ado_mail", help=T("ado_email_ayuda"))
-        # El token del entorno se usa como valor inicial para no obligar a
-        # tipearlo, pero sigue siendo un campo password: no se muestra.
-        _tok = st.text_input(T("ado_token"), type="password", key="ado_tok",
-                             value=azure_devops.token_del_entorno())
+        # El token del entorno NO se usa como valor inicial del campo. Con
+        # type="password" los caracteres no se ven, pero el valor igual viaja al
+        # navegador y queda en el DOM: en modo servidor, cualquier usuario podía
+        # leer con "inspeccionar elemento" el PAT del dueño de la instalación.
+        # Si está en el entorno, se usa del lado del servidor cuando el campo
+        # queda vacío, y nunca se manda al navegador.
+        _tok = st.text_input(T("ado_token"), type="password", key="ado_tok")
+        _del_entorno = azure_devops.token_del_entorno()
+        if _del_entorno and not _tok:
+            st.caption(T("ado_token_entorno"))
         st.caption(T("ado_token_ayuda"))
         st.caption(T("ado_token_guardado"))
-        _cred = azure_devops.Credenciales(_org, _proy, _mail, _tok)
+        _cred = azure_devops.Credenciales(_org, _proy, _mail, _tok or _del_entorno)
+
+        # Si cambian las credenciales o el proyecto, lo que había en pantalla ya
+        # no es de ahí: mostrar los hallazgos del proyecto A bajo el rótulo del
+        # proyecto B es peor que no mostrar nada.
+        _huella = f"{_org}|{_proy}|{_mail}"
+        if st.session_state.get("ado_huella") != _huella:
+            st.session_state.pop("ado_backlog", None)
+            st.session_state["ado_huella"] = _huella
 
         _b1, _b2 = st.columns(2)
         if _b1.button(T("ado_probar"), key="ado_probar"):
@@ -1843,9 +1857,19 @@ elif section == T("nav_azure"):
             except azure_devops.ErrorAzure as e:
                 st.session_state.pop("ado_backlog", None)
                 st.error(T(e.clave) + (f" — {e.detalle}" if e.detalle else ""))
+            except Exception as e:  # noqa: BLE001 — la sección no puede caerse
+                st.session_state.pop("ado_backlog", None)
+                st.error(f"{T('ado_err_respuesta')} ({type(e).__name__})")
         _backlog = st.session_state.get("ado_backlog")
 
     if _backlog is not None and not _backlog.empty:
+        _sobran = azure_devops.sobraron(_backlog)
+        if _sobran:
+            st.warning(T("ado_truncado").format(n=len(_backlog), sobran=_sobran))
+        _faltantes = [c for c in backlog_calidad.CAMPOS_EDITABLES
+                      if c not in backlog_calidad.campos_disponibles(_backlog)]
+        if _faltantes:
+            st.warning(T("ado_columnas_faltan").format(cols=", ".join(_faltantes)))
         _hallazgos = backlog_calidad.revisar(_backlog)
         _corregido, _cambios = backlog_calidad.corregir(_backlog)
         _resumen = backlog_calidad.resumen(_hallazgos)
