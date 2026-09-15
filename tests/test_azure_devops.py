@@ -299,6 +299,46 @@ def test_titulos_duplicados_se_desambiguan_con_el_padre(demo):
     assert "Tablero acotado de venta diaria" in " ".join(titulos)
 
 
+def _fila(**campos):
+    return {**dict.fromkeys(ado.COLUMNAS, ""), **campos}
+
+
+def test_duplicados_bajo_el_mismo_padre_igual_quedan_distintos():
+    """El caso que el padre NO alcanza a desambiguar.
+
+    Dos tareas con el mismo título colgadas del MISMO Epic: ponerle el título
+    del padre a cada una las deja idénticas otra vez. La regla prometía
+    distinguirlas y en este caso no lo hacía — que es peor que no tocarlas,
+    porque el informe dice «corregido» y el tablero sigue con dos tarjetas
+    iguales.
+    """
+    df = pd.DataFrame([
+        _fila(ID="1", Tipo="Epic", Titulo="Tablero X", Estado="To Do"),
+        _fila(ID="2", Tipo="Task", Titulo="Revisión", Padre="1", Estado="To Do"),
+        _fila(ID="3", Tipo="Task", Titulo="Revisión", Padre="1", Estado="To Do"),
+    ])
+    corregido, _ = bc.corregir(df, hoy=HOY)
+    titulos = list(corregido["Titulo"])
+    assert len(set(titulos)) == len(titulos), f"siguen duplicados: {titulos}"
+    # El ID es lo único que con seguridad distingue, así que aparece.
+    assert any("#2" in t for t in titulos) or any("#3" in t for t in titulos)
+
+
+def test_desambiguar_no_choca_contra_un_titulo_que_ya_existia():
+    # Si alguien ya tenía escrito a mano «Revisión (Tablero X)», la corrección
+    # no puede generar un segundo ítem con ese mismo nombre.
+    df = pd.DataFrame([
+        _fila(ID="1", Tipo="Epic", Titulo="Tablero X", Estado="To Do"),
+        _fila(ID="2", Tipo="Task", Titulo="Revisión (Tablero X)", Padre="1",
+              Estado="To Do"),
+        _fila(ID="3", Tipo="Task", Titulo="Revisión", Padre="1", Estado="To Do"),
+        _fila(ID="4", Tipo="Task", Titulo="Revisión", Padre="1", Estado="To Do"),
+    ])
+    corregido, _ = bc.corregir(df, hoy=HOY)
+    titulos = list(corregido["Titulo"])
+    assert len(set(titulos)) == len(titulos), f"colisión: {titulos}"
+
+
 def test_el_estado_sale_del_titulo_y_va_a_la_descripcion(demo):
     assert "titulo_con_estado" in _reglas_de(demo, "215")
     corregido, _ = bc.corregir(demo, hoy=HOY)

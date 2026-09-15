@@ -376,6 +376,10 @@ def corregir(df: pd.DataFrame, hoy: date | None = None
     por_id = {_texto(f, "ID"): _texto(f, "Titulo") for _, f in df.iterrows()}
     siguiente = _sprint_siguiente(df)
     a_quitar: list[int] = []
+    # Títulos que ya son únicos: los que no están duplicados. Sirve para que la
+    # desambiguación no genere una colisión nueva contra un título que ya existe.
+    usados = {_clave(_texto(f, "Titulo")) for _, f in df.iterrows()
+              if _clave(_texto(f, "Titulo")) not in duplicados}
 
     for i, fila in salida.iterrows():
         item = _texto(fila, "ID")
@@ -393,7 +397,7 @@ def corregir(df: pd.DataFrame, hoy: date | None = None
                                       str(salida.at[i, "Tags"]), "etiquetar"))
 
         titulo = _corregir_titulo(salida, i, fila, item, titulo, duplicados,
-                                  por_id, cambios)
+                                  por_id, usados, cambios)
         _corregir_descripcion(salida, i, fila, item, cambios)
         _corregir_iteracion(salida, i, fila, item, siguiente, cambios)
         _corregir_etiquetas(salida, i, fila, item, hoy, cambios)
@@ -403,7 +407,8 @@ def corregir(df: pd.DataFrame, hoy: date | None = None
     return salida.reset_index(drop=True), cambios
 
 
-def _corregir_titulo(salida, i, fila, item, titulo, duplicados, por_id, cambios) -> str:
+def _corregir_titulo(salida, i, fila, item, titulo, duplicados, por_id,
+                     usados, cambios) -> str:
     m = _ESTADO_EN_TITULO.search(titulo)
     if m:
         limpio = re.sub(r"\s{2,}", " ", titulo.replace(m.group(0), "")).strip(" -–—")
@@ -421,6 +426,13 @@ def _corregir_titulo(salida, i, fila, item, titulo, duplicados, por_id, cambios)
         padre = por_id.get(_texto(fila, "Padre"), "")
         distintivo = padre or _texto(fila, "Iteracion") or item
         nuevo = f"{titulo} ({distintivo})"
+        # Dos tareas con el mismo título COLGADAS DEL MISMO PADRE (o sin padre,
+        # en la misma iteración) seguirían idénticas: el padre no las distingue.
+        # Ahí sólo queda el ID, que es lo único que con seguridad es único.
+        if _clave(nuevo) in usados:
+            nuevo = f"{titulo} ({distintivo} · #{item})" if distintivo != item \
+                else f"{titulo} (#{item})"
+        usados.add(_clave(nuevo))
         salida.at[i, "Titulo"] = nuevo
         cambios.append(Correccion("titulo_duplicado", item, "Titulo", titulo, nuevo))
         titulo = nuevo
