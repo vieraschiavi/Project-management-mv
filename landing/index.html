@@ -150,6 +150,37 @@
   .video-frame video{display:block; width:100%; height:auto;}
   .video-caption{margin-top:14px; font-size:13px; color:var(--faint); text-align:center;}
 
+  /* Azure DevOps · antes / después. Sin video a propósito: lo que convence acá
+     no es una animación, son las filas concretas puestas una al lado de la
+     otra. Además carga al instante y se lee en el celular, que es donde un
+     gerente abre el link que le mandaron. */
+  #ado-ad .ado-grid{display:grid; grid-template-columns:1fr 1fr; gap:18px; align-items:start;}
+  #ado-ad .ado-col{border-radius:16px; padding:18px; border:1px solid rgba(18,34,56,.12); background:var(--paper);}
+  #ado-ad .ado-col.antes{border-color:rgba(224,92,92,.35); background:rgba(224,92,92,.045);}
+  #ado-ad .ado-col.despues{border-color:rgba(0,200,150,.4); background:rgba(0,200,150,.05);}
+  #ado-ad .ado-col h3{font-size:12px; letter-spacing:.14em; text-transform:uppercase; margin:0 0 14px;}
+  #ado-ad .ado-col.antes h3{color:#b23c3c;}
+  #ado-ad .ado-col.despues h3{color:#00785a;}
+  #ado-ad .ado-row{font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:12.5px;
+                   line-height:1.45; padding:9px 0; border-top:1px solid rgba(18,34,56,.08);
+                   color:var(--ink-d); word-break:break-word;}
+  #ado-ad .ado-row:first-of-type{border-top:0;}
+  #ado-ad .antes .ado-row{opacity:.78;}
+  #ado-ad .ado-tag{display:inline-block; font-size:11px; padding:1px 7px; border-radius:20px;
+                   background:rgba(0,200,150,.16); color:#00785a; white-space:nowrap;}
+  #ado-ad .antes .ado-tag{background:rgba(224,92,92,.16); color:#b23c3c;}
+  #ado-ad .ado-stats{display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-top:26px;}
+  #ado-ad .ado-stat{text-align:center; padding:16px 10px; border-radius:14px; background:var(--tint);}
+  #ado-ad .ado-stat b{display:block; font-size:26px; line-height:1.1; color:var(--ink-d);}
+  #ado-ad .ado-stat span{display:block; margin-top:5px; font-size:12px; color:#5b708c;}
+  #ado-ad .ado-note{margin-top:22px; padding:16px 18px; border-radius:14px;
+                    background:rgba(47,116,192,.07); border:1px solid rgba(47,116,192,.2);
+                    font-size:13.5px; line-height:1.6; color:var(--ink-d); max-width:80ch;}
+  @media (max-width:760px){
+    #ado-ad .ado-grid{grid-template-columns:1fr;}
+    #ado-ad .ado-stats{grid-template-columns:repeat(2,1fr);}
+  }
+
   .mock{background:var(--navy2); border:1px solid rgba(255,255,255,.09); border-radius:18px; padding:20px; box-shadow:0 30px 70px -20px rgba(0,0,0,.5);}
   .mock-head{display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;}
   .mock-head .title{font-size:13px; font-weight:700;}
@@ -373,6 +404,52 @@
       </video>
     </div>
     <p class="video-caption" data-i="video_caption">Portafolio y salud → dataset pharma real hasta Power BI → gobernanza (la IA propone, el dueño valida, todo versionado) → organigrama → PMBOK en criollo → prueba completa de 7 días. Recorrido animado del producto, con voz.</p>
+  </div>
+</section>
+
+<!-- Azure DevOps. Va acá y no abajo porque es lo único de la página que se
+     puede probar con el backlog que el gerente YA tiene, sin migrar nada.
+     Las cuatro cifras de abajo NO están escritas a mano: salen del motor sobre
+     el backlog de demo del repo, y `tests/test_landing_azure.py` falla si el
+     motor deja de dar eso. Nadie puede dejar acá un número que el producto no
+     respalde. -->
+<section id="ado-ad" class="light">
+  <div class="wrap">
+    <div class="sec-head">
+      <span class="eyebrow" data-i="ado_kicker">Azure DevOps · antes / después</span>
+      <h2 data-i="ado_h2">El backlog que su equipo ya tiene, revisado en 10 segundos</h2>
+      <p data-i="ado_lead">Se conecta al Azure DevOps del equipo (o se sube el CSV exportado), corre 16 reglas de calidad y devuelve el archivo corregido listo para volver a subir. No hay que migrar nada ni cambiar de herramienta.</p>
+    </div>
+    <div class="ado-grid">
+      <div class="ado-col antes">
+        <h3 data-i="ado_col_antes">Antes</h3>
+        <div class="ado-row" data-i="ado_r1_a">Task «DELETE», estado Done</div>
+        <div class="ado-row" data-i="ado_r2_a">«Revisión con analítica» × 2, idénticas</div>
+        <div class="ado-row" data-i="ado_r3_a">«Refresco c/8 hs (MANUAL mientras no se resuelve)»</div>
+        <div class="ado-row" data-i="ado_r4_a">Iteración: …\Sprint Actual</div>
+        <div class="ado-row" data-i="ado_r5_a">Etiqueta: <span class="ado-tag">VERLO DESPUES</span></div>
+        <div class="ado-row" data-i="ado_r6_a">Descripción: (vacía)</div>
+        <div class="ado-row" data-i="ado_r7_a">En Doing desde junio — nadie lo dijo</div>
+      </div>
+      <div class="ado-col despues">
+        <h3 data-i="ado_col_despues">Después</h3>
+        <div class="ado-row" data-i="ado_r1_d">Fuera del backlog</div>
+        <div class="ado-row" data-i="ado_r2_d">Cada una con su Epic entre paréntesis</div>
+        <div class="ado-row" data-i="ado_r3_d">«Refresco c/8 hs» + la salvedad en la descripción</div>
+        <div class="ado-row" data-i="ado_r4_d">Iteración: …\Sprint 3 (supuesto declarado)</div>
+        <div class="ado-row" data-i="ado_r5_d">Etiqueta: <span class="ado-tag">revisar</span> — se filtra</div>
+        <div class="ado-row" data-i="ado_r6_d">Objetivo / Entregable / Criterio de aceptación</div>
+        <div class="ado-row" data-i="ado_r7_d">Etiqueta: <span class="ado-tag">estancado-96d</span></div>
+      </div>
+    </div>
+    <div class="ado-stats">
+      <div class="ado-stat"><b data-n="hallazgos">63 → 35</b><span data-i="ado_s1">hallazgos</span></div>
+      <div class="ado-stat"><b data-n="altas">12 → 8</b><span data-i="ado_s2">de severidad alta</span></div>
+      <div class="ado-stat"><b data-n="correcciones">44</b><span data-i="ado_s3">correcciones aplicadas</span></div>
+      <div class="ado-stat"><b data-n="reglas">16</b><span data-i="ado_s4">reglas de calidad</span></div>
+    </div>
+    <p class="ado-note" data-i="ado_note"><strong>Por qué no queda en cero, y por qué eso es lo bueno.</strong> Las 28 que se van son las que se pueden deducir del propio backlog. Las que quedan necesitan que una persona decida: cuánto esfuerzo lleva un ítem, de qué Epic cuelga, quién lo toma. El producto <strong>no las inventa</strong> — les pone una etiqueta que en Azure DevOps se filtra, y las deja a la vista. Un número inventado sería peor que ninguno: el reporte saldría igual, y estaría mal.</p>
+    <p class="video-caption" style="text-align:left" data-i="ado_caption">Cifras calculadas por el motor sobre el backlog de demo del repositorio —100% sintético, con un defecto puesto a propósito por cada regla— y verificadas por un test. El módulo es de sólo lectura: no escribe en Azure DevOps, lo corregido vuelve como archivo y lo sube una persona.</p>
   </div>
 </section>
 
@@ -764,6 +841,27 @@ const I18N = {
     ad_h2:"What changes on Monday morning",
     ad_lead:"On 132 real public projects from the UK government: how long it takes your team today to know which ones are red, and how long it takes with the engine.",
     ad_caption:"Verifiable public data: IPA / Cabinet Office, Open Government Licence v3.0. The hours in the &laquo;before&raquo; are an assumption stated on screen (15 minutes of manual review per project), not a measurement.",
+    ado_kicker:"Azure DevOps · before / after",
+    ado_h2:"The backlog your team already has, reviewed in 10 seconds",
+    ado_lead:"It connects to your team's Azure DevOps (or you upload the exported CSV), runs 16 quality rules and hands back the corrected file, ready to re-import. Nothing to migrate, no change of tool.",
+    ado_col_antes:"Before", ado_col_despues:"After",
+    ado_r1_a:"Task &laquo;DELETE&raquo;, state Done",
+    ado_r2_a:"&laquo;Review with analytics&raquo; × 2, identical",
+    ado_r3_a:"&laquo;Refresh every 8h (MANUAL until it is fixed)&raquo;",
+    ado_r4_a:"Iteration: …\\Current Sprint",
+    ado_r5_a:"Tag: <span class=\"ado-tag\">LOOK AT IT LATER</span>",
+    ado_r6_a:"Description: (empty)",
+    ado_r7_a:"In Doing since June — nobody said so",
+    ado_r1_d:"Dropped from the backlog",
+    ado_r2_d:"Each one with its Epic in brackets",
+    ado_r3_d:"&laquo;Refresh every 8h&raquo; + the caveat in the description",
+    ado_r4_d:"Iteration: …\\Sprint 3 (stated assumption)",
+    ado_r5_d:"Tag: <span class=\"ado-tag\">revisar</span> — filterable",
+    ado_r6_d:"Goal / Deliverable / Acceptance criteria",
+    ado_r7_d:"Tag: <span class=\"ado-tag\">estancado-96d</span>",
+    ado_s1:"findings", ado_s2:"of high severity", ado_s3:"corrections applied", ado_s4:"quality rules",
+    ado_note:"<strong>Why it does not end at zero, and why that is the good part.</strong> The 28 that go are the ones that can be derived from the backlog itself. The ones that stay need a person to decide: how much effort an item takes, which Epic it hangs off, who picks it up. The product <strong>does not invent them</strong> — it tags them, and tags are filterable in Azure DevOps, so they stay in plain sight. An invented number would be worse than none: the report would still come out, and it would be wrong.",
+    ado_caption:"Figures computed by the engine over the repository's demo backlog —100% synthetic, with one defect planted on purpose per rule— and verified by a test. The module is read-only: it does not write to Azure DevOps; the corrections come back as a file and a person uploads them.",
     video_kicker:"The full tour in under 3 minutes", video_h2:"The product end to end, scene by scene, with voice-over",
     video_caption:"Portfolio & health → real pharma dataset to Power BI → governance (AI proposes, the owner validates, everything versioned) → org chart → PMBOK in plain language → 7-day full trial. An animated product tour, with voice-over.",
     mock_title:"UK government's real portfolio", mock_k1:"real projects", mock_k2:"health index", mock_k3:"over budget",
@@ -859,6 +957,27 @@ const I18N = {
     ad_h2:"O que muda na segunda de manhã",
     ad_lead:"Sobre 132 projetos públicos reais do governo britânico: quanto tempo a sua equipe leva hoje para saber quais estão em vermelho, e quanto leva com o motor.",
     ad_caption:"Dados públicos verificáveis: IPA / Cabinet Office, Open Government Licence v3.0. As horas do &laquo;antes&raquo; são uma suposição declarada na tela (15 minutos de revisão manual por projeto), não uma medição.",
+    ado_kicker:"Azure DevOps · antes / depois",
+    ado_h2:"O backlog que a sua equipe já tem, revisado em 10 segundos",
+    ado_lead:"Conecta-se ao Azure DevOps da equipe (ou você envia o CSV exportado), roda 16 regras de qualidade e devolve o arquivo corrigido, pronto para reimportar. Nada a migrar, sem trocar de ferramenta.",
+    ado_col_antes:"Antes", ado_col_despues:"Depois",
+    ado_r1_a:"Task &laquo;DELETE&raquo;, estado Done",
+    ado_r2_a:"&laquo;Revisão com analytics&raquo; × 2, idênticas",
+    ado_r3_a:"&laquo;Atualização a cada 8h (MANUAL enquanto não se resolve)&raquo;",
+    ado_r4_a:"Iteração: …\\Sprint Atual",
+    ado_r5_a:"Etiqueta: <span class=\"ado-tag\">VER DEPOIS</span>",
+    ado_r6_a:"Descrição: (vazia)",
+    ado_r7_a:"Em Doing desde junho — ninguém disse",
+    ado_r1_d:"Fora do backlog",
+    ado_r2_d:"Cada uma com o seu Epic entre parênteses",
+    ado_r3_d:"&laquo;Atualização a cada 8h&raquo; + a ressalva na descrição",
+    ado_r4_d:"Iteração: …\\Sprint 3 (pressuposto declarado)",
+    ado_r5_d:"Etiqueta: <span class=\"ado-tag\">revisar</span> — filtrável",
+    ado_r6_d:"Objetivo / Entregável / Critério de aceitação",
+    ado_r7_d:"Etiqueta: <span class=\"ado-tag\">estancado-96d</span>",
+    ado_s1:"achados", ado_s2:"de severidade alta", ado_s3:"correções aplicadas", ado_s4:"regras de qualidade",
+    ado_note:"<strong>Por que não fica em zero, e por que isso é o bom.</strong> As 28 que saem são as que se podem deduzir do próprio backlog. As que ficam precisam que uma pessoa decida: quanto esforço leva um item, de qual Epic ele pende, quem o assume. O produto <strong>não as inventa</strong> — coloca uma etiqueta que no Azure DevOps se filtra, e as deixa à vista. Um número inventado seria pior que nenhum: o relatório sairia igual, e estaria errado.",
+    ado_caption:"Números calculados pelo motor sobre o backlog de demonstração do repositório —100% sintético, com um defeito posto de propósito por regra— e verificados por um teste. O módulo é somente leitura: não escreve no Azure DevOps; o corrigido volta como arquivo e uma pessoa o envia.",
     video_kicker:"O tour completo em menos de 3 minutos", video_h2:"O produto de ponta a ponta, cena a cena, com narração",
     video_caption:"Portfólio e saúde → dataset pharma real até o Power BI → governança (a IA propõe, o responsável valida, tudo versionado) → organograma → PMBOK em linguagem simples → teste completo de 7 dias. Um tour animado do produto, com narração.",
     mock_title:"Portfólio real do governo britânico", mock_k1:"projetos reais", mock_k2:"índice de saúde", mock_k3:"acima do orçamento",
