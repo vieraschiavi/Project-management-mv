@@ -1405,6 +1405,23 @@ _STRINGS = {
     "empty_server_caption": {"es": "Todavía no cargaste proyectos en este servidor.",
                              "en": "You haven't loaded any projects on this server yet.",
                              "pt": "Você ainda não carregou projetos neste servidor."},
+    "fuente_usuario_label": {
+        "es": "Datos activos: {nombre}. La demo está oculta en todas las pestañas.",
+        "en": "Active data: {nombre}. The demo is hidden in every tab.",
+        "pt": "Dados ativos: {nombre}. A demo está oculta em todas as abas."},
+    "fuente_demo_label": {
+        "es": "Datos activos: portafolio de ejemplo (demo sintética).",
+        "en": "Active data: sample portfolio (synthetic demo).",
+        "pt": "Dados ativos: portfólio de exemplo (demo sintética)."},
+    "fuente_origen_manual": {"es": "proyectos cargados a mano",
+                             "en": "manually entered projects",
+                             "pt": "projetos cadastrados manualmente"},
+    "fuente_volver_demo_btn": {"es": "Volver a la demo", "en": "Back to the demo",
+                               "pt": "Voltar para a demo"},
+    "fuente_volver_demo_help": {
+        "es": "Archiva tus proyectos importados (no se borran) y vuelve a mostrar la demo.",
+        "en": "Archives your imported projects (nothing is deleted) and shows the demo again.",
+        "pt": "Arquiva seus projetos importados (nada é apagado) e volta a mostrar a demo."},
     "empty_server_btn": {"es": "Cargar datos de ejemplo para explorar",
                          "en": "Load sample data to explore", "pt": "Carregar dados de exemplo para explorar"},
     "new_project_expander": {"es": "Nuevo proyecto", "en": "New project", "pt": "Novo projeto"},

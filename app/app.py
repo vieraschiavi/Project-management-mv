@@ -39,6 +39,7 @@ from mvpm import (
     documento,
     dependencies as dep_mod,
     exporters,
+    fuente,
     glossary,
     governance,
     health,
@@ -360,6 +361,27 @@ if not INVITADO:
 
 st.sidebar.title(T("app_title"))
 
+# Fuente activa del portafolio: la demo o los datos del usuario, nunca
+# mezclados (regla en mvpm/fuente.py). Se resuelve ANTES del menú porque las
+# pestañas de datos de ejemplo se esconden cuando el usuario ya cargó lo suyo.
+FUENTE = (st.session_state["invitado_almacen"].fuente_activa()
+          if INVITADO else fuente.desde_db())
+if FUENTE.es_usuario:
+    _fuente_nombre = ", ".join(
+        T("fuente_origen_manual") if o == fuente.MANUAL else fuente.nombre_visible(o)
+        for o in FUENTE.origenes)
+    st.sidebar.success(T("fuente_usuario_label").format(nombre=_fuente_nombre),
+                       icon=":material/database:")
+    if st.sidebar.button(T("fuente_volver_demo_btn"), key="fuente_volver_demo",
+                         help=T("fuente_volver_demo_help")):
+        if INVITADO:
+            st.session_state["invitado_almacen"].archivar_proyectos_de_usuario()
+        else:
+            fuente.volver_a_demo_db()
+        st.rerun()
+elif FUENTE.es_demo:
+    st.sidebar.info(T("fuente_demo_label"), icon=":material/science:")
+
 if INVITADO:
     # Se ofrece sólo lo que funciona sin cuenta: subir el archivo y analizar el
     # portafolio. Lo que queda afuera (gobernanza, organigrama, plantillas,
@@ -382,6 +404,11 @@ else:
         T("nav_capacitacion"),
         T("nav_bitacora"), T("nav_reuniones"), T("nav_relevamiento"), T("nav_config_ia"),
     ]
+    if FUENTE.es_usuario:
+        # Con datos propios cargados, los portafolios de ejemplo (británico y
+        # farmacéutico) dejan de ofrecerse: la demo desaparece de todas partes.
+        nav_options = [o for o in nav_options
+                       if o not in (T("nav_real_demo"), T("nav_pharma"))]
     if user["rol"] == "admin":
         nav_options.append(T("nav_users"))
         # Sólo admin: restaurar es la única acción del producto que destruye
@@ -399,19 +426,16 @@ section = st.sidebar.radio(T("sidebar_section_label"), nav_options, index=_indic
 st.title(T("app_title"))
 
 
-def load_data():
-    # El invitado lee de su almacén de sesión; el usuario registrado, de la base.
-    # Ambos devuelven las mismas columnas, así que de acá para abajo el
-    # dashboard no distingue entre uno y otro.
-    if INVITADO:
-        a = st.session_state["invitado_almacen"]
-        return a.proyectos(), a.tareas(), a.equipo()
-    return db.projects(), db.tasks(), db.team()
-
-
-proj_df, task_df, team_df = load_data()
+# El invitado lee de su almacén de sesión; el usuario registrado, de la base.
+# Ambos pasan por el mismo resolver (FUENTE, arriba) y devuelven las mismas
+# columnas, así que de acá para abajo TODAS las pestañas leen sólo la fuente
+# activa y no distinguen entre invitado y usuario registrado.
+proj_df, task_df, team_df = FUENTE.proyectos, FUENTE.tareas, FUENTE.equipo
 equipo_df = (pd.DataFrame(columns=["id", "nombre", "email", "rol"])
              if INVITADO else db.listar_usuarios())
+if FUENTE.es_usuario:
+    # Los responsables ficticios de la demo no se ofrecen para asignar.
+    equipo_df = equipo_df[~equipo_df["email"].fillna("").str.endswith("@demo.local")]
 
 
 # Escritura: el invitado escribe en su almacén de sesión y el usuario
@@ -519,7 +543,10 @@ if section == T("nav_tutorial"):
 elif section == T("nav_case_study"):
     st.subheader(T("nav_case_study"))
     st.caption(T("case_study_caption"))
-    caso = case_study.narrar_caso(lang=LANG)
+    if proj_df.empty:
+        st.info(T("case_study_no_data"))
+        st.stop()
+    caso = case_study.narrar_caso(proj_df, task_df, team_df, lang=LANG)
     st.markdown(T("case_study_chosen").format(
         nombre=caso["nombre"], id=caso["proyecto_id"], indice=caso["indice"], estado=caso["estado"]))
     st.divider()
@@ -528,8 +555,6 @@ elif section == T("nav_case_study"):
         st.caption(paso["seccion"])
         st.write(paso["texto"])
         st.write("")
-    if proj_df.empty:
-        st.info(T("case_study_no_data"))
 
 elif section == T("nav_real_demo"):
     st.subheader(T("nav_real_demo"))
@@ -1203,10 +1228,9 @@ elif section == T("nav_import"):
             # Para el invitado, "lo que ya existe" es lo que subió en esta misma
             # sesión: no se puede consultar la base porque sus datos no están
             # ahí (y los del servidor no son suyos).
-            _existentes = (
-                (proj_df if tipo == "proyectos" else task_df) if INVITADO else
-                (db.projects(incluir_archivados=True) if tipo == "proyectos"
-                 else db.tasks()))
+            _existentes = fuente.existentes_para_importar(
+                FUENTE, tipo,
+                None if INVITADO else db.projects(incluir_archivados=True, con_origen=True))
             reporte = importer.validar(
                 df_import, tipo, mapeo,
                 proyectos=proj_df if tipo == "tareas" else None,
@@ -1248,7 +1272,11 @@ elif section == T("nav_import"):
                     # el invitado usa las de su almacén de sesión y el usuario
                     # registrado las de la base — sin ramificar el importador.
                     _almacen = st.session_state.get("invitado_almacen")
-                    _crear_p = _almacen.crear_proyecto if INVITADO else db.crear_proyecto
+                    _escribir_p = _almacen.crear_proyecto if INVITADO else db.crear_proyecto
+                    _origen_imp = fuente.origen_archivo(uploaded.name)
+
+                    def _crear_p(**campos):
+                        return _escribir_p(origen=_origen_imp, **campos)
                     _crear_t = _almacen.crear_tarea if INVITADO else db.crear_tarea
                     creadas = importer.aplicar(reporte, _crear_p, _crear_t)
                     st.session_state["import_resultado"] = T("import_done").format(
@@ -1408,8 +1436,8 @@ elif section == T("nav_conectores"):
                 _df_erp, _destino, {k: v.columna for k, v in _sug.items() if v.columna},
                 proyectos=proj_df if _destino == "tareas" else None,
                 usuarios=db.listar_usuarios() if _destino == "tareas" else None,
-                existentes=(db.projects(incluir_archivados=True)
-                            if _destino == "proyectos" else db.tasks()),
+                existentes=fuente.existentes_para_importar(
+                    FUENTE, _destino, db.projects(incluir_archivados=True, con_origen=True)),
                 proyecto_default_id=(int(proj_df.iloc[0]["_id"])
                                      if _destino == "tareas" and not proj_df.empty
                                      else None),
@@ -1427,7 +1455,10 @@ elif section == T("nav_conectores"):
             if _rep_erp.puede_importar and st.button(
                     T("erp_import_btn").format(n=_rep_erp.filas_validas, tipo=_destino_label),
                     type="primary", icon=":material/check:", key="importar_erp"):
-                _n = importer.aplicar(_rep_erp, db.crear_proyecto, db.crear_tarea)
+                _origen_erp = fuente.origen_sql(_perfil.nombre)
+                _n = importer.aplicar(
+                    _rep_erp, lambda **c: db.crear_proyecto(origen=_origen_erp, **c),
+                    db.crear_tarea)
                 st.session_state.pop("erp_df", None)
                 st.success(T("erp_import_done").format(n=_n, tipo=_destino_label))
                 st.rerun()
@@ -1802,10 +1833,11 @@ elif section == T("nav_azure"):
     st.caption(T("ado_bajada"))
     st.info(T("ado_solo_lectura"))
 
-    _origen = st.radio(
-        T("ado_origen"),
-        [T("ado_origen_demo"), T("ado_origen_csv"), T("ado_origen_api")],
-        horizontal=True, key="ado_origen")
+    # Con datos propios cargados no se ofrece el backlog de ejemplo.
+    _ado_opciones = [T("ado_origen_csv"), T("ado_origen_api")]
+    if not FUENTE.es_usuario:
+        _ado_opciones.insert(0, T("ado_origen_demo"))
+    _origen = st.radio(T("ado_origen"), _ado_opciones, horizontal=True, key="ado_origen")
 
     _backlog = None
     if _origen == T("ado_origen_demo"):

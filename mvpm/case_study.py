@@ -65,6 +65,7 @@ _PASOS_TXT = {
                         "otras tareas, sin que nadie la marque como 'urgente' a mano."),
         "backlog_sin": "Este proyecto no tiene tareas pendientes en el backlog priorizado.",
         "backlog_vencida": "vencida hace {dias} días", "backlog_vence": "vence en {dias} días",
+        "backlog_sin_fecha": "sin fecha de vencimiento cargada",
         "copiloto_titulo": "5. Lo que responde el copiloto si le preguntás por proyectos en riesgo",
         "reportes_titulo": "6. Qué le llega a dirección",
         "reportes_texto": ("El reporte ejecutivo semanal incluye a '{nombre}' entre los "
@@ -93,6 +94,7 @@ _PASOS_TXT = {
                         "impact on other tasks, with no one flagging it 'urgent' by hand."),
         "backlog_sin": "This project has no pending tasks in the prioritized backlog.",
         "backlog_vencida": "overdue by {dias} day(s)", "backlog_vence": "due in {dias} day(s)",
+        "backlog_sin_fecha": "no due date set",
         "copiloto_titulo": "5. What the copilot answers when asked about projects at risk",
         "reportes_titulo": "6. What reaches leadership",
         "reportes_texto": ("The weekly executive report includes '{nombre}' among the projects "
@@ -122,6 +124,7 @@ _PASOS_TXT = {
                         "tarefas, sem que ninguém a marque como 'urgente' à mão."),
         "backlog_sin": "Este projeto não tem tarefas pendentes no backlog priorizado.",
         "backlog_vencida": "vencida há {dias} dia(s)", "backlog_vence": "vence em {dias} dia(s)",
+        "backlog_sin_fecha": "sem data de vencimento cadastrada",
         "copiloto_titulo": "5. O que o copiloto responde se você perguntar sobre projetos em risco",
         "reportes_titulo": "6. O que chega à diretoria",
         "reportes_texto": ("O relatório executivo semanal inclui '{nombre}' entre os projetos "
@@ -203,9 +206,14 @@ def narrar_caso(projects: pd.DataFrame | None = None, tasks: pd.DataFrame | None
 
     if not backlog_p.empty:
         top = backlog_p.iloc[0]
-        dias = int(top["dias_restantes"])
-        plazo = (tx["backlog_vencida"].format(dias=abs(dias)) if dias < 0
-                 else tx["backlog_vence"].format(dias=dias))
+        # Con datos importados una tarea puede no traer vencimiento (la demo
+        # siempre lo tenía): se dice eso en vez de reventar con int(NaN).
+        if pd.isna(top["dias_restantes"]):
+            plazo = tx["backlog_sin_fecha"]
+        else:
+            dias = int(top["dias_restantes"])
+            plazo = (tx["backlog_vencida"].format(dias=abs(dias)) if dias < 0
+                     else tx["backlog_vence"].format(dias=dias))
         texto_backlog = tx["backlog_con"].format(titulo=top["titulo"], puesto=int(top["puesto"]), plazo=plazo)
     else:
         texto_backlog = tx["backlog_sin"]
