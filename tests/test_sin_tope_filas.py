@@ -9,6 +9,7 @@ import sqlite3
 from pathlib import Path
 
 import pandas as pd
+import pytest
 
 from mvpm import azure_devops as ado
 from mvpm import conectores as cx
@@ -33,6 +34,7 @@ def _erp_sap(tmp_path) -> str:
 
 
 def test_extraer_sin_limite_trae_todas_las_filas(tmp_path):
+    pytest.importorskip("sqlalchemy")  # CI no la instala; el ejecutor la necesita
     ej = cx.crear_ejecutor(_erp_sap(tmp_path))
     df = cx.extraer(ej, "sap_ps", "proyectos", esquema="")
     assert len(df) == FILAS
@@ -47,6 +49,7 @@ def test_sql_de_sin_limite_no_agrega_LIMIT():
 
 
 def test_extraer_con_tope_explicito_recorta_y_avisa_con_el_total(tmp_path):
+    pytest.importorskip("sqlalchemy")  # CI no la instala; el ejecutor la necesita
     ej = cx.crear_ejecutor(_erp_sap(tmp_path))
     df = cx.extraer(ej, "sap_ps", "proyectos", esquema="", limite=1000)
     assert len(df) == 1000
