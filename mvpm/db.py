@@ -24,7 +24,8 @@ from mvpm import rutas
 _STORE_DIR = rutas.directorio_datos()
 _DB_FILE = _STORE_DIR / "datos.db"
 
-_HORAS_POR_TAREA_ACTIVA = 4  # estimación fija para el proxy de carga del equipo
+_HORAS_POR_TAREA_ACTIVA = 4
+_DOMINIO_DEMO = "@demo.local"  # usuarios ficticios de cargar_datos_de_ejemplo()  # estimación fija para el proxy de carga del equipo
 
 
 def _now() -> str:
@@ -185,6 +186,27 @@ def init_db() -> None:
         CREATE INDEX IF NOT EXISTS idx_intentos_email
             ON intentos_login (email, creado_en DESC);
         """)
+        _migrar_origen(conn)
+
+
+def _migrar_origen(conn) -> None:
+    """Agrega `proyectos.origen` a bases creadas antes de que existiera.
+
+    Es lo que usa `mvpm/fuente.py` para no mezclar la demo con los datos del
+    usuario. En una base vieja, los proyectos sembrados por
+    `cargar_datos_de_ejemplo()` se reconocen por nombre + portafolio de
+    `demo_data` y se marcan como demo; todo lo demás queda como `manual`
+    (dato del usuario). Sólo agrega una etiqueta: no toca ningún otro campo.
+    """
+    columnas = {r["name"] for r in conn.execute("PRAGMA table_info(proyectos)")}
+    if "origen" in columnas:
+        return
+    conn.execute("ALTER TABLE proyectos ADD COLUMN origen TEXT NOT NULL DEFAULT 'manual'")
+    from . import demo_data
+
+    pares = [(r["nombre"], r["portafolio"]) for _, r in demo_data.projects().iterrows()]
+    conn.executemany(
+        "UPDATE proyectos SET origen = 'demo' WHERE nombre = ? AND portafolio = ?", pares)
 
 
 # ---------------------------------------------------------------- usuarios
@@ -275,14 +297,18 @@ _PROJECT_FIELDS = ["nombre", "portafolio", "sponsor", "dueno_id", "segmento",
 
 
 def crear_proyecto(**kwargs) -> int:
+    """`origen` (opcional) dice de dónde vino: 'demo', 'manual' (default),
+    'archivo:<nombre>' o 'sql:<perfil>' — ver mvpm/fuente.py."""
     campos = {k: kwargs.get(k) for k in _PROJECT_FIELDS}
+    origen = kwargs.get("origen") or "manual"
     with _connect() as conn:
         cur = conn.execute(
             "INSERT INTO proyectos (nombre, portafolio, sponsor, dueno_id, segmento, "
-            "fecha_inicio, fecha_fin, presupuesto, ejecutado, criticidad, creado_en, actualizado_en) "
+            "fecha_inicio, fecha_fin, presupuesto, ejecutado, criticidad, origen, "
+            "creado_en, actualizado_en) "
             "VALUES (:nombre, :portafolio, :sponsor, :dueno_id, :segmento, :fecha_inicio, :fecha_fin, "
-            ":presupuesto, :ejecutado, :criticidad, :creado_en, :actualizado_en)",
-            {**campos, "creado_en": _now(), "actualizado_en": _now()},
+            ":presupuesto, :ejecutado, :criticidad, :origen, :creado_en, :actualizado_en)",
+            {**campos, "origen": origen, "creado_en": _now(), "actualizado_en": _now()},
         )
         return cur.lastrowid
 
@@ -310,14 +336,17 @@ def eliminar_proyecto(proyecto_id: int) -> None:
         conn.execute("DELETE FROM proyectos WHERE id = ?", (proyecto_id,))
 
 
-def projects(incluir_archivados: bool = False) -> pd.DataFrame:
-    """Mismo esquema de columnas que `demo_data.projects()`."""
+def projects(incluir_archivados: bool = False, con_origen: bool = False) -> pd.DataFrame:
+    """Mismo esquema de columnas que `demo_data.projects()`. Con `con_origen`
+    agrega la columna `origen` que usa mvpm/fuente.py para separar demo y
+    datos del usuario."""
     where = "" if incluir_archivados else "WHERE p.archivado = 0"
+    extra = ", p.origen" if con_origen else ""
     with _connect() as conn:
         df = pd.read_sql_query(f"""
             SELECT p.id AS _id, 'PRJ-' || printf('%03d', p.id) AS proyecto_id,
                    p.nombre, p.portafolio, p.sponsor, u.nombre AS dueno, p.segmento,
-                   p.fecha_inicio, p.fecha_fin, p.presupuesto, p.ejecutado, p.criticidad
+                   p.fecha_inicio, p.fecha_fin, p.presupuesto, p.ejecutado, p.criticidad{extra}
             FROM proyectos p
             LEFT JOIN usuarios u ON u.id = p.dueno_id
             {where}
@@ -378,13 +407,24 @@ def tasks() -> pd.DataFrame:
     return df
 
 
-def team() -> pd.DataFrame:
+def archivar_proyectos_de_usuario() -> int:
+    """Archiva (no borra) todo proyecto activo que no sea de la demo. Es el
+    "volver a la demo" de mvpm/fuente.py: reversible con archivar_proyecto(id,
+    False), porque los datos del usuario no se destruyen."""
+    with _connect() as conn:
+        cur = conn.execute(
+            "UPDATE proyectos SET archivado = 1, actualizado_en = ? "
+            "WHERE archivado = 0 AND origen != 'demo'", (_now(),))
+        return cur.rowcount
+
+
+def team(con_origen: bool = False) -> pd.DataFrame:
     """Mismo esquema de columnas que `demo_data.team()`. `carga_actual_hs` es un
     proxy calculado (tareas activas asignadas × horas fijas por tarea), no un
     dato cargado a mano — evita pedirle a cada usuario que mantenga esa cifra."""
     with _connect() as conn:
         usuarios = pd.read_sql_query(
-            "SELECT id, nombre, rol, capacidad_semanal_hs FROM usuarios", conn)
+            "SELECT id, nombre, email, rol, capacidad_semanal_hs FROM usuarios", conn)
         carga = pd.read_sql_query("""
             SELECT responsable_id, COUNT(*) AS tareas_activas
             FROM tareas
@@ -400,7 +440,14 @@ def team() -> pd.DataFrame:
     usuarios["tareas_activas"] = pd.to_numeric(
         usuarios["tareas_activas"], errors="coerce").fillna(0)
     usuarios["carga_actual_hs"] = (usuarios["tareas_activas"] * _HORAS_POR_TAREA_ACTIVA).astype(int)
-    return usuarios[["nombre", "rol", "capacidad_semanal_hs", "carga_actual_hs"]]
+    columnas = ["nombre", "rol", "capacidad_semanal_hs", "carga_actual_hs"]
+    if con_origen:
+        # Los usuarios ficticios que siembra cargar_datos_de_ejemplo() tienen
+        # email @demo.local: son el equipo de la demo, no el del cliente.
+        usuarios["origen"] = usuarios["email"].fillna("").str.endswith(_DOMINIO_DEMO).map(
+            {True: "demo", False: "manual"})
+        columnas.append("origen")
+    return usuarios[columnas]
 
 
 # ---------------------------------------------------------------- seguimientos
@@ -580,6 +627,7 @@ def cargar_datos_de_ejemplo() -> None:
             dueno_id=_id_para(p["dueno"]) or admin_id, segmento=p["segmento"],
             fecha_inicio=p["fecha_inicio"], fecha_fin=p["fecha_fin"],
             presupuesto=p["presupuesto"], ejecutado=p["ejecutado"], criticidad=p["criticidad"],
+            origen="demo",
         )
         proy_id_map[p["proyecto_id"]] = new_id
 

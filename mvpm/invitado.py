@@ -23,7 +23,7 @@ from __future__ import annotations
 
 import pandas as pd
 
-from . import demo_real
+from . import demo_real, fuente
 
 # Mismas columnas que devuelven db.projects() y db.tasks(), en el mismo orden.
 COLUMNAS_PROYECTOS = ["_id", "proyecto_id", "nombre", "portafolio", "sponsor",
@@ -71,6 +71,10 @@ class Almacen:
             "presupuesto": campos.get("presupuesto") or 0,
             "ejecutado": campos.get("ejecutado") or 0,
             "criticidad": campos.get("criticidad") or "Media",
+            # De dónde vino (ver mvpm/fuente.py) y si está archivado: no
+            # forman parte de las columnas públicas, sólo deciden qué se ve.
+            "origen": campos.get("origen") or fuente.MANUAL,
+            "archivado": False,
         })
         return nuevo_id
 
@@ -96,8 +100,10 @@ class Almacen:
 
     # ---------------------------------------------------------------- lectura
 
-    def proyectos(self) -> pd.DataFrame:
-        df = pd.DataFrame(self._proyectos, columns=COLUMNAS_PROYECTOS)
+    def proyectos(self, con_origen: bool = False) -> pd.DataFrame:
+        columnas = COLUMNAS_PROYECTOS + (["origen"] if con_origen else [])
+        df = pd.DataFrame([p for p in self._proyectos if not p["archivado"]],
+                          columns=columnas)
         for col in _NUMERICAS_PROYECTOS:
             df[col] = pd.to_numeric(df[col], errors="coerce").fillna(0)
         return df
@@ -111,6 +117,18 @@ class Almacen:
         distinto: ya sabe calcular con un equipo vacío."""
         return pd.DataFrame(columns=["nombre", "rol", "capacidad_semanal_hs",
                                      "carga_actual_hs"])
+
+    def fuente_activa(self) -> "fuente.FuenteActiva":
+        return fuente.resolver(self.proyectos(con_origen=True), self.tareas(), self.equipo())
+
+    def archivar_proyectos_de_usuario(self) -> int:
+        """Volver a la demo sin borrar lo importado en la sesión."""
+        n = 0
+        for p in self._proyectos:
+            if not p["archivado"] and not fuente.es_demo(p["origen"]):
+                p["archivado"] = True
+                n += 1
+        return n
 
     # ---------------------------------------------------------------- estado
 
@@ -139,5 +157,6 @@ def con_portafolio_real() -> Almacen:
     almacen = Almacen()
     df = demo_real.cargar_portafolio_real()
     for _, fila in df.iterrows():
-        almacen.crear_proyecto(**{c: fila.get(c) for c in df.columns})
+        almacen.crear_proyecto(**{c: fila.get(c) for c in df.columns},
+                               origen=fuente.DEMO)
     return almacen

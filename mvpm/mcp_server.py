@@ -40,7 +40,7 @@ import traceback
 # cuando el agente llama una herramienta, con un ModuleNotFoundError adentro de
 # la respuesta. Importando arriba, ese caso muere en el arranque y el cliente
 # muestra el servidor como caído, que es la verdad.
-from mvpm import (catalog, db, dependencies, exporters, glossary, health,
+from mvpm import (catalog, db, dependencies, exporters, fuente, glossary, health,
                   policies, prioritizer)
 
 # Versiones del protocolo que este servidor sabe hablar. Se responde con la que
@@ -57,6 +57,14 @@ LIMITE_MAXIMO = 500
 # Datos: exactamente la misma fuente que la API REST
 # --------------------------------------------------------------------------
 
+def _datos():
+    """(proyectos, tareas, equipo) de la fuente activa — la misma regla que el
+    dashboard (mvpm/fuente.py): con datos del usuario cargados, la demo no
+    aparece; sin ellos, la demo sembrada."""
+    f = fuente.desde_db()
+    return f.proyectos, f.tareas, f.equipo
+
+
 def _tablas() -> dict:
     """Las tablas del portafolio, recalculadas en cada llamada.
 
@@ -65,7 +73,7 @@ def _tablas() -> dict:
     que lee una copia vieja da consejos sobre un portafolio que ya no existe.
     """
     db.init_db()
-    return exporters.portfolio_tables(db.projects(), db.tasks(), db.team())
+    return exporters.portfolio_tables(*_datos())
 
 
 def _recorte(df, limite: int, orden: str | None = None, descendente: bool = False):
@@ -103,7 +111,8 @@ def _aviso_si_vacio() -> str | None:
     cliente no cargó es exactamente lo que este producto promete no hacer.
     """
     db.init_db()
-    if db.projects().empty and db.tasks().empty:
+    _p, _t, _ = _datos()
+    if _p.empty and _t.empty:
         return ("Esta instalación todavía no tiene proyectos ni tareas cargados, "
                 "así que los números vienen en cero: no es un portafolio en mal "
                 "estado, es uno vacío. Se cargan desde el dashboard con "
@@ -154,7 +163,7 @@ def _consultar_tabla(tabla: str, limite: int = LIMITE_POR_DEFECTO,
 
 def _salud_portafolio() -> dict:
     db.init_db()
-    proyectos, tareas, equipo = db.projects(), db.tasks(), db.team()
+    proyectos, tareas, equipo = _datos()
     detalle = health.project_health(proyectos, tareas, equipo)
     # `matriz_por_dimension` devuelve una fila POR PROYECTO, igual que
     # `project_health`: incluirla entera sería mandar las mismas filas dos
@@ -175,7 +184,7 @@ def _salud_portafolio() -> dict:
 
 def _bloqueos_y_dependencias(limite: int = LIMITE_POR_DEFECTO) -> dict:
     db.init_db()
-    tareas = db.tasks()
+    tareas = _datos()[1]
     bloqueos = dependencies.bloqueos_activos(tareas)
     huerfanas = dependencies.orphan_dependencies(tareas)
     return {
@@ -188,7 +197,7 @@ def _bloqueos_y_dependencias(limite: int = LIMITE_POR_DEFECTO) -> dict:
 
 def _impacto_si_se_atrasa(tarea_id: str) -> dict:
     db.init_db()
-    afectadas = dependencies.impacto_si_se_atrasa(tarea_id, db.tasks())
+    afectadas = dependencies.impacto_si_se_atrasa(tarea_id, _datos()[1])
     return {
         "tarea": tarea_id,
         "tareas_afectadas": afectadas,
@@ -198,13 +207,13 @@ def _impacto_si_se_atrasa(tarea_id: str) -> dict:
 
 def _backlog_priorizado(limite: int = 10) -> dict:
     db.init_db()
-    backlog = prioritizer.prioritized_backlog(db.projects(), db.tasks())
+    backlog = prioritizer.prioritized_backlog(*_datos()[:2])
     return _recorte(backlog, limite)
 
 
 def _politicas(solo_incumplidas: bool = True) -> dict:
     db.init_db()
-    df = policies.evaluate(db.projects(), db.tasks(), db.team())
+    df = policies.evaluate(*_datos())
     if solo_incumplidas and "cumple" in df.columns:
         df = df[~df["cumple"].astype(bool)]
     return _recorte(df, LIMITE_MAXIMO)
@@ -212,7 +221,7 @@ def _politicas(solo_incumplidas: bool = True) -> dict:
 
 def _kpis() -> dict:
     db.init_db()
-    crudos = catalog.kpis(db.projects())
+    crudos = catalog.kpis(_datos()[0])
     return {k: exporters._valor_json(v) for k, v in crudos.items()}
 
 

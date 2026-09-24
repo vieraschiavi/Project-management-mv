@@ -26,7 +26,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import PlainTextResponse
 from pydantic import BaseModel
 
-from mvpm import db, demo_pharma, exporters, licensing, owner, puertos, reviews
+from mvpm import db, demo_pharma, exporters, fuente, licensing, owner, puertos, reviews
 
 app = FastAPI(title="MV Project Management API", version="0.1.0")
 
@@ -132,7 +132,10 @@ def _tables():
     """Se recalcula en cada request (no se cachea): los datos son la base real
     del cliente, que cambia con cada proyecto/tarea que crea o edita desde el
     dashboard — servir una copia vieja rompería la integración de BI."""
-    return exporters.portfolio_tables(db.projects(), db.tasks(), db.team())
+    # Misma fuente activa que el dashboard (mvpm/fuente.py): con datos del
+    # usuario cargados, la demo sembrada no se mezcla en lo que ve Power BI.
+    f = fuente.desde_db()
+    return exporters.portfolio_tables(f.proyectos, f.tareas, f.equipo)
 
 
 def _registros(df):
