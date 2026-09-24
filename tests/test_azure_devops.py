@@ -778,7 +778,7 @@ def test_la_pantalla_abre_y_ofrece_el_csv_corregido(tmp_path, monkeypatch):
 
 
 @pytest.mark.parametrize("clave, args", [
-    ("ado_truncado", {"n": 500, "sobran": 1500}),
+    ("ado_truncado", {"n": 500, "sobran": 1500, "total": 2000}),
     ("ado_columnas_faltan", {"cols": "Tags, Descripcion_texto"}),
 ])
 def test_los_avisos_con_datos_formatean_en_los_tres_idiomas(clave, args):
