@@ -1897,7 +1897,9 @@ elif section == T("nav_azure"):
     if _backlog is not None and not _backlog.empty:
         _sobran = azure_devops.sobraron(_backlog)
         if _sobran:
-            st.warning(T("ado_truncado").format(n=len(_backlog), sobran=_sobran))
+            st.warning(T("ado_truncado").format(
+                n=len(_backlog), sobran=_sobran,
+                total=azure_devops.total_real(_backlog)))
         _faltantes = [c for c in backlog_calidad.CAMPOS_EDITABLES
                       if c not in backlog_calidad.campos_disponibles(_backlog)]
         if _faltantes:

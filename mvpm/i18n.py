@@ -1535,19 +1535,35 @@ _STRINGS = {
               "campo vazio. Não é mostrado aqui de propósito: mesmo com os "
               "caracteres ocultos, o valor de um campo viaja até o navegador e "
               "pode ser lido pelo inspetor."},
+    "erp_recorte_filas": {
+        "es": "Se trajeron {n} de {total} filas por el tope puesto a la "
+              "extracción. Todo lo que se calcule sale de esas {n}: sacá el "
+              "tope para traer la tabla entera.",
+        "en": "{n} of {total} rows were fetched because of the cap set on the "
+              "extraction. Everything computed comes from those {n}: remove the "
+              "cap to fetch the whole table.",
+        "pt": "Foram trazidas {n} de {total} linhas pelo limite definido na "
+              "extração. Tudo o que for calculado sai dessas {n}: remova o "
+              "limite para trazer a tabela inteira."},
+    "erp_recorte_filas_sin_total": {
+        "es": "Se trajeron {n} filas y la tabla tiene más: el tope puesto a la "
+              "extracción recortó. Sacá el tope para traer la tabla entera.",
+        "en": "{n} rows were fetched and the table has more: the cap set on the "
+              "extraction cut it. Remove the cap to fetch the whole table.",
+        "pt": "Foram trazidas {n} linhas e a tabela tem mais: o limite definido "
+              "na extração cortou. Remova o limite para trazer a tabela inteira."},
     "ado_truncado": {
-        "es": "Se trajeron {n} ítems y quedaron {sobran} afuera por el límite de "
-              "la consulta. Lo de abajo es el análisis de esos {n}, no de todo "
-              "el proyecto: para el resto, acotá la consulta por iteración o por "
-              "área y corré una tanda por cada una.",
-        "en": "{n} items were fetched and {sobran} were left out by the query "
-              "limit. What follows analyses those {n}, not the whole project: "
-              "for the rest, narrow the query by iteration or area and run one "
-              "batch per slice.",
-        "pt": "Foram trazidos {n} itens e {sobran} ficaram de fora pelo limite "
-              "da consulta. O que segue analisa esses {n}, não o projeto "
-              "inteiro: para o resto, restrinja a consulta por iteração ou área "
-              "e rode um lote por fatia."},
+        "es": "Se trajeron {n} de {total} ítems: quedaron {sobran} afuera por el "
+              "tope de filas puesto a la consulta. Lo de abajo es el análisis de "
+              "esos {n}, no de todo el proyecto: sacá el tope para traer el "
+              "backlog entero.",
+        "en": "{n} of {total} items were fetched: {sobran} were left out by the "
+              "row cap set on the query. What follows analyses those {n}, not "
+              "the whole project: remove the cap to fetch the entire backlog.",
+        "pt": "Foram trazidos {n} de {total} itens: {sobran} ficaram de fora pelo "
+              "limite de linhas definido na consulta. O que segue analisa esses "
+              "{n}, não o projeto inteiro: remova o limite para trazer o backlog "
+              "inteiro."},
     "ado_columnas_faltan": {
         "es": "El archivo no trae estas columnas: {cols}. No se corrigen ni se "
               "exportan — escribir una columna que la fuente no trajo pisaría "

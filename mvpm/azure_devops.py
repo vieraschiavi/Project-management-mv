@@ -64,6 +64,8 @@ from mvpm.backlog_calidad import CLAVE_ORIGEN
 
 # Cuántos ítems dejó afuera el límite de la consulta, anotado en el DataFrame.
 CLAVE_TRUNCADO = "mvpm_truncado"
+# Cuántos ítems devuelve la consulta en total (el real, no el recortado).
+CLAVE_TOTAL = "mvpm_total"
 
 HOST = "https://dev.azure.com"
 API_VERSION = "7.1"
@@ -72,7 +74,13 @@ VAR_TOKEN = "AZURE_DEVOPS_PAT"
 
 # Azure DevOps acepta hasta 200 work items por llamada al endpoint de lote.
 LOTE = 200
-LIMITE_POR_DEFECTO = 500
+# Sin tope por defecto: se trae el backlog ENTERO. Hubo un tope de 500 ítems;
+# el dueño lo sacó («sin límite de tamaño»). Un tope explícito se puede seguir
+# pasando a `traer_backlog(limite=n)`, y si recorta se avisa con el total real.
+LIMITE_POR_DEFECTO: int | None = None
+# WIQL devuelve como mucho 20.000 ids por consulta (error VS402337 si se pasa).
+# Para traer más, la consulta por defecto se pagina por [System.Id].
+PAGINA_WIQL = 20_000
 
 # Columnas canónicas del backlog. Son las mismas que exporta la grilla de Azure
 # DevOps en español, y las que consume `backlog_calidad`.
@@ -325,19 +333,49 @@ def probar_conexion(cred: Credenciales) -> dict:
     }
 
 
-def _ids(cred: Credenciales, wiql: str, limite: int) -> tuple[list[int], int]:
-    """Devuelve (ids recortados al límite, cuántos había en total)."""
+def _wiql_desde(wiql: str, ultimo: int) -> str:
+    """La consulta por defecto, a partir del id `ultimo` (exclusive)."""
+    cuerpo, orden = wiql.rsplit("ORDER BY", 1)
+    return f"{cuerpo.rstrip()} AND [System.Id] > {int(ultimo)} ORDER BY{orden}"
+
+
+def _consultar_ids(cred: Credenciales, wiql: str, top: int | None) -> list[int]:
     ruta = f"{quote(cred.proyecto.strip(), safe='')}/_apis/wit/wiql"
-    # Se pide uno más que el límite justamente para poder avisar que sobra.
-    r = _pedir(cred, _url(cred, ruta, **{"$top": limite + 1}), {"query": wiql})
-    filas = r.get("workItems") or []
+    params = {"$top": top} if top else {}
+    r = _pedir(cred, _url(cred, ruta, **params), {"query": wiql})
     todos = []
-    for f in filas:
+    for f in r.get("workItems") or []:
         try:
             todos.append(int(f["id"]))
         except (KeyError, TypeError, ValueError):
             continue
-    return todos[:limite], len(todos)
+    return todos
+
+
+def _ids(cred: Credenciales, wiql: str,
+         limite: int | None = None) -> tuple[list[int], int]:
+    """Devuelve (ids recortados al límite, cuántos hay en total).
+
+    Se traen TODOS los ids —son sólo números, no cuesta— para que el total
+    sea el real y no «uno más que el límite»: el aviso de recorte tiene que
+    poder decir «500 de 12.340», no «500 y quedó 1 afuera».
+    La consulta por defecto se pagina por id para pasar el techo de 20.000
+    de WIQL; una consulta propia se manda tal cual.
+    """
+    if wiql == WIQL_BACKLOG:
+        todos: list[int] = []
+        consulta = wiql
+        while True:
+            pagina = _consultar_ids(cred, consulta, PAGINA_WIQL)
+            todos.extend(pagina)
+            if len(pagina) < PAGINA_WIQL:
+                break
+            consulta = _wiql_desde(wiql, pagina[-1])
+    else:
+        todos = _consultar_ids(cred, wiql, None)
+    if limite and limite > 0:
+        return todos[:limite], len(todos)
+    return todos, len(todos)
 
 
 def _lote(cred: Credenciales, ids: list[int]) -> list[dict]:
@@ -348,8 +386,10 @@ def _lote(cred: Credenciales, ids: list[int]) -> list[dict]:
 
 
 def traer_backlog(cred: Credenciales, wiql: str | None = None,
-                  limite: int = LIMITE_POR_DEFECTO) -> pd.DataFrame:
+                  limite: int | None = LIMITE_POR_DEFECTO) -> pd.DataFrame:
     """Baja el backlog del proyecto como DataFrame con las columnas canónicas.
+
+    `limite` None o 0 (el default) = todos los ítems.
 
     Sólo lectura: WIQL es un lenguaje de consulta y el endpoint de lote es GET.
     """
@@ -361,6 +401,7 @@ def traer_backlog(cred: Credenciales, wiql: str | None = None,
         vacio = pd.DataFrame(columns=list(COLUMNAS))
         vacio.attrs[CLAVE_ORIGEN] = frozenset(COLUMNAS)
         vacio.attrs[CLAVE_TRUNCADO] = 0
+        vacio.attrs[CLAVE_TOTAL] = total
         return vacio
     items: list[dict] = []
     for i in range(0, len(ids), LOTE):
@@ -370,12 +411,18 @@ def traer_backlog(cred: Credenciales, wiql: str | None = None,
     # usuario creyendo que revisó su backlog: el informe sale "limpio" porque
     # no vio el resto, que es la misma mentira que inventar un dato.
     df.attrs[CLAVE_TRUNCADO] = max(0, total - len(ids))
+    df.attrs[CLAVE_TOTAL] = total
     return df
 
 
 def sobraron(df: pd.DataFrame) -> int:
     """Ítems que la consulta dejó afuera por el límite. 0 = se trajo todo."""
     return int(df.attrs.get(CLAVE_TRUNCADO, 0) or 0)
+
+
+def total_real(df: pd.DataFrame) -> int:
+    """Cuántos ítems devolvía la consulta antes de cualquier tope."""
+    return int(df.attrs.get(CLAVE_TOTAL, len(df)) or len(df))
 
 
 def _a_dataframe(items: list[dict]) -> pd.DataFrame:

@@ -1176,13 +1176,56 @@ def convertir(df: pd.DataFrame, clave_perfil: str, tipo: str,
     return salida
 
 
+# Marcas que deja `extraer` en el DataFrame cuando un tope explícito recortó.
+CLAVE_RECORTADA = "mvpm_recortada"
+CLAVE_TOTAL_FILAS = "mvpm_total_filas"
+
+
+def _contar(ejecutar, sql: str) -> int | None:
+    """Total real de filas de la consulta, o None si el motor no acepta el
+    COUNT sobre la subconsulta (el aviso dice entonces «más de N»)."""
+    try:
+        r = ejecutar(f"SELECT COUNT(*) AS n FROM (\n{sql}\n) t")
+        return int(r.iloc[0, 0])
+    except Exception:                                   # noqa: BLE001
+        return None
+
+
 def extraer(ejecutar, clave_perfil: str, tipo: str, *,
             esquema: str | None = None, empresa: str = "",
             limite: int | None = None, lang: str = "es") -> pd.DataFrame:
-    """Sondeo → consulta → conversión. Devuelve algo listo para el importador."""
+    """Sondeo → consulta → conversión. Devuelve algo listo para el importador.
+
+    Sin tope por defecto: `limite` None o 0 trae TODAS las filas (pedido del
+    dueño: «sin límite de tamaño»). Con un tope explícito se pide una fila de
+    más para saber si recortó; si recortó, el DataFrame lleva el total real
+    en `attrs` y `aviso_recorte` lo dice en el idioma pedido.
+    """
+    tope = int(limite) if limite and int(limite) > 0 else None
     sql = sql_de(clave_perfil, tipo, esquema=esquema, empresa=empresa,
-                 limite=limite, lang=lang)
-    return convertir(ejecutar(sql), clave_perfil, tipo, lang=lang)
+                 limite=(tope + 1) if tope else None, lang=lang)
+    crudo = ejecutar(sql)
+    recortada = bool(tope) and len(crudo) > tope
+    total = len(crudo)
+    if recortada:
+        crudo = crudo.head(tope)
+        total = _contar(ejecutar, sql_de(clave_perfil, tipo, esquema=esquema,
+                                         empresa=empresa, lang=lang))
+    df = convertir(crudo, clave_perfil, tipo, lang=lang)
+    df.attrs[CLAVE_RECORTADA] = recortada
+    df.attrs[CLAVE_TOTAL_FILAS] = total
+    return df
+
+
+def aviso_recorte(df: pd.DataFrame, lang: str = "es") -> str | None:
+    """El aviso de recorte, o None si se trajo todo. Nunca un recorte mudo."""
+    if not df.attrs.get(CLAVE_RECORTADA):
+        return None
+    from mvpm import i18n
+    total = df.attrs.get(CLAVE_TOTAL_FILAS)
+    if total:
+        return i18n.t("erp_recorte_filas", lang).format(n=len(df), total=total)
+    return i18n.t("erp_recorte_filas_sin_total", lang).format(n=len(df))
 
 
 # --------------------------------------------------------------- conexión
